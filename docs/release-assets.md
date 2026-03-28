@@ -8,6 +8,8 @@
 
 This page defines the repo-native release copy and diagrams for the current MailClaw release shape. Use these assets for README hero copy, `/console` positioning, and demo walkthroughs.
 
+For the release-ready changelog and GitHub release body, see [Release Notes: v0.1.0](./release-notes-v0.1.0.md).
+
 ## Release Narrative
 
 - Release headline: MailClaw turns email threads into durable, governed rooms for multi-agent work.

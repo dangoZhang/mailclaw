@@ -137,6 +137,7 @@ To inspect the durable room summary that agents actually carry forward:
 - [Operator Console (English)](./docs/operator-console.md)
 - [Operators Guide (English)](./docs/operators-guide.md)
 - [Integrations (English)](./docs/integrations.md)
+- [Release Notes v0.1.0 (English)](./docs/release-notes-v0.1.0.md)
 - [Release Assets (English)](./docs/release-assets.md)
 
 For Chinese and French docs, use the language links at the top of each page.
