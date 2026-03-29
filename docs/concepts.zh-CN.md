@@ -126,6 +126,21 @@ MailClaw 支持三种补充智能体编组的方式：
 
 模板适合一键起步，编制建议适合在积压工作变大后决定哪些角色值得长期化。
 
+MailClaw 当前内置了两类最直接的编组模板：
+
+- `One-Person Company`
+- `Three Provinces, Six Departments`
+
+模板代码在这里：
+
+- <https://github.com/dangoZhang/mailclaw/blob/main/src/agents/templates.ts>
+
+其中 `One-Person Company` 的组织思路参考了这个 GitHub 项目：
+
+- <https://github.com/cyfyifanchen/one-person-company>
+
+`Three Provinces, Six Departments` 则是 MailClaw 内置的一等模板，用来表达更强的分工、审阅和治理结构。
+
 ## 一句话
 
 MailClaw 把邮件变成持久房间，把多智能体协作变成虚拟邮件，把长期记忆收敛成预摘要。

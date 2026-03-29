@@ -13,7 +13,6 @@ export default defineConfig({
     "**/*.zh-CN.md",
     "**/*.fr.md",
     "**/live-provider-smoke.md",
-    "**/prompt-footprint.md",
     "**/release-assets.md"
   ],
   head: [
