@@ -27,6 +27,21 @@ That means:
 - stale worker results can be discarded without corrupting the room
 - external mail stays clean even when several workers participated
 
+## Durable Agents Versus One-Off Subagents
+
+MailClaw intentionally keeps these execution types separate:
+
+- durable agents have their own `SOUL.md`, public mailbox, and internal role mailboxes
+- one-off subagents are burst compute workers and do not keep a soul
+
+That means:
+
+- long-lived persona, collaboration rules, and reusable division of work belong to durable agents
+- elastic task execution belongs to subagents
+- subagent output only enters the room collaboration path after it is normalized into internal reply mail
+
+So MailClaw is not “make every agent permanent.” It is “keep durable agents for organization, keep subagents for elastic compute.”
+
 ## What To Look At In The Workbench
 
 Open the Mail tab, then:

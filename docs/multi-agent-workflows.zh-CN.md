@@ -27,6 +27,21 @@ MailClaw 不让多个 agent 共享一锅越来越长的 transcript。
 - stale worker result 可以被丢弃而不会污染 room 真相
 - 即使多个 worker 参与，外部邮件线程仍然保持干净
 
+## Durable Agent 与单次 Subagent
+
+MailClaw 故意把这两类执行体分开：
+
+- durable agent 有自己的 `SOUL.md`、公开 mailbox 和内部 role mailbox
+- 单次 subagent 只是 burst compute worker，不保留 soul
+
+这意味着：
+
+- 长期人格、长期协作规则和可复用分工属于 durable agent
+- 临时任务增强属于 subagent
+- subagent 结果只有在被归一化成 internal reply mail 后，才会进入 room 协作链
+
+因此 MailClaw 不是“所有 agent 都长期化”，而是“长期 agent 管组织，短期 subagent 管算力”。
+
 ## 在 Workbench 里看什么
 
 打开 Mail 标签后：

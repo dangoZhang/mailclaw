@@ -97,6 +97,35 @@ Mail 标签是这些概念的用户界面。
 
 它不是普通聊天记录查看器，而是把 MailClaw 的运行时模型直接展示出来。
 
+## 7. Durable Agent
+
+MailClaw 里的长期 agent 不是匿名 worker。
+
+每个 durable agent 都有自己的：
+
+- `SOUL.md`
+- `AGENTS.md`
+- public mailbox
+- internal role mailboxes
+
+`SOUL.md` 里会写清：
+
+- 这个 agent 对外和对内的虚拟邮件地址
+- 它负责什么
+- 遇到什么情况该找谁协作
+
+这让多智能体分工不是靠 prompt 里临时硬塞，而是有稳定的人格入口和协作目录。
+
+## 8. Template 与 HeadCount
+
+MailClaw 支持三种补充 agent roster 的方式：
+
+- 预设模板
+- 自定义 durable agent
+- 从长期 subagent 使用模式中总结 HeadCount 建议
+
+模板适合一键起步，HeadCount 适合在 backlog 变大后决定哪些角色值得长期化。
+
 ## 一句话
 
 MailClaw 把邮件变成 durable room，把多智能体协作变成 virtual mail，把长期记忆收敛成 Pre。

@@ -30,6 +30,9 @@ mailclaw open
 
 - 第一次连接邮箱
 - 先看推荐 provider 路径
+- 一键应用 agent 模板
+- 创建自定义 durable agent
+- 查看当前 agent directory 和 HeadCount 建议
 - 从最短路径重新进入 Mail 标签
 
 ### Accounts

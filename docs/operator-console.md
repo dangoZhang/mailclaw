@@ -30,6 +30,9 @@ Use it when:
 
 - you are connecting a mailbox for the first time
 - you want the recommended provider path
+- you want one-click agent templates
+- you want to create a custom durable agent
+- you want to inspect the current agent directory and HeadCount suggestions
 - you want the shortest path back into the Mail tab
 
 ### Accounts

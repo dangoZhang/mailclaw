@@ -30,6 +30,9 @@ Utilisez-la lorsque :
 
 - vous connectez une boîte pour la première fois
 - vous voulez le chemin provider recommandé
+- vous voulez des templates d’agents en un clic
+- vous voulez créer un agent durable personnalisé
+- vous voulez consulter le directory d’agents et les suggestions de HeadCount
 - vous voulez le chemin le plus court pour revenir dans l’onglet Mail
 
 ### Accounts

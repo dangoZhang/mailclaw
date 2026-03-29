@@ -27,6 +27,21 @@ Cela signifie :
 - les stale worker results peuvent être rejetés sans polluer la vérité de la room
 - même si plusieurs workers participent, le thread externe reste propre
 
+## Agents Durables Et Subagents Ponctuels
+
+MailClaw sépare volontairement ces deux types d’exécution :
+
+- les agents durables ont leur propre `SOUL.md`, une mailbox publique et des mailboxes de rôles internes
+- les subagents ponctuels sont des burst compute workers et ne conservent pas de soul
+
+Cela signifie :
+
+- la persona durable, les règles de collaboration et la répartition réutilisable du travail appartiennent aux agents durables
+- l’exécution élastique des tâches appartient aux subagents
+- le résultat d’un subagent n’entre dans la collaboration de la room qu’après normalisation en internal reply mail
+
+MailClaw ne dit donc pas « rendre tous les agents permanents ». Il dit « garder des agents durables pour l’organisation, et des subagents pour la puissance de calcul élastique ».
+
 ## Que Regarder Dans Le Workbench
 
 Après avoir ouvert l’onglet Mail :

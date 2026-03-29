@@ -15,10 +15,36 @@ PACKAGE_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
 find_node_binary() {
   local -a candidates=()
   local candidate=""
+  local path_entry=""
+
+  append_candidate() {
+    local next_candidate="$1"
+    local existing=""
+    if [ -z "$next_candidate" ] || [ ! -x "$next_candidate" ]; then
+      return 0
+    fi
+    for existing in "${candidates[@]-}"; do
+      if [ -z "$existing" ]; then
+        continue
+      fi
+      if [ "$existing" = "$next_candidate" ]; then
+        return 0
+      fi
+    done
+    candidates+=("$next_candidate")
+  }
+
+  append_candidate "${NODE:-}"
+  append_candidate "${npm_node_execpath:-}"
 
   if command -v node >/dev/null 2>&1; then
-    candidates+=("$(command -v node)")
+    append_candidate "$(command -v node)"
   fi
+
+  IFS=':' read -r -a path_entries <<< "${PATH:-}"
+  for path_entry in "${path_entries[@]}"; do
+    append_candidate "$path_entry/node"
+  done
 
   for candidate in \
     /opt/homebrew/opt/node@22/bin/node \
@@ -26,9 +52,7 @@ find_node_binary() {
     /opt/homebrew/bin/node \
     /usr/local/bin/node
   do
-    if [ -x "$candidate" ]; then
-      candidates+=("$candidate")
-    fi
+    append_candidate "$candidate"
   done
 
   for candidate in "${candidates[@]}"; do

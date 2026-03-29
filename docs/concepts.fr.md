@@ -97,6 +97,35 @@ Vues principales :
 
 Ce n’est pas un simple lecteur d’historique de chat. Il expose directement le modèle runtime.
 
+## 7. Agents Durables
+
+Les agents durables de MailClaw ne sont pas des workers anonymes.
+
+Chaque agent durable possède :
+
+- un `SOUL.md`
+- un `AGENTS.md`
+- une mailbox publique
+- des mailboxes de rôles internes
+
+Le `SOUL.md` explicite :
+
+- quelles adresses de virtual mail appartiennent à l’agent
+- ce dont il est responsable
+- quand il doit collaborer avec un autre rôle
+
+Cela ancre la coordination multi-agent dans un roster durable au lieu d’un prompt temporaire.
+
+## 8. Templates Et HeadCount
+
+MailClaw permet de faire évoluer un roster d’agents de trois façons :
+
+- des templates intégrés
+- des agents durables personnalisés
+- des recommandations de HeadCount déduites d’un usage répété des subagents
+
+Les templates servent à démarrer vite. Le HeadCount aide à décider quels rôles doivent devenir durables quand la charge augmente.
+
 ## En Une Phrase
 
 MailClaw transforme l’email en rooms durables, la collaboration multi-agent en virtual mail, et la mémoire longue en Pre compact.

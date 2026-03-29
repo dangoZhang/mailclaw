@@ -97,6 +97,35 @@ Main views:
 
 It is not just a chat history viewer. It exposes the runtime model directly.
 
+## 7. Durable Agents
+
+Long-lived MailClaw agents are not anonymous workers.
+
+Each durable agent has its own:
+
+- `SOUL.md`
+- `AGENTS.md`
+- public mailbox
+- internal role mailboxes
+
+`SOUL.md` makes the contract explicit:
+
+- which virtual mail addresses belong to the agent
+- what the agent owns
+- when it should collaborate with another role
+
+That keeps multi-agent coordination grounded in a durable roster instead of one temporary prompt.
+
+## 8. Templates And HeadCount
+
+MailClaw supports three ways to grow an agent roster:
+
+- built-in templates
+- custom durable agents
+- HeadCount recommendations inferred from repeated subagent usage
+
+Templates are the fast starting point. HeadCount helps decide which roles should become durable once workload grows.
+
 ## In One Sentence
 
 MailClaw turns email into durable rooms, multi-agent collaboration into virtual mail, and long-term memory into compact Pre.
