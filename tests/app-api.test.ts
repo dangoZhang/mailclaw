@@ -127,6 +127,179 @@ function extractModuleScript(html: string) {
 }
 
 describe("app api", () => {
+  it("processes inbound mail immediately in the default embedded runtime", async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "mailclaw-api-embedded-"));
+    tempDirs.push(tempDir);
+
+    const config = loadConfig({
+      MAILCLAW_STATE_DIR: tempDir,
+      MAILCLAW_SQLITE_PATH: path.join(tempDir, "mailclaw.sqlite"),
+      MAILCLAW_FEATURE_MAIL_INGEST: "true"
+    });
+    const handle = initializeDatabase(config);
+    const runtime = createMailSidecarRuntime({
+      db: handle.db,
+      config
+    });
+    const server = createAppServer({
+      config,
+      mailApi: runtime
+    });
+
+    servers.push(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+
+    const address = server.address();
+    if (address === null || typeof address === "string") {
+      throw new Error("Expected address info");
+    }
+
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+    const inboundResponse = await fetch(`${baseUrl}/api/inbound?processImmediately=true`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(buildInboundPayload())
+    });
+    const inboundJson = (await inboundResponse.json()) as {
+      ingested: { roomKey: string };
+      processed: { status: string } | null;
+    };
+
+    expect(inboundResponse.status).toBe(200);
+    expect(inboundJson.processed?.status).toBe("completed");
+
+    const replayResponse = await fetch(
+      `${baseUrl}/api/rooms/${encodeURIComponent(inboundJson.ingested.roomKey)}/replay`
+    );
+    const replayJson = (await replayResponse.json()) as {
+      room: { state: string };
+      preSnapshots: Array<{ summary: string }>;
+    };
+
+    expect(replayJson.room.state).toBe("done");
+    expect(replayJson.preSnapshots.at(-1)?.summary).toContain("Received your message");
+
+    handle.close();
+  });
+
+  it("marks superseded orchestrator final_ready deliveries stale across room revisions", async () => {
+    const fixture = createFixture({
+      env: {
+        MAILCLAW_FEATURE_OPENCLAW_BRIDGE: "false",
+        MAILCLAW_FEATURE_SWARM_WORKERS: "true"
+      }
+    });
+    const server = createAppServer({
+      config: fixture.config,
+      mailApi: fixture.runtime
+    });
+
+    servers.push(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+
+    const address = server.address();
+    if (address === null || typeof address === "string") {
+      throw new Error("Expected address info");
+    }
+
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+    const firstInboundResponse = await fetch(`${baseUrl}/api/inbound?processImmediately=true`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(buildInboundPayload())
+    });
+    const firstInboundJson = (await firstInboundResponse.json()) as {
+      ingested: { roomKey: string };
+      processed: { status: string } | null;
+    };
+
+    expect(firstInboundResponse.status).toBe(200);
+    expect(firstInboundJson.processed?.status).toBe("completed");
+
+    const secondInboundResponse = await fetch(`${baseUrl}/api/inbound?processImmediately=true`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        accountId: "acct-1",
+        mailboxAddress: "mailclaw@example.com",
+        envelope: {
+          providerMessageId: "provider-2",
+          messageId: "<msg-2@example.com>",
+          subject: "Re: API room",
+          from: {
+            email: "sender@example.com"
+          },
+          to: [{ email: "mailclaw@example.com" }],
+          text: "Follow up on the same thread.",
+          headers: [
+            {
+              name: "Message-ID",
+              value: "<msg-2@example.com>"
+            },
+            {
+              name: "In-Reply-To",
+              value: "<msg-1@example.com>"
+            },
+            {
+              name: "References",
+              value: "<msg-1@example.com>"
+            }
+          ]
+        }
+      })
+    });
+    const secondInboundJson = (await secondInboundResponse.json()) as {
+      ingested: { roomKey: string };
+      processed: { status: string } | null;
+    };
+
+    expect(secondInboundResponse.status).toBe(200);
+    expect(secondInboundJson.ingested.roomKey).toBe(firstInboundJson.ingested.roomKey);
+    expect(secondInboundJson.processed?.status).toBe("completed");
+
+    const replayResponse = await fetch(
+      `${baseUrl}/api/rooms/${encodeURIComponent(firstInboundJson.ingested.roomKey)}/replay`
+    );
+    const replayJson = (await replayResponse.json()) as {
+      room: { revision: number };
+      ledger: Array<{ type: string }>;
+      virtualMessages: Array<{ messageId: string; kind: string; roomRevision: number }>;
+      mailboxDeliveries: Array<{ messageId: string; status: string }>;
+    };
+
+    expect(replayResponse.status).toBe(200);
+    expect(replayJson.room.revision).toBe(2);
+
+    const virtualMessagesById = new Map(
+      replayJson.virtualMessages.map((message) => [message.messageId, message] as const)
+    );
+    const supersededFinalReadyStatuses = replayJson.mailboxDeliveries
+      .filter((delivery) => {
+        const message = virtualMessagesById.get(delivery.messageId);
+        return message?.kind === "final_ready" && message.roomRevision === 1;
+      })
+      .map((delivery) => delivery.status);
+
+    expect(supersededFinalReadyStatuses).toEqual(["stale"]);
+    expect(
+      replayJson.mailboxDeliveries.some((delivery) => {
+        const message = virtualMessagesById.get(delivery.messageId);
+        return delivery.status === "leased" && (message?.roomRevision ?? 0) < replayJson.room.revision;
+      })
+    ).toBe(false);
+    expect(replayJson.ledger.map((event) => event.type)).toContain("virtual_mail.message_stale");
+
+    fixture.handle.close();
+  });
+
   it("ingests mail through the HTTP api and exposes replay", async () => {
     const fixture = createFixture();
     const server = createAppServer({
@@ -177,6 +350,35 @@ describe("app api", () => {
         summary: "API reply."
       })
     ]);
+
+    fixture.handle.close();
+  });
+
+  it("serves the mail workbench through browser-friendly alias routes", async () => {
+    const fixture = createFixture();
+    const server = createAppServer({
+      config: fixture.config,
+      mailApi: fixture.runtime
+    });
+
+    servers.push(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+
+    const address = server.address();
+    if (address === null || typeof address === "string") {
+      throw new Error("Expected address info");
+    }
+
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+    for (const pathname of ["/", "/mail", "/mail?accountId=acct-demo", "/login", "/workbench/mail"]) {
+      const response = await fetch(`${baseUrl}${pathname}`);
+      const html = await response.text();
+
+      expect(response.status).toBe(200);
+      expect(html).toContain("MailClaw");
+      expect(html).toContain("/workbench/mail");
+    }
 
     fixture.handle.close();
   });
@@ -379,17 +581,17 @@ describe("app api", () => {
         matchReason: "email_domain"
       },
       commands: {
-        login: 'pnpm mailctl connect login gmail acct-person-gmail-com "person"',
-        observeWorkbench: "pnpm mailctl observe workbench acct-person-gmail-com"
+        login: 'mailctl connect login gmail acct-person-gmail-com "person"',
+        observeWorkbench: "mailctl observe workbench acct-person-gmail-com"
       },
       console: {
-        browserPath: "/console"
+        browserPath: "/workbench/mail"
       },
       migration: {
         openClawUsers: {
           startCommand:
             "MAILCLAW_FEATURE_OPENCLAW_BRIDGE=true MAILCLAW_FEATURE_MAIL_INGEST=true pnpm dev",
-          inspectRuntime: "pnpm mailctl observe runtime"
+          inspectRuntime: "mailctl observe runtime"
         }
       }
     });
@@ -424,9 +626,9 @@ describe("app api", () => {
     expect(executionResponse.status).toBe(200);
     expect(executionJson).toMatchObject({
       runtime: {
-        runtimeKind: "bridge",
-        backendEnforcement: "external_runtime",
-        runtimeLabel: "127.0.0.1:11437"
+        runtimeKind: "embedded",
+        backendEnforcement: "process_adapter",
+        runtimeLabel: "embedded"
       },
       embeddedSessionCount: 0,
       bridgeSessionCount: 0
@@ -760,10 +962,14 @@ describe("app api", () => {
     const workbenchJson = (await workbenchResponse.json()) as {
       workspace: {
         activeTab: string;
+        entrypoints: {
+          standalone: string;
+          embedded: string;
+        };
         mailboxWorkspace: null | {
           accountId: string;
           mailboxCount: number;
-          browserPaths: { account: string; mailbox: string | null };
+          browserPaths: { account: string; embeddedAccount: string; mailbox: string | null; embeddedMailbox: string | null };
         };
       };
       selection: { accountId: string | null; roomKey?: string | null; mailboxId: string | null };
@@ -783,12 +989,23 @@ describe("app api", () => {
     expect(workbenchResponse.status).toBe(200);
     expect(workbenchJson.workspace).toMatchObject({
       activeTab: "mailboxes",
+      entrypoints: {
+        standalone: "/workbench/mail",
+        embedded: "/workbench/mail/tab"
+      },
+      hostIntegration: {
+        tabId: "mailclaw.mail",
+        label: "Mail",
+        embeddedPath: "/workbench/mail/tab"
+      },
       mailboxWorkspace: {
         accountId: "acct-1",
         mailboxCount: expect.any(Number),
         browserPaths: {
-          account: "/console/accounts/acct-1",
-          mailbox: "/console/mailboxes/acct-1/internal%3Aassistant%3Aresearcher"
+          account: "/workbench/mail/accounts/acct-1",
+          embeddedAccount: "/workbench/mail/tab/accounts/acct-1",
+          mailbox: "/workbench/mail/mailboxes/acct-1/internal%3Aassistant%3Aresearcher",
+          embeddedMailbox: "/workbench/mail/tab/mailboxes/acct-1/internal%3Aassistant%3Aresearcher"
         }
       }
     });
@@ -1196,14 +1413,23 @@ describe("app api", () => {
     expect(workbenchResponse.status).toBe(200);
     expect(workbenchJson.workspace).toMatchObject({
       activeTab: "rooms",
+      entrypoints: {
+        standalone: "/workbench/mail",
+        embedded: "/workbench/mail/tab"
+      },
+      hostIntegration: {
+        tabId: "mailclaw.mail",
+        label: "Mail"
+      },
       connect: {
-        browserPath: "/console/connect",
+        browserPath: "/workbench/mail",
+        embeddedBrowserPath: "/workbench/mail/tab",
         onboardingApiPath: "/api/connect/onboarding",
-        recommendedStartCommand: "pnpm mailctl connect start you@example.com"
+        recommendedStartCommand: "mailctl connect start you@example.com"
       },
       tabs: expect.arrayContaining([
-        expect.objectContaining({ id: "connect", href: "/console/connect" }),
-        expect.objectContaining({ id: "rooms", active: true })
+        expect.objectContaining({ id: "mail", href: "/workbench/mail", embeddedHref: "/workbench/mail/tab" }),
+        expect.objectContaining({ id: "rooms", active: true, embeddedHref: expect.stringContaining("/workbench/mail/tab") })
       ])
     });
     expect(workbenchJson.selection).toMatchObject({
@@ -1289,53 +1515,106 @@ describe("app api", () => {
     }
 
     const baseUrl = `http://127.0.0.1:${address.port}`;
-    const consoleResponse = await fetch(`${baseUrl}/console/accounts/acct-1`);
+    const consoleResponse = await fetch(`${baseUrl}/workbench/mail/accounts/acct-1`);
     const consoleHtml = await consoleResponse.text();
 
     expect(consoleResponse.status).toBe(200);
     expect(consoleResponse.headers.get("content-type")).toContain("text/html");
-    expect(consoleHtml).toContain("MailClaw Operator Console");
-    expect(consoleHtml).toContain('"apiBasePath":"/api"');
-    expect(consoleHtml).toContain("Approval status");
-    expect(consoleHtml).toContain("/console/accounts/:accountId");
+    expect(consoleHtml).toContain("OpenClaw Workbench");
+    expect(consoleHtml).toContain("Mail Workbench");
+    expect(consoleHtml).toContain("/console/workbench");
+    expect(consoleHtml).not.toContain("<iframe");
     expect(() => new vm.Script(extractModuleScript(consoleHtml))).not.toThrow();
 
-    const roomResponse = await fetch(`${baseUrl}/console/rooms/${encodeURIComponent(ingested.ingested.roomKey)}`);
+    const roomResponse = await fetch(`${baseUrl}/workbench/mail/rooms/${encodeURIComponent(ingested.ingested.roomKey)}`);
     const roomHtml = await roomResponse.text();
 
     expect(roomResponse.status).toBe(200);
     expect(roomHtml).toContain(encodeURIComponent(ingested.ingested.roomKey));
-    expect(roomHtml).toContain("Gateway Projection");
+    expect(roomHtml).toContain("/console/workbench");
+    expect(roomHtml).not.toContain("<iframe");
     expect(() => new vm.Script(extractModuleScript(roomHtml))).not.toThrow();
 
     const inboxResponse = await fetch(
-      `${baseUrl}/console/inboxes/acct-1/${encodeURIComponent(projectedInbox!.inbox.inboxId)}`
+      `${baseUrl}/workbench/mail/inboxes/acct-1/${encodeURIComponent(projectedInbox!.inbox.inboxId)}`
     );
     const inboxHtml = await inboxResponse.text();
 
     expect(inboxResponse.status).toBe(200);
     expect(inboxHtml).toContain(encodeURIComponent(projectedInbox!.inbox.inboxId));
-    expect(inboxHtml).toContain("/console/inboxes/:accountId/:inboxId");
-    expect(inboxHtml).toContain("Inbox Items");
+    expect(inboxHtml).toContain("/console/workbench");
+    expect(inboxHtml).not.toContain("<iframe");
     expect(() => new vm.Script(extractModuleScript(inboxHtml))).not.toThrow();
 
     const mailboxResponse = await fetch(
-      `${baseUrl}/console/mailboxes/acct-1/${encodeURIComponent("public:mailclaw")}`
+      `${baseUrl}/workbench/mail/mailboxes/acct-1/${encodeURIComponent("public:mailclaw")}`
     );
     const mailboxHtml = await mailboxResponse.text();
 
     expect(mailboxResponse.status).toBe(200);
     expect(mailboxHtml).toContain(encodeURIComponent("public:mailclaw"));
-    expect(mailboxHtml).toContain("/console/mailboxes/:accountId/:mailboxId");
+    expect(mailboxHtml).toContain("/console/workbench");
+    expect(mailboxHtml).not.toContain("<iframe");
     expect(() => new vm.Script(extractModuleScript(mailboxHtml))).not.toThrow();
 
-    const connectResponse = await fetch(`${baseUrl}/console/connect`);
+    const connectResponse = await fetch(`${baseUrl}/workbench/mail`);
     const connectHtml = await connectResponse.text();
 
     expect(connectResponse.status).toBe(200);
-    expect(connectHtml).toContain("/console/connect");
-    expect(connectHtml).toContain("Connect Mailbox");
+    expect(connectHtml).toContain("/workbench/mail");
+    expect(connectHtml).toContain("OpenClaw Workbench");
+    expect(connectHtml).toContain("/console/workbench");
+    expect(connectHtml).not.toContain("<iframe");
     expect(() => new vm.Script(extractModuleScript(connectHtml))).not.toThrow();
+
+    const embeddedResponse = await fetch(`${baseUrl}/workbench/mail/tab`);
+    const embeddedHtml = await embeddedResponse.text();
+
+    expect(embeddedResponse.status).toBe(200);
+    expect(embeddedHtml).toContain("OpenClaw Workbench");
+    expect(embeddedHtml).toContain('"embeddedShell":true');
+    expect(embeddedHtml).toContain("mailclaw.workbench.ready");
+    expect(embeddedHtml).toContain("window.parent.postMessage");
+    expect(embeddedHtml).toContain("/console/workbench");
+    expect(() => new vm.Script(extractModuleScript(embeddedHtml))).not.toThrow();
+
+    const compatConsoleResponse = await fetch(`${baseUrl}/console/accounts/acct-1?shell=embedded`);
+    const compatConsoleHtml = await compatConsoleResponse.text();
+
+    expect(compatConsoleResponse.status).toBe(200);
+    expect(compatConsoleHtml).toContain("OpenClaw Workbench");
+    expect(compatConsoleHtml).toContain('"/workbench/mail/tab/accounts/acct-1"');
+    expect(compatConsoleHtml).not.toContain("<iframe");
+    expect(() => new vm.Script(extractModuleScript(compatConsoleHtml))).not.toThrow();
+
+    const hostResponse = await fetch(`${baseUrl}/api/console/workbench-host`);
+    const hostJson = (await hostResponse.json()) as {
+      integration: { tabId: string; embeddedPath: string; defaultShell: string };
+      entrypoints: { standalone: string; embedded: string };
+      tabs: Array<{ id: string; href: string; embeddedHref: string }>;
+    };
+
+    expect(hostResponse.status).toBe(200);
+    expect(hostJson).toMatchObject({
+      integration: {
+        tabId: "mailclaw.mail",
+        embeddedPath: "/workbench/mail/tab",
+        defaultShell: "embedded"
+      },
+      entrypoints: {
+        standalone: "/workbench/mail",
+        embedded: "/workbench/mail/tab"
+      }
+    });
+    expect(hostJson.tabs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "mail",
+          href: "/workbench/mail",
+          embeddedHref: "/workbench/mail/tab"
+        })
+      ])
+    );
 
     fixture.handle.close();
   });

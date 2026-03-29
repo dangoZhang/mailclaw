@@ -6,7 +6,9 @@
   <a href="./getting-started.fr.md">Français</a>
 </p>
 
-本指南面向当前 MailClaw 的开发者/运维运行时形态，包含 `/console` 只读运维观察面，但不依赖完整邮箱 UI。
+本指南先走普通邮箱用户路径：安装、登录一个邮箱、发一封测试邮件、在浏览器里看会话。更深的运维和开发者路径放在后面。
+
+MailClaw 不默认假设你用的是 QQ Mail 或任何单一 provider。直接从你已经在用的邮箱地址开始即可。当前内建支持 Gmail、Outlook、QQ、iCloud、Yahoo、163/126，以及通用 IMAP/SMTP 邮箱。
 
 ## 前置条件
 
@@ -14,13 +16,34 @@
 - 本仓库代码
 - 可选：真实邮箱凭据（用于 live provider 测试）
 
-安装依赖：
+最快的本地安装方式：
+
+```bash
+./install.sh
+```
+
+或者从源码安装依赖：
 
 ```bash
 pnpm install
 ```
 
-## 1. 启动运行时
+## 1. 启动 MailClaw
+
+默认本地模式：
+
+```bash
+MAILCLAW_FEATURE_MAIL_INGEST=true \
+pnpm mailclaw
+```
+
+启动后先打开浏览器 dashboard：
+
+```text
+http://127.0.0.1:3000/workbench/mail
+```
+
+`mailclaw` 是面向普通用户的入口。它默认启动本地 runtime，同时提供 `mailclaw onboard`、`mailclaw login`、`mailclaw dashboard`、`mailclaw status`、`mailclaw doctor` 这些更短的引导命令。`mailclaw dashboard` 会打开完整的 `/workbench/mail`。`/workbench/mail/tab` 会以嵌入模式复用同一套 Mail tab UI，供上层 OpenClaw/Gateway workbench 挂载；`/console/*` 则保留为指向同一工作台的兼容别名。
 
 Bridge 模式（兼容 OpenClaw）：
 
@@ -44,19 +67,13 @@ pnpm dev
 
 只要 runtime turn 含有 `executionPolicy` 元数据，就必须提供 `MAILCLAW_RUNTIME_POLICY_MANIFEST_JSON`。
 
-启动后可以直接打开只读运维控制台：
-
-```text
-http://127.0.0.1:3000/console
-```
-
 ## 2. 接入账号
 
 可选路径：
 
-- 先查看 provider/setup 目录：`pnpm mailctl connect providers [provider]`
-- 先让系统按邮箱地址推荐路径：`pnpm mailctl connect start you@example.com`
-- 终端交互向导：`pnpm mailctl connect login`
+- 先查看 provider/setup 目录：`pnpm mailclaw providers [provider]`
+- 先让系统按邮箱地址推荐路径：`pnpm mailclaw onboard you@example.com`
+- 终端交互向导：`pnpm mailclaw login`
 - Gmail OAuth：`pnpm mailctl connect login gmail <accountId> [displayName]`
 - Outlook OAuth：`pnpm mailctl connect login outlook <accountId> [displayName]`
 - 无浏览器 Gmail OAuth：`pnpm mailctl connect login oauth gmail <accountId> [displayName] --no-browser`
@@ -66,15 +83,17 @@ http://127.0.0.1:3000/console
 推荐 bootstrap 顺序：
 
 ```bash
-pnpm mailctl connect providers
-pnpm mailctl connect login
-pnpm mailctl observe accounts
+pnpm mailclaw onboard you@example.com
+pnpm mailclaw login
+pnpm mailclaw accounts
 ```
+
+如果你不确定该选哪个 provider，直接用 `pnpm mailclaw login`。向导会先问邮箱地址，识别到常见域名时自动带出常用配置；识别不到时就退回通用 IMAP/SMTP 提示。
 
 查看已接入账号：
 
 ```bash
-pnpm mailctl observe accounts
+pnpm mailclaw accounts
 ```
 
 Provider setup 目录 API：
@@ -88,25 +107,25 @@ curl -s http://127.0.0.1:3000/api/connect/providers/gmail
 
 <a id="three-minute-first-mail"></a>
 
-## 3. 先跑通第一封真实邮件（普通邮箱用户路径） {#three-minute-first-mail}
+## 3. 先跑通第一封真实邮件 {#three-minute-first-mail}
 
 账号登录后，先按日常邮件习惯走一遍：
 
-1. 从这里查看已连接邮箱地址：
-   - `pnpm mailctl connect accounts show <accountId>`
+1. 先从浏览器 workbench，或这里查看已连接邮箱地址：
+   - `pnpm mailclaw accounts show <accountId>`
 2. 用另一个邮箱客户端/账号给该地址发送一封邮件。
-3. 查看新建 room 与 inbox：
-   - `pnpm mailctl observe rooms`
-   - `pnpm mailctl observe inboxes <accountId>`
-   - `pnpm mailctl observe room <roomKey>`
-4. 打开控制台页面：
-   - `http://127.0.0.1:3000/console/accounts/<accountId>`
-   - `http://127.0.0.1:3000/console/rooms/<roomKey>`
-5. 查看内部智能体协作邮件：
+3. 运行 `mailclaw dashboard`，或打开 `http://127.0.0.1:3000/workbench/mail`，进入已连接账号页面。
+4. 直接在浏览器里读取会话。
+5. 如果你还想用 CLI 确认状态：
+   - `pnpm mailclaw rooms`
+   - `pnpm mailclaw inboxes <accountId>`
+   - `pnpm mailclaw replay <roomKey>`
+6. 如果你之后想看内部智能体协作邮件：
+   - `pnpm mailclaw workbench <accountId> <roomKey>`
    - `pnpm mailctl mailbox view <roomKey> <mailboxId>`
    - `pnpm mailctl mailbox feed <accountId> <mailboxId>`
 
-这是当前最短的“登录 -> 收信 -> 观察 -> 治理”闭环。
+这是当前最短的“登录 -> 收信 -> 直接读会话”闭环。room replay、approval、internal mailbox feed 都还在，但不再要求你第一步就理解这些内部概念。
 
 ## 4. 路径 A：provider mail -> room -> approval -> delivery
 

@@ -1,4 +1,4 @@
-# 运维控制台
+# Mail Workbench
 
 <p align="center">
   <a href="./operator-console.md">English</a> ·
@@ -6,20 +6,19 @@
   <a href="./operator-console.fr.md">Français</a>
 </p>
 
-MailClaw 现在已经内置 `/console` 只读运维控制台。它是面向 operator/workbench 的观察面，用来在一个浏览器视图里查看 rooms、approvals、provider state、mailbox projection 和 Gateway trace。
+MailClaw 现在已经内置 `/workbench/mail` 的 OpenClaw 风格浏览器 workbench。它是 MailClaw 的邮件页，用来在一个浏览器视图里查看 rooms、approvals、provider state、mailbox projection 和 Gateway trace。
 
-控制台现在还提供稳定的 `/console/connect` 入口，用户可以先从邮箱地址出发拿到接入建议，再进入 room 或 mailbox 观察面。
+当前规范入口是 `/workbench/mail`。`/workbench/mail/tab` 会以嵌入模式复用同一套 UI，`/mail` 与 `/console/*` 则作为指向同一 shell 的兼容别名。
 
 ## 入口路由
 
-- `/console`
-- `/console/connect`
-- `/console/accounts/:accountId`
-- `/console/inboxes/:accountId/:inboxId`
-- `/console/rooms/:roomKey`
-- `/console/mailboxes/:accountId/:mailboxId`
+- `/workbench/mail`
+- `/workbench/mail/accounts/:accountId`
+- `/workbench/mail/inboxes/:accountId/:inboxId`
+- `/workbench/mail/rooms/:roomKey`
+- `/workbench/mail/mailboxes/:accountId/:mailboxId`
 
-这些路由可以稳定深链。当前第一批 UI 过滤参数为：
+这些路由可以稳定深链。`/mail` 与 `/console/*` 仍可兼容访问。当前第一批 UI 过滤参数为：
 
 - `status`
 - `originKind`
@@ -30,10 +29,10 @@ MailClaw 现在已经内置 `/console` 只读运维控制台。它是面向 oper
 
 邮件用户建议按这个最短路径操作：
 
-1. 打开 `/console/accounts/:accountId`
+1. 打开 `/workbench/mail/accounts/:accountId`
 2. 点击刚收到邮件的 room
 3. 在 room 详情里打开一个 mailbox 参与者
-4. 跳转到 `/console/mailboxes/:accountId/:mailboxId` 检查该 mailbox 的 feed 与投递状态
+4. 跳转到 `/workbench/mail/mailboxes/:accountId/:mailboxId` 检查该 mailbox 的 feed 与投递状态
 
 CLI 对应命令：
 
@@ -57,7 +56,7 @@ CLI 对应命令：
 
 ## 数据来源
 
-该控制台坚持 kernel-first、API-first：
+该 Mail workbench 坚持 kernel-first、API-first：
 
 - `GET /api/console/workbench`
 - `GET /api/console/terminology`
@@ -72,7 +71,7 @@ CLI 对应命令：
 
 ## 当前边界
 
-- 这一阶段的控制台仍然是只读的。
-- 它是运维控制台，不是完整的 Outlook 风格邮箱客户端。
-- 还没有 OpenClaw Workbench mailbox tab。
+- 当前 Mail tab 在这一阶段仍然是只读的。
+- 它是浏览器里的邮件工作台，不是完整的 Outlook 风格邮箱客户端。
+- `/workbench/mail`、`/workbench/mail/tab` 与 `/console/*` 现在都会落到同一套 OpenClaw 风格 shell，而不是分裂成多套 UI。
 - 已绑定 Gateway 的 room 现在能看到自动 outcome trace，但完整的 Gateway 自动 ingress / Workbench 生产级接线仍未完成。

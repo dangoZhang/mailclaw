@@ -2,7 +2,7 @@ import http from "node:http";
 
 import type { AppConfig } from "./config.js";
 import { renderOAuthCallbackHtml } from "./auth/oauth-core.js";
-import { renderConsoleAppHtml } from "./presentation/console-app.js";
+import { renderOpenClawWorkbenchShellHtml } from "./presentation/openclaw-workbench-shell.js";
 import {
   buildConnectOnboardingPlan,
   getConnectDiscovery,
@@ -32,6 +32,114 @@ export function createAppServer(options: AppServerOptions) {
   return http.createServer((request, response) => {
     void handleRequest({ request, response, config, isReady, mailApi });
   });
+}
+
+function mapWorkbenchBrowserPath(pathname: string, search: string) {
+  const suffix = search || "";
+  if (
+    pathname === "/" ||
+    pathname === "/dashboard" ||
+    pathname === "/dashboard/" ||
+    pathname === "/mail" ||
+    pathname === "/mail/" ||
+    pathname === "/login" ||
+    pathname === "/workbench/mail" ||
+    pathname === "/workbench/mail/"
+  ) {
+    return `/console/connect${suffix}`;
+  }
+  if (pathname === "/workbench/mailclaw" || pathname === "/workbench/mailclaw/") {
+    return `/console/connect${suffix}`;
+  }
+  if (pathname === "/workbench/mail/tab" || pathname === "/workbench/mail/tab/") {
+    return withSearch("/console/connect", search, "shell", "embedded");
+  }
+  if (pathname === "/mail/login" || pathname === "/workbench/mail/login" || pathname === "/workbench/mailclaw/login") {
+    return `/console/connect${suffix}`;
+  }
+  if (pathname.startsWith("/workbench/mail/tab/")) {
+    return withSearch(`/console/${pathname.slice("/workbench/mail/tab/".length)}`, search, "shell", "embedded");
+  }
+  if (pathname.startsWith("/dashboard/")) {
+    return `/console/${pathname.slice("/dashboard/".length)}${suffix}`;
+  }
+  if (pathname.startsWith("/mail/")) {
+    return `/console/${pathname.slice("/mail/".length)}${suffix}`;
+  }
+  if (pathname.startsWith("/workbench/mail/")) {
+    return `/console/${pathname.slice("/workbench/mail/".length)}${suffix}`;
+  }
+  if (pathname.startsWith("/workbench/mailclaw/")) {
+    return `/console/${pathname.slice("/workbench/mailclaw/".length)}${suffix}`;
+  }
+  return null;
+}
+
+function mapConsoleWorkbenchPath(pathname: string, search: string) {
+  const suffix = search || "";
+  const params = new URLSearchParams(search);
+  const embedded = params.get("shell") === "embedded";
+  params.delete("shell");
+  const query = params.toString();
+  const nextSuffix = query ? `?${query}` : "";
+  const basePath = embedded ? "/workbench/mail/tab" : "/workbench/mail";
+
+  if (pathname === "/console" || pathname === "/console/" || pathname === "/console/connect" || pathname === "/console/connect/") {
+    return `${basePath}${nextSuffix}`;
+  }
+
+  if (pathname.startsWith("/console/connect/")) {
+    return `${basePath}${pathname.slice("/console/connect".length)}${nextSuffix}`;
+  }
+
+  if (pathname.startsWith("/console/")) {
+    return `${basePath}${pathname.slice("/console".length)}${nextSuffix}`;
+  }
+
+  return null;
+}
+
+function isWorkbenchShellPath(pathname: string) {
+  if (
+    pathname === "/" ||
+    pathname === "/dashboard" ||
+    pathname === "/dashboard/" ||
+    pathname === "/mail" ||
+    pathname === "/mail/" ||
+    pathname === "/login" ||
+    pathname === "/workbench/mail" ||
+    pathname === "/workbench/mail/" ||
+    pathname === "/workbench/mail/tab" ||
+    pathname === "/workbench/mail/tab/" ||
+    pathname === "/workbench/mailclaw" ||
+    pathname === "/workbench/mailclaw/" ||
+    pathname === "/mail/login" ||
+    pathname === "/workbench/mail/login" ||
+    pathname === "/workbench/mailclaw/login"
+  ) {
+    return true;
+  }
+  return (
+    pathname.startsWith("/dashboard/") ||
+    pathname.startsWith("/mail/") ||
+    pathname.startsWith("/workbench/mail/tab/") ||
+    pathname.startsWith("/workbench/mail/") ||
+    pathname.startsWith("/workbench/mailclaw/")
+  );
+}
+
+function withSearch(pathname: string, search: string, key: string, value: string) {
+  const params = new URLSearchParams(search);
+  if (!params.has(key)) {
+    params.set(key, value);
+  }
+  const nextSearch = params.toString();
+  return `${pathname}${nextSearch ? `?${nextSearch}` : ""}`;
+}
+
+function ensureSearchParam(urlPath: string, key: string, value: string) {
+  const [pathname, search = ""] = urlPath.split("?", 2);
+  return withSearch(pathname, search ? `?${search}` : "", key, value);
 }
 
 function writeJson(response: http.ServerResponse, statusCode: number, payload: unknown) {
@@ -150,17 +258,25 @@ async function handleRequest(options: {
       return;
     }
 
+    const workbenchPath = mapWorkbenchBrowserPath(requestUrl.pathname, requestUrl.search);
+    const consoleWorkbenchPath = mapConsoleWorkbenchPath(requestUrl.pathname, requestUrl.search);
     if (
       mailApi &&
       request.method === "GET" &&
-      (requestUrl.pathname === "/console" || requestUrl.pathname.startsWith("/console/"))
+      (isWorkbenchShellPath(requestUrl.pathname) || consoleWorkbenchPath !== null)
     ) {
       writeHtml(
         response,
         200,
-        renderConsoleAppHtml({
+        renderOpenClawWorkbenchShellHtml({
           serviceName: config.serviceName,
-          initialPath: `${requestUrl.pathname}${requestUrl.search}`
+          initialWorkbenchPath: consoleWorkbenchPath ?? `${requestUrl.pathname}${requestUrl.search}`,
+          initialConsolePath:
+            requestUrl.pathname === "/console" || requestUrl.pathname.startsWith("/console/")
+              ? `${requestUrl.pathname}${requestUrl.search || ""}`
+              : workbenchPath != null
+                ? ensureSearchParam(workbenchPath, "shell", "embedded")
+                : "/console/connect?shell=embedded"
         })
       );
       return;
@@ -191,6 +307,11 @@ async function handleRequest(options: {
           mailboxFeedLimit: parseOptionalInteger(requestUrl.searchParams.get("mailboxFeedLimit"))
         })
       );
+      return;
+    }
+
+    if (mailApi && request.method === "GET" && requestUrl.pathname === "/api/console/workbench-host") {
+      writeJson(response, 200, mailApi.getConsoleWorkbenchHost());
       return;
     }
 

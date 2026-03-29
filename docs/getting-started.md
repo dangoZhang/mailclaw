@@ -6,19 +6,29 @@
   <a href="./getting-started.fr.md">Français</a>
 </p>
 
-This guide is for the current operator/developer-facing MailClaw runtime. It includes the read-only `/console` operator surface, but it does not assume a full mailbox UI.
+This guide starts with the normal mailbox-user path first: install, log in one mailbox, send one test email, and read the conversation in the browser. Operator and developer flows come after that.
+
+MailClaw does not assume QQ Mail or any other single provider. Start with the mailbox address you already use. The built-in paths cover Gmail, Outlook, QQ, iCloud, Yahoo, 163/126, plus generic IMAP/SMTP accounts.
 
 ## Prerequisites
 
-- Node.js and `pnpm`
+- Node.js 22+ and `pnpm`
 - A checkout of this repository
 - Optional real mailbox credentials (for live provider tests)
 
-Install dependencies:
+Fastest local install:
+
+```bash
+./install.sh
+```
+
+Or install dependencies from source:
 
 ```bash
 pnpm install
 ```
+
+MailClaw uses the built-in `node:sqlite` module, so older Node versions will not run the packaged CLI/runtime correctly. Before using the packaged `mailclaw` or `mailctl` binaries, confirm that both `which node` and `node -p process.version` resolve to Node 22+.
 
 <a id="release-bundle"></a>
 
@@ -58,7 +68,14 @@ The packaged bundle also includes:
 - `dist/cli/mailioctl.js`
 - `.env.example`, `README.md`, and `release-manifest.json`
 
-Local one-command installs from those generated assets:
+OpenClaw-style installer entrypoints:
+
+```bash
+./install.sh
+pwsh ./install.ps1
+```
+
+Local one-command installs from generated assets:
 
 ```bash
 npm install -g ./output/release/npm/mailclaw-<version>.tgz
@@ -86,7 +103,22 @@ brew install mailclaw
 
 `npx mailclaw@latest` and `pnpm dlx mailclaw@latest` run the default runtime entrypoint. Install the package first if you want to call `mailctl` directly.
 
-## 1. Start The Runtime
+## 1. Start MailClaw
+
+Default embedded mode (fastest local path):
+
+```bash
+MAILCLAW_FEATURE_MAIL_INGEST=true \
+pnpm mailclaw
+```
+
+Open the browser dashboard after boot:
+
+```text
+http://127.0.0.1:3000/workbench/mail
+```
+
+`mailclaw` is the user-facing entrypoint. It starts the local runtime by default, and it also exposes simple shortcuts such as `mailclaw onboard`, `mailclaw login`, `mailclaw dashboard`, `mailclaw status`, and `mailclaw doctor`. `mailclaw dashboard` opens the full `/workbench/mail` surface. `/workbench/mail/tab` reuses the same Mail tab UI in embedded mode for a parent OpenClaw/Gateway workbench, while `/console/*` remains a compatibility alias to that same surface.
 
 Bridge mode (OpenClaw-compatible):
 
@@ -108,13 +140,7 @@ MAILCLAW_FEATURE_MAIL_INGEST=true \
 pnpm dev
 ```
 
-`MAILCLAW_RUNTIME_POLICY_MANIFEST_JSON` is required whenever runtime turns carry `executionPolicy` metadata.
-
-Open the read-only operator console after boot:
-
-```text
-http://127.0.0.1:3000/console
-```
+`MAILCLAW_RUNTIME_POLICY_MANIFEST_JSON` is required for bridge or command runtimes whenever turns carry `executionPolicy` metadata. The default embedded runtime ships with a built-in manifest so a fresh install can run locally without extra runtime wiring.
 
 On the first turn for an agent workspace, MailClaw also bootstraps:
 
@@ -126,13 +152,13 @@ On the first turn for an agent workspace, MailClaw also bootstraps:
 
 These defaults are summarized into orchestration turns so mail handling starts with "latest inbound first" and "ACK/progress/final stay distinct" behavior.
 
-## 2. Connect An Account
+## 2. Connect A Mailbox
 
 Choose one path:
 
-- Inspect the provider/setup matrix first: `pnpm mailctl connect providers [provider]`
-- Ask MailClaw for a mailbox-first recommendation: `pnpm mailctl connect start you@example.com`
-- Interactive terminal wizard: `pnpm mailctl connect login`
+- Inspect the provider/setup matrix first: `pnpm mailclaw providers [provider]`
+- Ask MailClaw for a mailbox-first recommendation: `pnpm mailclaw onboard you@example.com`
+- Interactive terminal wizard: `pnpm mailclaw login`
 - Gmail OAuth: `pnpm mailctl connect login gmail <accountId> [displayName]`
 - Outlook OAuth: `pnpm mailctl connect login outlook <accountId> [displayName]`
 - Headless OAuth: `pnpm mailctl connect login oauth gmail <accountId> [displayName] --no-browser`
@@ -142,15 +168,17 @@ Choose one path:
 Recommended bootstrap order:
 
 ```bash
-pnpm mailctl connect providers
-pnpm mailctl connect login
-pnpm mailctl observe accounts
+pnpm mailclaw onboard you@example.com
+pnpm mailclaw login
+pnpm mailclaw accounts
 ```
+
+If you are unsure which provider path to pick, use `pnpm mailclaw login`. The wizard asks for your email address first, uses common defaults when it recognizes the domain, and otherwise falls back to generic IMAP/SMTP prompts.
 
 You can inspect connected accounts with:
 
 ```bash
-pnpm mailctl observe accounts
+pnpm mailclaw accounts
 ```
 
 Provider setup catalog APIs:
@@ -164,28 +192,25 @@ curl -s http://127.0.0.1:3000/api/connect/providers/gmail
 
 <a id="three-minute-first-mail"></a>
 
-## 3. Send Your First Real Email (Mailbox User Path) {#three-minute-first-mail}
+## 3. Send Your First Real Email {#three-minute-first-mail}
 
 After account login, use your normal mail habit first:
 
-1. Copy the connected mailbox address from:
-   - `pnpm mailctl connect accounts show <accountId>`
+1. Copy the connected mailbox address from the browser console or:
+   - `pnpm mailclaw accounts show <accountId>`
 2. Send one email to that address from another mailbox client/account.
-3. Inspect the created room and inbox:
-   - `pnpm mailctl observe rooms`
-   - `pnpm mailctl observe inboxes <accountId>`
-   - `pnpm mailctl observe room <roomKey>`
-4. Open console views:
-   - `http://127.0.0.1:3000/console/accounts/<accountId>`
-   - `http://127.0.0.1:3000/console/rooms/<roomKey>`
-5. Inspect internal agent collaboration messages:
+3. Run `mailclaw dashboard` or open `http://127.0.0.1:3000/workbench/mail`, then pick the connected account.
+4. Read the room from the browser account page.
+5. If you want CLI confirmation too:
+   - `pnpm mailclaw rooms`
+   - `pnpm mailclaw inboxes <accountId>`
+   - `pnpm mailclaw replay <roomKey>`
+6. If you want to inspect internal agent collaboration later:
+   - `pnpm mailclaw workbench <accountId> <roomKey>`
    - `pnpm mailctl observe mailbox-view <roomKey> <mailboxId>`
    - `pnpm mailctl observe mailbox-feed <accountId> <mailboxId>`
-6. Inspect the durable room summary carried across turns:
-   - `pnpm mailctl replay <roomKey>`
-   - verify `preSnapshots` and `roomNotes.latestSnapshot`
 
-This is the shortest "login -> receive -> inspect -> governance" path for real mailbox users.
+This is the shortest "login -> receive -> read the conversation" path for real mailbox users. Mailbox feeds, internal agent mail, replay, and governance views are still there, but they are second-step tooling rather than first-run requirements.
 
 Behavior note: MailClaw agents do not reload an entire transcript by default. The normal turn assembly is latest inbound + latest room pre snapshot + referenced facts/artifacts.
 

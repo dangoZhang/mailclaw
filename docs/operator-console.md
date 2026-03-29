@@ -1,4 +1,4 @@
-# Operator Console
+# Mail Workbench
 
 <p align="center">
   <a href="./operator-console.md"><strong>English</strong></a> ·
@@ -6,20 +6,19 @@
   <a href="./operator-console.fr.md">Français</a>
 </p>
 
-MailClaw now ships a read-only operator console at `/console`. It is an operator/workbench surface for inspecting rooms, approvals, provider state, mailbox projections, and Gateway traces from one browser view.
+MailClaw now ships an OpenClaw-style browser workbench surface at `/workbench/mail`. It is the MailClaw mail tab surface for inspecting rooms, approvals, provider state, mailbox projections, and Gateway traces from one browser view.
 
-The console also now includes a stable mailbox-first entry at `/console/connect`, so a user can start from a mailbox address and get onboarding guidance before diving into rooms or mailbox feeds.
+The canonical mailbox-first entry is `/workbench/mail`. `/workbench/mail/tab` reuses the same UI in embedded mode, and `/mail` plus `/console/*` are compatibility aliases to that same shell.
 
 ## Entry Points
 
-- `/console`
-- `/console/connect`
-- `/console/accounts/:accountId`
-- `/console/inboxes/:accountId/:inboxId`
-- `/console/rooms/:roomKey`
-- `/console/mailboxes/:accountId/:mailboxId`
+- `/workbench/mail`
+- `/workbench/mail/accounts/:accountId`
+- `/workbench/mail/inboxes/:accountId/:inboxId`
+- `/workbench/mail/rooms/:roomKey`
+- `/workbench/mail/mailboxes/:accountId/:mailboxId`
 
-These routes are deep-link stable. Query parameters currently cover the first UI filter set:
+These routes are deep-link stable. `/mail` and `/console/*` still resolve for compatibility. Query parameters currently cover the first UI filter set:
 
 - `status`
 - `originKind`
@@ -30,10 +29,10 @@ These routes are deep-link stable. Query parameters currently cover the first UI
 
 For email-native operators, the fastest way to find internal agent collaboration is:
 
-1. Open `/console/accounts/:accountId`
+1. Open `/workbench/mail/accounts/:accountId`
 2. Click a room that just received mail
 3. From room detail, open one mailbox participant
-4. Land on `/console/mailboxes/:accountId/:mailboxId` to inspect delivery/feed state
+4. Land on `/workbench/mail/mailboxes/:accountId/:mailboxId` to inspect delivery/feed state
 
 CLI mirrors the same inspection path:
 
@@ -72,7 +71,7 @@ The latest UI slice can hydrate from the aggregated `GET /api/console/workbench`
 
 ## Current Boundaries
 
-- The console is read-only in this phase.
-- It is an operator console, not a full Outlook-like mailbox client.
-- No OpenClaw Workbench mailbox tab is shipped yet.
+- The current Mail tab is read-only in this phase.
+- It is a Mail workbench, not a full Outlook-like mailbox client yet.
+- `/workbench/mail`, `/workbench/mail/tab`, and `/console/*` now land on the same OpenClaw-style shell instead of separate UI stacks.
 - Gateway outcome traces are visible once a room is Gateway-bound, but full Gateway auto-ingress/Workbench production wiring is still incomplete.
