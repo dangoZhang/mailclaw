@@ -1,141 +1,141 @@
 # 多智能体协作
 
-MailClaw 不让多个 agent 共享一锅越来越长的 transcript。
+MailClaw 不让多个智能体共享一锅越来越长的上下文。
 
 它把协作变成可检查、可回放、可治理的“邮件形对象”：
 
-- room 承载一条外部会话的 durable truth
-- virtual mailbox 把公开人格和内部 worker 角色分开
-- work thread 把并行任务隔离开
-- reducer 负责把多个 worker 结果收敛回 room
-- approval 和 outbox intent 仍然是唯一真实外发路径
+- 房间承载一条外部会话的持久真相
+- 虚拟邮箱把公开人格和内部工作角色分开
+- 协作线程把并行任务隔离开
+- 汇总器负责把多个工作结果收敛回房间
+- 审批和发件箱意图仍然是唯一真实外发路径
 
 ## 实际协作模型
 
 当一封真实邮件到达时：
 
-1. MailClaw 打开或更新一个 room。
-2. front orchestrator 读取最新 inbound 和最新的 durable Pre。
-3. 如果需要更多工作，就向内部 mailbox 发送 task mail。
-4. worker 通过 single-parent internal reply 回复。
-5. reducer 或 orchestrator 收敛结果。
-6. 只有在这之后，系统才可能创建 approval 或 governed outbox intent。
+1. MailClaw 打开或更新一个房间。
+2. 前台主智能体读取最新来信和最新预摘要。
+3. 如果需要更多工作，就向内部协作邮箱发送任务邮件。
+4. 工作智能体通过单父结构的内部回复进行回应。
+5. 汇总器或主智能体收敛结果。
+6. 只有在这之后，系统才可能创建审批或受治理的发件箱意图。
 
 这意味着：
 
-- 内部协作是 durable 的、可 replay 的
-- stale worker result 可以被丢弃而不会污染 room 真相
-- 即使多个 worker 参与，外部邮件线程仍然保持干净
+- 内部协作是持久的、可回放的
+- 过期的工作结果可以被丢弃而不会污染房间真相
+- 即使多个工作智能体参与，外部邮件线程仍然保持干净
 
-## Durable Agent 与单次 Subagent
+## 常驻智能体与单次子智能体
 
 MailClaw 故意把这两类执行体分开：
 
-- durable agent 有自己的 `SOUL.md`、公开 mailbox 和内部 role mailbox
-- 单次 subagent 只是 burst compute worker，不保留 soul
+- 常驻智能体有自己的 `SOUL.md`、公开邮箱和内部角色邮箱
+- 单次子智能体只是短时计算助手，不保留长期人格
 
 这意味着：
 
-- 长期人格、长期协作规则和可复用分工属于 durable agent
-- 临时任务增强属于 subagent
-- subagent 结果只有在被归一化成 internal reply mail 后，才会进入 room 协作链
+- 长期人格、长期协作规则和可复用分工属于常驻智能体
+- 临时任务增强属于子智能体
+- 子智能体结果只有在被归一化成内部回复邮件后，才会进入房间协作链
 
-因此 MailClaw 不是“所有 agent 都长期化”，而是“长期 agent 管组织，短期 subagent 管算力”。
+因此 MailClaw 不是“所有智能体都长期化”，而是“长期智能体管组织，短期子智能体管算力”。
 
 ## 在 Workbench 里看什么
 
 打开 Mail 标签后：
 
 1. 进入 `Rooms`
-2. 打开一个 room
+2. 打开一个房间
 3. 按下面顺序查看
 
-### Room Summary
+### 房间摘要
 
 这里先确认：
 
-- 这个 room 属于哪个 account
-- 当前 front agent 身份是谁
-- 哪些 collaborator agent 或 summoned role 参与了本轮工作
+- 这个房间属于哪个账号
+- 当前前台主智能体是谁
+- 哪些协作者或被召唤的角色参与了本轮工作
 
-### Virtual Mail
+### 虚拟邮件
 
 这里直接看：
 
-- 哪个 mailbox 发出了内部消息
+- 哪个协作邮箱发出了内部消息
 - 发给了哪个角色
-- 这条消息是 root work 还是 reply
-- 这条消息来自 provider mail、gateway chat 还是 internal virtual mail
+- 这条消息是起始任务还是回复
+- 这条消息来自真实邮件、网关会话还是内部虚拟邮件
 
 这是观察多智能体协作最直接的视图。
 
-### Mailbox Deliveries
+### 邮箱投递
 
 这里看：
 
-- 每条 internal message 被投递到了哪个 mailbox
-- 它当前是 leased、consumed、stale、vetoed 还是 superseded
+- 每条内部消息被投递到了哪个协作邮箱
+- 它当前是已领取、已消费、过期、被否决还是已被替代
 
 它反映的是协作在运行层面是否真正完成，而不只是逻辑上“看起来发过了”。
 
-### Governed Outbox
+### 受治理发件箱
 
 这里看：
 
 - 哪个内部结果变成了外部发信候选
-- 当前是 pending approval、queued、sent 还是 failed
+- 当前是等待审批、已排队、已发送还是失败
 
-这是内部 agent 工作与真实外部副作用之间的边界。
+这是内部智能体工作与真实外部副作用之间的边界。
 
-### Gateway Projection
+### 网关映射
 
 当 room 和 OpenClaw/Gateway 绑定时，查看这里：
 
-- 哪些 gateway session key 绑定到了 room
-- 哪些 room outcome 被投影回 Gateway
-- dispatch 是 pending、dispatched 还是 failed
+- 哪些网关会话键绑定到了房间
+- 哪些房间结果被映射回 Gateway
+- 分发是等待中、已分发还是失败
 
-## Mailbox 视图
+## 协作邮箱视图
 
 如果你想从某个角色自己的视角看：
 
 1. 打开 `Mailboxes`
-2. 选择一个 mailbox
+2. 选择一个协作邮箱
 3. 重点看：
-   - `Mailbox Feed`
-   - `Room Thread In Mailbox`
+   - `邮箱消息流`
+   - `房间在线程中的视角`
 
 这适合回答这些问题：
 
-- reviewer 实际看到了什么？
-- researcher mailbox 收到了哪些任务？
-- guard mailbox 是否真的收到这版 draft？
+- 审阅角色实际看到了什么？
+- 研究角色邮箱收到了哪些任务？
+- 守卫邮箱是否真的收到这版草稿？
 
 ## 常见协作模式
 
 ### 简单直接回复
 
-- 一个 room
-- 一次 orchestrator 决策
-- 一个 governed outbox intent
+- 一个房间
+- 一次主智能体决策
+- 一个受治理的发件箱意图
 
-重点看 `Room Summary`、`Governed Outbox` 和 `Timeline`。
+重点看 `房间摘要`、`受治理发件箱` 和 `时间线`。
 
-### 并行 worker 协作
+### 并行工作智能体协作
 
-- orchestrator 发出多个 task mail
-- worker 在各自 work thread 中回答
-- reducer 负责收敛
+- 主智能体发出多个任务邮件
+- 工作智能体在各自协作线程中回答
+- 汇总器负责收敛
 
-重点看 `Virtual Mail` 和 `Mailbox Deliveries`。
+重点看 `虚拟邮件` 和 `邮箱投递`。
 
 ### 审批闸门回复
 
-- drafter 或 orchestrator 先提出候选回复
-- reviewer 或 guard 阻断、要求修改或升级审批
-- approval 成为最终放行闸门
+- 起草角色或主智能体先提出候选回复
+- 审阅者或守卫阻断、要求修改或升级审批
+- 审批成为最终放行闸门
 
-重点看 `Approvals` 和 room 内的 `Governed Outbox`。
+重点看 `Approvals` 和房间内的 `受治理发件箱`。
 
 ## 对应 CLI
 
@@ -152,12 +152,12 @@ mailclaw trace <roomKey>
 
 ## MailClaw 故意避免的东西
 
-MailClaw 不依赖这些模式：
+MailClaw 刻意避免这些模式：
 
-- 把所有 agent 都绑在一段共享 transcript 上
-- 用 subject 猜 continuity 作为内部协作真相
-- 让 worker 直接外发
-- 把 scratch trace 当成长期记忆
+- 把所有智能体都绑在一段共享上下文上
+- 用主题猜测连续性并把它当成内部协作真相
+- 让工作智能体直接外发
+- 把临时推理痕迹当成长期记忆
 
-系统的目标不只是“让 agent 能合作”。
-真正目标是：让协作本身 durable、可见、可治理。
+系统的目标不只是“让智能体能合作”。
+真正目标是：让协作本身持久、可见、可治理。

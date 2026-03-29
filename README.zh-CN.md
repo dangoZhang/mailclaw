@@ -1,7 +1,7 @@
 # MailClaw
 
 <p align="center">
-  面向耐久化、可审计、多智能体协作的邮件原生运行时。
+  给真正依赖邮箱工作的人准备的邮件原生智能体系统。
 </p>
 
 <p align="center">
@@ -16,56 +16,70 @@
   <a href="https://github.com/dangoZhang/mailclaw/actions/workflows/release.yml">Release</a>
 </p>
 
-MailClaw 把邮件会话变成 durable room，把内部 agent 协作变成 virtual mail，把长期记忆收敛成 Pre，并把 approval、outbox、replay 和 delivery 全部放进同一个运行时里。
+MailClaw 面向的不是“偶尔收一封邮件”的场景，而是那些真正把邮箱当工作入口的人：创始人、运营、客服、共享邮箱值班者，以及已经在用 AI、但不满足于“给我回一封邮件草稿”的团队。
 
-MailClaw 不预设某一家邮箱服务。你只需要输入自己已经在用的邮箱地址，让 MailClaw 推荐合适的 provider 路径，再连接这个邮箱即可。内建路径覆盖常见托管邮箱以及通用 IMAP/SMTP。
+它把一封封真实邮件会话变成可持续处理的工作对象。每条会话都有自己的真相源，内部协作是可见的，草稿可以审阅，外发可以审批，事后还能回放。
 
-## 为什么是 MailClaw
+## 为什么 MailClaw 比 OpenClaw 更适合邮件工作
 
-- 一条外部邮件会话对应一个 durable room
-- agent 之间通过内部邮件协作，而不是共享一锅越来越长的 transcript
-- 长期记忆只保留 Pre，不保留临时 scratch 轨迹
-- approval、outbox、replay、internal mail 都能在同一套 workbench 中查看
-- Mail 可以作为 OpenClaw 风格 Gateway workbench 的一个标签页挂载
+OpenClaw 是很强的通用智能体工作台。MailClaw 则是把“邮箱本身”当成主战场来设计的。
 
-## 安装
+- OpenClaw 更偏向会话驱动，MailClaw 更偏向房间驱动，一条邮件线程就是一个持久真相源。
+- OpenClaw 里的子智能体结果常常藏在一次运行里，MailClaw 会把内部协作显式展示成可检查的内部邮件。
+- OpenClaw 容易把越来越长的上下文一路往后拖，MailClaw 只保留精炼后的预摘要状态，后续轮次更稳、更省。
+- OpenClaw 侧重“智能体能做事”，MailClaw 侧重“团队能收件、分诊、协作、审批、回信”。
+- OpenClaw 给你一个通用工作台，MailClaw 给你一个真正围绕邮件工作的 `Mail` 标签页。
 
-运行时要求：Node.js 22+。
+如果你的日常工作经常从这些句子开始：
+
+- “客户发来一封邮件”
+- “创始人邮箱今天炸了”
+- “这封信需要多个智能体一起处理”
+- “发出去之前必须有人把关”
+
+那 MailClaw 会比通用工作台更顺手。
+
+## 它真正不一样的地方
+
+- 真实邮件线程会沉淀成持久房间，而不是一次性的聊天状态。
+- 多智能体协作通过虚拟邮件完成，而不是共享一锅越来越大的上下文。
+- 长期记忆保留的是摘要、事实、决策和承诺，不是临时推理碎片。
+- 真实外发默认要经过审阅、审批和发件箱治理链路。
+- 运维人员可以从同一个界面看清入站、内部协作、审批、投递和回放。
+
+## 现在就能做什么
+
+- 登录一个真实邮箱并接收真实邮件
+- 在 `Mail` 标签页里查看账号、会话房间、协作邮箱和审批
+- 让多个智能体一起处理同一封邮件，同时保持外部线程干净
+- 看清某个草稿为什么被通过、被打回或被新回复覆盖
+- 事后回放一条会话为什么会得到当前结果
+- 作为 OpenClaw 风格宿主里的一个邮件标签页使用，而不是另开一套系统
+
+## 三分钟跑通第一封邮件
 
 ```bash
 ./install.sh
-```
-
-也支持文档中的一键安装路径：
-
-- npm
-- pnpm
-- Homebrew
-
-## 首次运行
-
-```bash
-pnpm install
-MAILCLAW_FEATURE_MAIL_INGEST=true pnpm mailclaw
+MAILCLAW_FEATURE_MAIL_INGEST=true mailclaw
 ```
 
 再开一个终端：
 
 ```bash
-pnpm mailclaw onboard you@example.com
-pnpm mailclaw login
-pnpm mailclaw dashboard
+mailclaw onboard you@example.com
+mailclaw login
+mailclaw dashboard
 ```
 
-推荐的首次体验路径：
+推荐的第一次体验：
 
 1. 启动 MailClaw。
 2. 登录一个你已经在用的邮箱。
-3. 用另一个邮箱发一封测试邮件。
-4. 在 Gateway 风格 workbench 中打开 `Mail` 标签。
-5. 查看 room、内部 agent 邮件和外发状态。
+3. 用另一个邮箱给它发一封测试邮件。
+4. 打开 `Mail` 标签页。
+5. 查看这条会话的内部协作和外发状态。
 
-如果你想先看本地演示：
+如果你想先看一个安全的本地演示：
 
 ```bash
 pnpm demo:mail
@@ -73,72 +87,33 @@ pnpm demo:mail
 
 然后打开 `http://127.0.0.1:3020/workbench/mail`。
 
-## Workbench 里能看到什么
+## 在 Mail 标签页里能看到什么
 
-- `Accounts`：已连接邮箱与 provider 状态
-- `Rooms`：外部会话形成的 durable room
-- `Mailboxes`：public agent 与 internal role 的虚拟邮箱
-- `Approvals`：等待审批的外发邮件
-- `Mail`：集成在 OpenClaw 风格 shell 中的 Mail 标签
+- `Accounts`：哪些邮箱已经接入、当前是否正常
+- `Rooms`：每条外部会话形成的持久房间
+- `Mailboxes`：每个公开角色或内部角色实际看到的协作视角
+- `Approvals`：等待人工或治理规则放行的外发邮件
+- `Mail`：把这些对象放在一起的主入口
 
-MailClaw 会把内部协作也暴露出来。你可以看到哪个 agent 接了任务、哪个 worker 回了 internal reply、哪个 review 阻断了草稿、哪个结果最终进入了 outbox。
+MailClaw 最大的区别不是“也能多智能体”，而是“多智能体过程看得见”。你不用盲信“系统已经帮你处理好了”，而是能直接看到主智能体、工作智能体、审阅者和守卫之间到底发生了什么。
 
-## 多智能体模型
+## 多智能体，但不再混乱
 
-MailClaw 把三件事明确拆开：
+MailClaw 明确拆开三件事：
 
-- `Room`：一条外部会话的 durable truth
-- `Virtual Mail`：agent 之间的内部通信协议
-- `Pre`：每一轮工作后留下来的紧凑状态
+- 外部会话
+- 内部协作
+- 每一轮之后真正留下来的持久记忆
 
-长期 agent 有自己的 `SOUL.md`、角色邮箱和协作规则。单次 subagent 只是 burst worker。它的结果只有在被归一化成 internal reply mail 并回写 room 后，才能进入业务真相。
-
-## 与 OpenClaw 的关系
-
-MailClaw 不是替代 OpenClaw，而是在它的生态入口之上补齐邮件原生运行时能力：
-
-- room-first truth，而不是 session-first truth
-- 邮件线程与 provider ingest
-- agent 间 virtual mail
-- approval 与 outbox 治理
-- 邮件操作的 replay 与 recovery
+这样多个智能体就能围绕同一封邮件协作，而不会把整条会话拖成一片不可读的长上下文泥潭。
 
 ## 文档
-
-文档是正式产品说明：
 
 - 文档站：<https://dangozhang.github.io/mailclaw/>
 - 快速开始：<https://dangozhang.github.io/mailclaw/zh-CN/getting-started>
 - 核心概念：<https://dangozhang.github.io/mailclaw/zh-CN/concepts>
 - 多智能体协作：<https://dangozhang.github.io/mailclaw/zh-CN/multi-agent-workflows>
-- 控制台：<https://dangozhang.github.io/mailclaw/zh-CN/operator-console>
-
-本地启动文档：
-
-```bash
-pnpm docs:dev
-```
-
-构建静态文档站：
-
-```bash
-pnpm docs:build
-```
-
-## 当前状态
-
-MailClaw 目前已经具备：
-
-- room kernel 与 replay
-- provider onboarding 与邮箱登录
-- IMAP、SMTP、Gmail 和 raw RFC822 入站路径
-- virtual mailbox 与 internal mail 投影
-- approval-gated 外发
-- OpenClaw 风格嵌入式 Mail workbench
-
-当前边界与剩余约束见：
-
-- <https://dangozhang.github.io/mailclaw/zh-CN/security-boundaries>
+- 邮件工作台：<https://dangozhang.github.io/mailclaw/zh-CN/operator-console>
 
 ## 许可
 

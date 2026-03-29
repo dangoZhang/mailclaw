@@ -2,9 +2,9 @@
 
 理解 MailClaw，其实只要抓住几个核心概念。
 
-## 1. Room
+## 1. 房间（Room）
 
-Room 是一段外部邮件会话的 durable truth boundary。
+房间是一段外部邮件会话的持久真相边界。
 
 Room 里会放：
 
@@ -12,78 +12,78 @@ Room 里会放：
 - 参与者
 - 附件和提取出来的证据
 - 审批与投递状态
-- 可 replay 的时间线
-- 最新 durable Pre
+- 可回放的时间线
+- 最新预摘要
 
 为什么重要：
 
-- 邮件 continuity 不应该依赖一条越来越长的 chat transcript
-- 新回复到达时，旧任务可以被安全地判 stale
+- 邮件连续性不应该依赖一条越来越长的聊天上下文
+- 新回复到达时，旧任务可以被安全地判为过期
 - 运营和排障需要一个统一真相源
 
-## 2. Virtual Mail
+## 2. 虚拟邮件（Virtual Mail）
 
-内部 agent 协作通过 virtual mailbox 和 work thread 完成。
+内部智能体协作通过虚拟邮箱和协作线程完成。
 
 它的约束很重要：
 
-- reply 是 single-parent
-- 可以 fan-out 给多个 worker
-- fan-in 由 reducer 负责
-- mailbox 可见性可以按角色控制
+- 回复遵循单父结构
+- 可以把任务分发给多个工作智能体
+- 汇总由汇总器负责
+- 邮箱可见性可以按角色控制
 - 内部协作可观察，但不污染外部线程
 
-## 3. Pre-First Memory
+## 3. 预摘要优先记忆（Pre-First Memory）
 
 MailClaw 不把长期记忆建立在原始推理轨迹上。
 
 它的做法是：
 
-- agents 在 scratch 里临时工作
-- 把真正值得留下来的结果压成 Pre
-- 下一轮默认只加载 latest inbound、latest Pre 和必要 refs
+- 智能体在临时工作区里处理任务
+- 把真正值得留下来的结果压成预摘要
+- 下一轮默认只加载最新来信、最新预摘要和必要引用
 
-Pre 里通常会有：
+预摘要里通常会有：
 
-- summary
-- facts
-- open questions
-- decisions
-- commitments
+- 摘要
+- 事实
+- 待解问题
+- 决策
+- 承诺
 
-## 4. ReAct-Pre
+## 4. 先反应、后沉淀（ReAct-Pre）
 
 MailClaw 的行为模型可以概括成：
 
-1. 在 scratch 里 React
-2. 把结果压成 Pre
-3. 再把 Pre 展示成外部邮件、内部邮件、审批项或 workbench 视图
+1. 在临时工作区里完成推理和行动
+2. 把结果压成预摘要
+3. 再把预摘要展示成外部邮件、内部邮件、审批项或工作台视图
 
 因此：
 
-- chain-of-thought 不是长期记忆
-- child transcript 不是业务真相
+- 思维链不是长期记忆
+- 子智能体转录不是业务真相
 - 邮件正文不是唯一状态本体
 
-## 5. Approval 与 Outbox
+## 5. 审批与发件箱（Approval / Outbox）
 
 MailClaw 把副作用和推理解耦。
 
 典型链路：
 
-1. draft
-2. review / guard
-3. approval
-4. outbox intent
-5. delivery attempt
+1. 草稿
+2. 审阅 / 守卫检查
+3. 审批
+4. 发件箱意图
+5. 投递尝试
 
 这样做的意义是：
 
-- worker 不能直接对外发信
+- 工作智能体不能直接对外发信
 - 不安全或过期的草稿不会静默流出
-- 审计、trace 和 replay 都有统一入口
+- 审计、追踪和回放都有统一入口
 
-## 6. Workbench
+## 6. 邮件工作台（Mail Workbench）
 
 Mail 标签是这些概念的用户界面。
 
@@ -97,35 +97,35 @@ Mail 标签是这些概念的用户界面。
 
 它不是普通聊天记录查看器，而是把 MailClaw 的运行时模型直接展示出来。
 
-## 7. Durable Agent
+## 7. 常驻智能体（Durable Agent）
 
-MailClaw 里的长期 agent 不是匿名 worker。
+MailClaw 里的长期智能体不是匿名工作进程。
 
-每个 durable agent 都有自己的：
+每个常驻智能体都有自己的：
 
 - `SOUL.md`
 - `AGENTS.md`
-- public mailbox
-- internal role mailboxes
+- 公开邮箱
+- 内部角色邮箱
 
 `SOUL.md` 里会写清：
 
-- 这个 agent 对外和对内的虚拟邮件地址
+- 这个智能体对外和对内的虚拟邮件地址
 - 它负责什么
 - 遇到什么情况该找谁协作
 
 这让多智能体分工不是靠 prompt 里临时硬塞，而是有稳定的人格入口和协作目录。
 
-## 8. Template 与 HeadCount
+## 8. 模板与编制建议（HeadCount）
 
-MailClaw 支持三种补充 agent roster 的方式：
+MailClaw 支持三种补充智能体编组的方式：
 
 - 预设模板
-- 自定义 durable agent
-- 从长期 subagent 使用模式中总结 HeadCount 建议
+- 自定义常驻智能体
+- 从长期子智能体使用模式中总结编制建议
 
-模板适合一键起步，HeadCount 适合在 backlog 变大后决定哪些角色值得长期化。
+模板适合一键起步，编制建议适合在积压工作变大后决定哪些角色值得长期化。
 
 ## 一句话
 
-MailClaw 把邮件变成 durable room，把多智能体协作变成 virtual mail，把长期记忆收敛成 Pre。
+MailClaw 把邮件变成持久房间，把多智能体协作变成虚拟邮件，把长期记忆收敛成预摘要。

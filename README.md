@@ -1,7 +1,7 @@
 # MailClaw
 
 <p align="center">
-  Email-native runtime for durable, auditable, multi-agent work.
+  The email-native layer for teams that already work from the inbox.
 </p>
 
 <p align="center">
@@ -16,56 +16,63 @@
   <a href="https://github.com/dangoZhang/mailclaw/actions/workflows/release.yml">Release</a>
 </p>
 
-MailClaw turns email conversations into durable rooms. It keeps room truth, internal agent mail, approvals, replay, and governed outbound delivery in one runtime that can live beside OpenClaw.
+MailClaw is for people who actually run work through email: founders, operators, support teams, shared inbox owners, and AI-heavy teams that need more than “reply with a prompt.”
 
-MailClaw does not assume one mailbox vendor. Start with the email address you already use, let MailClaw recommend the provider path, and connect it. The built-in paths cover common hosted providers plus generic IMAP/SMTP.
+It turns every real email conversation into a durable operating unit. The room has memory. Agent collaboration is visible. Drafts can be reviewed. Outbound mail can be approved. Everything can be replayed later.
 
-## Why MailClaw
+## Why MailClaw Feels Stronger Than OpenClaw For Email Work
 
-- keep one external conversation as one durable room
-- let agents collaborate through internal mail instead of sharing one giant transcript
-- keep long-term memory as compact Pre snapshots instead of raw scratch traces
-- inspect approvals, outbox, replay, and internal agent mail from the same workbench
-- mount Mail as a tab inside the OpenClaw-style Gateway workbench
+OpenClaw is a strong general agent workbench. MailClaw is what you use when the inbox itself becomes the product surface.
 
-## Install
+- OpenClaw is session-first. MailClaw is room-first, so one email thread keeps one durable truth source.
+- OpenClaw can hide subagent work inside runs. MailClaw shows internal collaboration as inspectable mail between roles.
+- OpenClaw keeps pushing long transcripts forward. MailClaw keeps compact Pre state, so later turns stay smaller and cleaner.
+- OpenClaw helps an agent act. MailClaw helps a team receive, triage, collaborate, approve, and send from real inboxes.
+- OpenClaw gives you a workbench. MailClaw gives you a Mail tab with rooms, internal mail, approvals, outbox, and replay in one place.
 
-Runtime requirement: Node.js 22+.
+If your daily work begins with “a customer emailed us,” “the founder inbox needs triage,” or “several agents need to collaborate before anyone replies,” MailClaw is the sharper tool.
+
+## What Makes It Different
+
+- Real email threads become durable rooms, not disposable chat state.
+- Internal agent cooperation uses virtual mail, not one giant shared context window.
+- Long-term memory keeps summaries, facts, decisions, and commitments instead of raw scratch traces.
+- External sends are governed through review, approval, and outbox flow.
+- Operators can inspect the whole chain: inbound mail, internal mail, approvals, delivery, and replay.
+
+## What You Can Do Today
+
+- connect a real mailbox and receive real mail
+- open the Mail tab and inspect accounts, rooms, internal mailboxes, and approvals
+- watch multiple agents collaborate without losing the external thread
+- see which draft was approved, blocked, or superseded
+- replay why a room replied the way it did
+- run MailClaw inside an OpenClaw-style host instead of switching to a separate tool
+
+## Three-Minute Start
 
 ```bash
 ./install.sh
-```
-
-You can also use the package managers described in the docs:
-
-- npm
-- pnpm
-- Homebrew
-
-## First Run
-
-```bash
-pnpm install
-MAILCLAW_FEATURE_MAIL_INGEST=true pnpm mailclaw
+MAILCLAW_FEATURE_MAIL_INGEST=true mailclaw
 ```
 
 Then in a second terminal:
 
 ```bash
-pnpm mailclaw onboard you@example.com
-pnpm mailclaw login
-pnpm mailclaw dashboard
+mailclaw onboard you@example.com
+mailclaw login
+mailclaw dashboard
 ```
 
-Recommended first-run flow:
+Recommended first run:
 
 1. Start MailClaw.
 2. Connect one mailbox you already use.
 3. Send one test email from another mailbox.
-4. Open the `Mail` tab in the Gateway-style workbench.
-5. Inspect the room, internal agent mail, and delivery state.
+4. Open the `Mail` tab.
+5. Inspect the room, the internal collaboration, and the outbound state.
 
-If you only want a local demo first:
+If you want a safe local walkthrough first:
 
 ```bash
 pnpm demo:mail
@@ -73,72 +80,33 @@ pnpm demo:mail
 
 Then open `http://127.0.0.1:3020/workbench/mail`.
 
-## What You See In The Workbench
+## Inside The Mail Tab
 
-- `Accounts`: connected mailboxes and provider state
-- `Rooms`: durable external conversations
-- `Mailboxes`: virtual mailboxes for public agents and internal roles
-- `Approvals`: outbound mail waiting for approval
-- `Mail`: the OpenClaw-style integrated Mail tab
+- `Accounts`: which inboxes are connected and healthy
+- `Rooms`: durable conversations with revisioned state
+- `Mailboxes`: what each public role or internal role actually saw
+- `Approvals`: outbound mail waiting for a human or governance decision
+- `Mail`: the integrated OpenClaw-style entry point for all of the above
 
-MailClaw keeps internal collaboration visible. You can inspect which agent took a task, which worker replied, which review blocked a draft, and which approved result finally reached the outbox.
+The key difference is visibility. MailClaw does not ask you to trust that “the swarm handled it.” You can inspect the actual handoff between orchestrator, workers, reviewer, and guard.
 
-## Multi-Agent Model
+## Multi-Agent Without The Mess
 
-MailClaw separates three things:
+MailClaw separates:
 
-- `Room`: durable truth for one external conversation
-- `Virtual Mail`: internal communication between agents
-- `Pre`: compact state that survives after each round of work
+- the external conversation
+- the internal collaboration
+- the durable memory that survives each turn
 
-Durable agents keep their own `SOUL.md`, role mailboxes, and collaboration rules. One-off subagents are burst workers. Their output only becomes business truth after it is normalized into internal reply mail and merged back into the room.
-
-## Relationship With OpenClaw
-
-MailClaw is designed to sit on top of the OpenClaw ecosystem, not replace it. It reuses Gateway-style entry points and workbench patterns, while adding:
-
-- room-first truth instead of session-first truth
-- email-native threading and provider ingestion
-- virtual mail between agents
-- approval and outbox governance
-- replay and recovery for mail operations
+That means multiple agents can help on one email without turning the whole thread into an unreadable transcript swamp.
 
 ## Documentation
-
-The docs are the canonical product guide:
 
 - Docs site: <https://dangozhang.github.io/mailclaw/>
 - Getting started: <https://dangozhang.github.io/mailclaw/getting-started>
 - Core concepts: <https://dangozhang.github.io/mailclaw/concepts>
 - Multi-agent workflows: <https://dangozhang.github.io/mailclaw/multi-agent-workflows>
-- Operator console: <https://dangozhang.github.io/mailclaw/operator-console>
-
-Run the docs locally:
-
-```bash
-pnpm docs:dev
-```
-
-Build the static docs site:
-
-```bash
-pnpm docs:build
-```
-
-## Status
-
-MailClaw already ships:
-
-- room kernel and replay
-- provider onboarding and mailbox login
-- IMAP, SMTP, Gmail, and raw RFC822 ingress paths
-- virtual mailboxes and internal mail projection
-- approval-gated outbound delivery
-- OpenClaw-style embedded Mail workbench integration
-
-Current boundaries are documented here:
-
-- <https://dangozhang.github.io/mailclaw/security-boundaries>
+- Mail tab guide: <https://dangozhang.github.io/mailclaw/operator-console>
 
 ## License
 

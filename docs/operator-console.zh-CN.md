@@ -1,6 +1,6 @@
-# Mail Workbench
+# 邮件工作台
 
-Mail Workbench 是 MailClaw 面向用户的主界面。
+邮件工作台是 MailClaw 面向用户的主界面。
 
 在推荐形态里，它会作为 OpenClaw/Gateway 里的 `Mail` 标签页出现。`/workbench/mail` 只是直达兜底和 deep link 入口。
 
@@ -29,10 +29,10 @@ mailclaw open
 适合：
 
 - 第一次连接邮箱
-- 先看推荐 provider 路径
-- 一键应用 agent 模板
-- 创建自定义 durable agent
-- 查看当前 agent directory 和 HeadCount 建议
+- 先看推荐登录路径
+- 一键应用智能体模板
+- 创建自定义常驻智能体
+- 查看当前智能体目录和编制建议
 - 从最短路径重新进入 Mail 标签
 
 ### Accounts
@@ -42,19 +42,19 @@ mailclaw open
 适合：
 
 - 确认邮箱是否已经连接
-- 查看 provider 状态和总体健康度
-- 跳进该账号下的 room 或 mailbox 视图
+- 查看邮箱服务状态和总体健康度
+- 跳进该账号下的房间或协作邮箱视图
 
 ### Rooms
 
-Room 视图。
+房间视图。
 
 适合：
 
-- 以 durable state 的方式查看会话
-- 检查 revision、参与者、审批和 timeline
+- 以持久状态的方式查看会话
+- 检查版本、参与者、审批和时间线
 - 追踪为什么最新回复会长成现在这样
-- 在一个 room 里直接看清 virtual mail、mailbox delivery 和 governed outbox
+- 在一个房间里直接看清虚拟邮件、邮箱投递和受治理发件箱
 
 ### Mailboxes
 
@@ -62,9 +62,9 @@ Room 视图。
 
 适合：
 
-- 查看某个 public 或 internal mailbox
-- 理解某个 agent role 实际看到了什么
-- 在不先读完整 room timeline 的情况下检查内部协作
+- 查看某个公开或内部协作邮箱
+- 理解某个智能体角色实际看到了什么
+- 在不先读完整房间时间线的情况下检查内部协作
 
 ### Approvals
 
@@ -81,35 +81,35 @@ Room 视图。
 
 1. 打开 `Accounts`
 2. 选中已连接账号
-3. 打开新 room
-4. 如有需要，跳到某个 mailbox participant
+3. 打开新房间
+4. 如有需要，跳到某个协作邮箱参与者
 5. 如有需要，打开 `Approvals`
 
 这和 MailClaw 的运行时模型是一致的：
 
-- account 给你 provider 和 mailbox 范围
-- room 给你 durable truth
-- mailbox 给你协作细节
-- approvals 给你副作用控制
+- 账号给你邮箱服务和邮箱范围
+- 房间给你持久真相
+- 协作邮箱给你协作细节
+- 审批给你副作用控制
 
-## 在一个 Room 里看多智能体协作
+## 在一个房间里看多智能体协作
 
-打开 room 后，按这个顺序看：
+打开房间后，按这个顺序看：
 
-1. `Room Summary`
-2. `Virtual Mail`
-3. `Mailbox Deliveries`
-4. `Governed Outbox`
-5. `Gateway Projection`
+1. `房间摘要`
+2. `虚拟邮件`
+3. `邮箱投递`
+4. `受治理发件箱`
+5. `网关映射`
 
 这能帮助你快速看清：
 
 - 哪些内部角色参与了协作
-- 哪条任务或回复被投递到哪个 mailbox
-- 哪些 delivery 被 consumed，哪些已经 stale
+- 哪条任务或回复被投递到哪个协作邮箱
+- 哪些投递已完成，哪些已经过期
 - 哪个内部结果真正进入了外发候选
 
-如果你还想看某个角色自己的视角，再点击 room 里的 mailbox chip。
+如果你还想看某个角色自己的视角，再点击房间里的协作邮箱标签。
 
 ## 常用深链
 
@@ -126,14 +126,14 @@ Room 视图。
 
 ## 这套界面的定位
 
-Mail Workbench 不是普通聊天历史查看器。
+邮件工作台不是普通聊天历史查看器。
 
 它要展示的是：
 
-- connected accounts
-- durable rooms
-- internal/public mailboxes
-- approval state
+- 已连接账号
+- 持久房间
+- 内部 / 公开协作邮箱
+- 审批状态
 
 也就是 MailClaw 运行时真正关心的那套对象。
 

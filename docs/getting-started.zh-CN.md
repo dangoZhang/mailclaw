@@ -10,7 +10,7 @@
 - 一个你想接入的邮箱
 - 另一个邮箱或邮件客户端，用来发测试邮件
 
-MailClaw 不绑定单一 provider。当前内建支持 Gmail、Outlook、QQ、iCloud、Yahoo、163/126，以及通用 IMAP/SMTP。
+MailClaw 不绑定某一家邮箱服务。你只需要登录自己已经在用的邮箱即可。
 
 ## 安装
 
@@ -41,7 +41,7 @@ MAILCLAW_FEATURE_MAIL_INGEST=true \
 mailclaw
 ```
 
-这会启动本地 runtime 和 Mail 标签页后端。
+这会启动本地运行时和 `Mail` 标签页后端。
 
 ## 接入一个邮箱
 
@@ -54,14 +54,8 @@ mailclaw login
 
 含义：
 
-- `mailclaw onboard` 会根据邮箱地址推荐最合适的 provider 路径
+- `mailclaw onboard` 会根据邮箱地址推荐最合适的登录路径
 - `mailclaw login` 会带你完成实际登录流程
-
-如果你想先看支持哪些 provider：
-
-```bash
-mailclaw providers
-```
 
 ## 打开 Mail 标签页
 
@@ -93,13 +87,13 @@ http://127.0.0.1:3000/workbench/mail
 2. 从 Mail 标签页或 `mailclaw accounts` 找到已连接地址。
 3. 用另一个邮箱给它发一封邮件。
 4. 打开 Mail 标签页。
-5. 进入对应账号，再打开新 room。
+5. 进入对应账号，再打开新会话房间。
 
 这就是 MailClaw 最核心的闭环：
 
 - 真实邮件进入
-- MailClaw 创建或续接 room
-- agents 在 room 里工作
+- MailClaw 创建或续接房间
+- 智能体在房间里工作
 - 你从 Mail 标签页里查看结果
 
 ## 你会看到什么
@@ -107,16 +101,16 @@ http://127.0.0.1:3000/workbench/mail
 第一封邮件进来后，Mail 标签页里最有用的是这几个视图：
 
 - `Accounts`：哪些邮箱已连接、是否健康
-- `Rooms`：durable conversation state
-- `Mailboxes`：内部或公开 mailbox 的协作视图
+- `Rooms`：每条会话形成的持久状态
+- `Mailboxes`：内部或公开协作邮箱的视图
 - `Approvals`：待审批的外发工作
 
 如果你想看内部多智能体协作：
 
-- 打开一个 room
-- 先看 `Virtual Mail`、`Mailbox Deliveries`、`Governed Outbox`
-- 如果需要某个角色的局部视角，再点击对应 mailbox participant
-- 查看 mailbox feed 和 room-local collaboration
+- 打开一个房间
+- 先看 `虚拟邮件`、`邮箱投递`、`受治理发件箱`
+- 如果需要某个角色的局部视角，再点击对应的协作邮箱参与者
+- 查看该邮箱里的消息流和房间内协作
 
 ## 对 OpenClaw 用户
 
@@ -127,11 +121,11 @@ http://127.0.0.1:3000/workbench/mail
 3. 进入宿主控制台
 4. 点击 `Mail`
 
-MailClaw 设计目标就是作为 OpenClaw shell 里的一个 Mail 标签，而不是一套完全独立的新工作台。
+MailClaw 的设计目标就是作为 OpenClaw 外壳里的一个 `Mail` 标签，而不是一套完全独立的新工作台。
 
 ## 下一步
 
 - [核心概念](./concepts.zh-CN.md)
 - [多智能体协作](./multi-agent-workflows.zh-CN.md)
-- [Mail Workbench](./operator-console.zh-CN.md)
+- [邮件工作台](./operator-console.zh-CN.md)
 - [集成](./integrations.zh-CN.md)
