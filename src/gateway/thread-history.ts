@@ -4,6 +4,7 @@ import path from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 
 import type { GatewaySessionBinding, VirtualMessage } from "../core/types.js";
+import { getVirtualMailbox } from "../storage/repositories/virtual-mailboxes.js";
 import { toSafeStorageFileName, toSafeStoragePathSegment } from "../storage/path-safety.js";
 import { replaceRoomSearchDocumentForVirtualMessage } from "../storage/repositories/room-search-index.js";
 import { bindGatewaySessionToRoom, projectGatewayTurnToVirtualMail } from "./projection-adapter.js";
@@ -56,6 +57,7 @@ export function importGatewayThreadHistory(
       sourceMessageId,
       bodyText: turn.bodyText
     });
+    const visibility = normalizeImportedTurnVisibility(db, turn);
     const result = projectGatewayTurnToVirtualMail(db, {
       roomKey: input.roomKey,
       sessionKey: input.sessionKey,
@@ -68,7 +70,7 @@ export function importGatewayThreadHistory(
       toMailboxIds: turn.toMailboxIds,
       ccMailboxIds: turn.ccMailboxIds,
       kind: turn.kind,
-      visibility: turn.visibility,
+      visibility,
       subject: turn.subject,
       bodyRef,
       inputsHash: createHash("sha256")
@@ -90,6 +92,23 @@ export function importGatewayThreadHistory(
     previousMessageId = result.message.messageId;
     return result;
   });
+}
+
+function normalizeImportedTurnVisibility(
+  db: DatabaseSync,
+  turn: Pick<GatewayThreadHistoryTurn, "fromMailboxId" | "toMailboxIds" | "ccMailboxIds" | "visibility">
+) {
+  if (turn.visibility !== "internal") {
+    return turn.visibility;
+  }
+
+  const recipientMailboxIds = [...turn.toMailboxIds, ...(turn.ccMailboxIds ?? [])];
+  const hasVisibleRecipient = recipientMailboxIds.some((mailboxId) => {
+    const mailbox = getVirtualMailbox(db, mailboxId);
+    return mailbox?.kind === "public" || mailbox?.kind === "human";
+  });
+
+  return hasVisibleRecipient ? "room" : turn.visibility;
 }
 
 function persistGatewayTurnBody(input: {

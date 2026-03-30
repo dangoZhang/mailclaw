@@ -178,7 +178,7 @@ export function leaseNextRoomJob(
     FROM room_queue_jobs AS candidate
     WHERE
       candidate.status = 'queued'
-      AND candidate.available_at <= ?
+      AND (candidate.attempts = 0 OR candidate.available_at <= ?)
       ${excludeClause}
       AND NOT EXISTS (
         SELECT 1

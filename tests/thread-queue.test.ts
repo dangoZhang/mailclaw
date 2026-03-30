@@ -160,6 +160,34 @@ describe("thread queue", () => {
     handle.close();
   });
 
+  it("still leases first-attempt queued jobs when caller time lags behind job creation time", () => {
+    const { handle, roomKeyA } = createDb();
+
+    enqueueRoomJob(handle.db, {
+      jobId: "job-skewed",
+      roomKey: roomKeyA,
+      revision: 1,
+      inboundSeq: 1,
+      priority: 100,
+      messageDedupeKey: "acct-1:provider:turn-skewed",
+      createdAt: "2026-03-30T00:00:00.000Z"
+    });
+
+    const leased = leaseNextRoomJob(handle.db, {
+      leaseOwner: "orch-skewed",
+      now: "2026-03-28T00:00:00.000Z",
+      leaseDurationMs: 30_000
+    });
+
+    expect(leased).toMatchObject({
+      jobId: "job-skewed",
+      status: "leased",
+      attempts: 1
+    });
+
+    handle.close();
+  });
+
   it("retries failed jobs by moving them back to queued state", () => {
     const { handle, roomKeyA } = createDb();
 
