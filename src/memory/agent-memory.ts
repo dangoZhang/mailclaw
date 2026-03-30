@@ -57,6 +57,9 @@ export interface AgentWorkspaceProfile {
   displayName?: string;
   purpose?: string;
   publicMailboxId?: string;
+  sourceAlignment?: string;
+  sourceRefs?: string[];
+  roleContract?: string[];
   collaboratorAgentIds?: string[];
   collaboratorNotes?: Array<{
     agentId: string;
@@ -472,6 +475,9 @@ function buildAgentWorkspaceProfile(agentId: string, profile?: AgentWorkspacePro
       profile?.purpose?.trim() ||
       "Own a durable MailClaw role, keep the room kernel as truth, and collaborate through virtual mail.",
     publicMailboxId: profile?.publicMailboxId?.trim() || `public:${agentId}`,
+    sourceAlignment: profile?.sourceAlignment?.trim() || "",
+    sourceRefs: profile?.sourceRefs?.filter((entry) => entry.trim().length > 0) ?? [],
+    roleContract: profile?.roleContract?.filter((entry) => entry.trim().length > 0) ?? [],
     collaboratorAgentIds: profile?.collaboratorAgentIds ?? [],
     collaboratorNotes: profile?.collaboratorNotes ?? [],
     templateId: profile?.templateId?.trim() || "custom",
@@ -508,6 +514,18 @@ function renderAgentSoulMarkdown(input: {
         )
       : ["- Work from the room's latest Pre, then ask collaborators by internal mail when evidence or review is needed."]),
     "",
+    ...(input.profile.sourceAlignment || input.profile.sourceRefs.length > 0
+      ? [
+          "## Upstream Alignment",
+          ...(input.profile.sourceAlignment ? [input.profile.sourceAlignment, ""] : []),
+          ...(input.profile.sourceRefs.length > 0
+            ? [...input.profile.sourceRefs.map((ref) => `- ${ref}`), ""]
+            : [])
+        ]
+      : []),
+    ...(input.profile.roleContract.length > 0
+      ? ["## Role Contract", ...input.profile.roleContract.map((entry) => `- ${entry}`), ""]
+      : []),
     "## Default Skills",
     ...input.defaultSkills.map((skill) => `- \`${path.basename(skill.path)}\`: ${skill.title}`),
     "",

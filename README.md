@@ -130,7 +130,13 @@ The current `One-Person Company` template is aligned with the solo-operator orga
 
 - <https://github.com/cyfyifanchen/one-person-company>
 
-The `Three Provinces, Six Departments` template is included as a first-party MailClaw roster for teams that want a larger review-and-governance operating shape.
+MailClaw reuses the upstream operating pattern here, but not by copying soul files directly. The source project is a playbook for how a solo operator runs a company; MailClaw maps that into one front inbox plus durable specialist peers.
+
+The `Three Provinces, Six Departments` template is closer to direct role reuse. MailClaw aligns Taizi, Zhongshu, Menxia, Shangshu, and the six departments against the OpenClaw-based `Edict` project:
+
+- <https://github.com/cft0808/edict>
+
+When you apply that template, generated `SOUL.md` files include upstream alignment notes and role contracts so the roster stays close to Edict instead of drifting into a name-only homage.
 
 ## Documentation
 

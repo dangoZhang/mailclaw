@@ -10,6 +10,9 @@ export interface AgentTemplatePersistentAgent {
   displayName: string;
   purpose: string;
   publicMailboxId: string;
+  sourceAlignment?: string;
+  sourceRefs?: string[];
+  roleContract?: string[];
   visibilityPolicyRef?: string;
   capabilityPolicyRef?: string;
   inbox: Pick<PublicAgentInbox, "activeRoomLimit" | "ackSlaSeconds" | "burstCoalesceSeconds">;
@@ -27,6 +30,7 @@ export interface AgentTemplate {
   displayName: string;
   summary: string;
   inspiration: string;
+  sourceRefs?: string[];
   persistentAgents: AgentTemplatePersistentAgent[];
   subagentTargets: Array<{
     targetId: string;
@@ -66,12 +70,21 @@ const AGENT_TEMPLATES: AgentTemplate[] = [
     displayName: "One-Person Company",
     summary: "One front-door operator with durable specialist peers and burst workers behind the inbox.",
     inspiration: "single-operator company",
+    sourceRefs: ["https://github.com/cyfyifanchen/one-person-company"],
     persistentAgents: [
       {
         agentId: "assistant",
         displayName: "Founder Desk",
         purpose: "Own the front inbox, triage rooms, ACK quickly, and decide when work should split.",
         publicMailboxId: "public:assistant",
+        sourceAlignment:
+          "Adapted from the one-person-company operating model. The upstream project is a solo-operator playbook, not a ready-made soul roster, so MailClaw maps it into durable inbox roles.",
+        sourceRefs: ["https://github.com/cyfyifanchen/one-person-company"],
+        roleContract: [
+          "Stay on the public inbox and keep the room moving with ACK, progress, and clear delegation.",
+          "Escalate evidence gathering and execution follow-through by internal mail instead of carrying every detail in one prompt.",
+          "Never bypass outbox governance for real external send."
+        ],
         inbox: {
           activeRoomLimit: 4,
           ackSlaSeconds: 180,
@@ -93,6 +106,14 @@ const AGENT_TEMPLATES: AgentTemplate[] = [
         displayName: "Research Lead",
         purpose: "Turn room questions into evidence-backed claims and reusable summaries.",
         publicMailboxId: "public:research",
+        sourceAlignment:
+          "A MailClaw durable peer added on top of the solo-operator model so one person can stay responsive while deep evidence work runs behind internal mail.",
+        sourceRefs: ["https://github.com/cyfyifanchen/one-person-company"],
+        roleContract: [
+          "Read the task mail, room Pre, and referenced evidence before doing any new retrieval.",
+          "Return claims, evidence, and reusable summaries to the front desk.",
+          "Do not send externally."
+        ],
         inbox: {
           activeRoomLimit: 2,
           ackSlaSeconds: 600,
@@ -110,6 +131,14 @@ const AGENT_TEMPLATES: AgentTemplate[] = [
         displayName: "Operations Desk",
         purpose: "Review commitments, approvals, and human handoff readiness before side effects.",
         publicMailboxId: "public:ops",
+        sourceAlignment:
+          "A MailClaw durable peer added to make the solo-operator pattern safe for governed send, approvals, and handoff.",
+        sourceRefs: ["https://github.com/cyfyifanchen/one-person-company"],
+        roleContract: [
+          "Review commitments before they become outbound promises.",
+          "Own approvals, handoff readiness, and operator-visible follow-through.",
+          "Block external side effects that skip governance."
+        ],
         inbox: {
           activeRoomLimit: 2,
           ackSlaSeconds: 900,
@@ -155,14 +184,58 @@ const AGENT_TEMPLATES: AgentTemplate[] = [
   {
     templateId: "three-provinces-six-departments",
     displayName: "Three Provinces, Six Departments",
-    summary: "A larger operating roster for front office, review, governance, and specialist collaboration.",
+    summary: "An Edict-aligned operating roster with Taizi, the three provinces, and six departments mapped into durable inbox roles.",
     inspiration: "three provinces and six departments",
+    sourceRefs: ["https://github.com/cft0808/edict"],
     persistentAgents: [
+      {
+        agentId: "taizi",
+        displayName: "Taizi Coordination Office",
+        purpose: "Own the public front door, receive new rooms, coordinate the three provinces, and decide when to fan out work.",
+        publicMailboxId: "public:taizi",
+        sourceAlignment:
+          "Directly aligned to Edict's Taizi role: receive requests, coordinate the roster, and keep work flowing across offices.",
+        sourceRefs: [
+          "https://github.com/cft0808/edict",
+          "https://github.com/cft0808/edict/tree/main/agents/taizi"
+        ],
+        roleContract: [
+          "Receive inbound rooms and decide whether to ACK, delegate, review, approve, or hand off.",
+          "Keep a single active orchestrator per room and supersede stale work on new replies.",
+          "Do not send externally until review and governance have cleared the room."
+        ],
+        inbox: {
+          activeRoomLimit: 4,
+          ackSlaSeconds: 180,
+          burstCoalesceSeconds: 90
+        },
+        collaborators: [
+          {
+            agentId: "zhongshu",
+            reason: "Ask for structured draft direction and synthesis before a room moves toward final."
+          },
+          {
+            agentId: "shangshu",
+            reason: "Dispatch operational execution once drafting and review have converged."
+          }
+        ]
+      },
       {
         agentId: "zhongshu",
         displayName: "Zhongshu Draft Office",
         purpose: "Draft structured responses and keep room summaries aligned before review.",
         publicMailboxId: "public:zhongshu",
+        sourceAlignment:
+          "Aligned to Edict's Zhongshu role: draft direction, structure plans, and turn goals into coherent response packets.",
+        sourceRefs: [
+          "https://github.com/cft0808/edict",
+          "https://github.com/cft0808/edict/tree/main/agents/zhongshu"
+        ],
+        roleContract: [
+          "Turn room questions and evidence into structured draft packets.",
+          "Keep summaries aligned with the room's latest Pre before review.",
+          "Hand every draft to Menxia or Taizi rather than sending directly."
+        ],
         inbox: {
           activeRoomLimit: 3,
           ackSlaSeconds: 420,
@@ -184,6 +257,17 @@ const AGENT_TEMPLATES: AgentTemplate[] = [
         displayName: "Menxia Review Office",
         purpose: "Review facts, tone, and governance before a room can progress to final.",
         publicMailboxId: "public:menxia",
+        sourceAlignment:
+          "Aligned to Edict's Menxia role: challenge drafts, perform policy and quality review, and return pass or veto decisions.",
+        sourceRefs: [
+          "https://github.com/cft0808/edict",
+          "https://github.com/cft0808/edict/tree/main/agents/menxia"
+        ],
+        roleContract: [
+          "Review claims, tone, and policy fit before a room becomes final-ready.",
+          "Return pass, request-change, or block decisions with explicit reasons.",
+          "Do not create external sends."
+        ],
         inbox: {
           activeRoomLimit: 2,
           ackSlaSeconds: 600,
@@ -201,6 +285,17 @@ const AGENT_TEMPLATES: AgentTemplate[] = [
         displayName: "Shangshu Operations Office",
         purpose: "Own execution, approvals, handoff, and downstream operational follow-through.",
         publicMailboxId: "public:shangshu",
+        sourceAlignment:
+          "Aligned to Edict's Shangshu role: coordinate execution and route work into the right specialist office after drafting and review.",
+        sourceRefs: [
+          "https://github.com/cft0808/edict",
+          "https://github.com/cft0808/edict/tree/main/agents/shangshu"
+        ],
+        roleContract: [
+          "Route execution into the right specialist office once a room is ready.",
+          "Own approval, handoff, and downstream follow-through.",
+          "Require reviewer or guard clearance before side effects."
+        ],
         inbox: {
           activeRoomLimit: 3,
           ackSlaSeconds: 420,
@@ -218,10 +313,17 @@ const AGENT_TEMPLATES: AgentTemplate[] = [
         ]
       },
       {
-        agentId: "personnel",
-        displayName: "Personnel Office",
-        purpose: "Handle identity-sensitive escalations, role changes, and human routing.",
-        publicMailboxId: "public:personnel",
+        agentId: "libu-personnel",
+        displayName: "Libu Personnel Office",
+        purpose: "Handle people, role, identity, and routing changes that touch durable ownership or access boundaries.",
+        publicMailboxId: "public:libu-personnel",
+        sourceAlignment:
+          "Aligned to the personnel ministry in Edict's six-department roster.",
+        sourceRefs: ["https://github.com/cft0808/edict"],
+        roleContract: [
+          "Handle identity-sensitive escalation and human routing.",
+          "Review ownership or access changes before they become durable facts."
+        ],
         inbox: {
           activeRoomLimit: 2,
           ackSlaSeconds: 900,
@@ -235,10 +337,20 @@ const AGENT_TEMPLATES: AgentTemplate[] = [
         ]
       },
       {
-        agentId: "revenue",
-        displayName: "Revenue Office",
-        purpose: "Own billing, vendor, and contract-sensitive rooms that need financial precision.",
-        publicMailboxId: "public:revenue",
+        agentId: "hubu",
+        displayName: "Hubu Finance Office",
+        purpose: "Own billing, vendor, revenue, and resource-allocation rooms that need financial precision.",
+        publicMailboxId: "public:hubu",
+        sourceAlignment:
+          "Directly aligned to Edict's Hubu role for finance, resource allocation, and operational support.",
+        sourceRefs: [
+          "https://github.com/cft0808/edict",
+          "https://github.com/cft0808/edict/tree/main/agents/hubu"
+        ],
+        roleContract: [
+          "Own finance-sensitive rooms and validate monetary commitments before send.",
+          "Coordinate with Shangshu before outbound commitments are made."
+        ],
         inbox: {
           activeRoomLimit: 2,
           ackSlaSeconds: 900,
@@ -247,15 +359,94 @@ const AGENT_TEMPLATES: AgentTemplate[] = [
         collaborators: [
           {
             agentId: "shangshu",
-            reason: "Coordinate outbound commitments with operations before sending."
+            reason: "Coordinate outbound commitments and resource changes with operations before sending."
           }
         ]
       },
       {
-        agentId: "works",
-        displayName: "Works Office",
+        agentId: "libu-rites",
+        displayName: "Libu Rites Office",
+        purpose: "Own protocol, ceremony, stakeholder-facing tone, and relationship-sensitive presentation work.",
+        publicMailboxId: "public:libu-rites",
+        sourceAlignment:
+          "Aligned to the rites ministry in Edict's six-department roster, adapted for email tone, protocol, and stakeholder presentation.",
+        sourceRefs: ["https://github.com/cft0808/edict"],
+        roleContract: [
+          "Review protocol-sensitive or high-ceremony communication before final send.",
+          "Return tone and presentation guidance to Zhongshu or Taizi."
+        ],
+        inbox: {
+          activeRoomLimit: 2,
+          ackSlaSeconds: 900,
+          burstCoalesceSeconds: 240
+        },
+        collaborators: [
+          {
+            agentId: "zhongshu",
+            reason: "Refine tone and protocol before final drafts leave the drafting office."
+          }
+        ]
+      },
+      {
+        agentId: "bingbu",
+        displayName: "Bingbu Response Office",
+        purpose: "Own incident, escalation, and rapid-response rooms that require coordinated action under pressure.",
+        publicMailboxId: "public:bingbu",
+        sourceAlignment:
+          "Aligned to the Bingbu role in Edict's six-department roster, adapted for response coordination and escalation handling.",
+        sourceRefs: ["https://github.com/cft0808/edict"],
+        roleContract: [
+          "Handle urgent or incident-like rooms with fast coordination and clear status reporting.",
+          "Route action status back through Shangshu and Taizi rather than bypassing governance."
+        ],
+        inbox: {
+          activeRoomLimit: 2,
+          ackSlaSeconds: 300,
+          burstCoalesceSeconds: 60
+        },
+        collaborators: [
+          {
+            agentId: "shangshu",
+            reason: "Coordinate time-sensitive execution and escalation response."
+          }
+        ]
+      },
+      {
+        agentId: "xingbu",
+        displayName: "Xingbu Compliance Office",
+        purpose: "Own policy, compliance, dispute, and risk-heavy rooms that need hard governance review.",
+        publicMailboxId: "public:xingbu",
+        sourceAlignment:
+          "Aligned to the Xingbu role in Edict's six-department roster, adapted for policy and compliance enforcement.",
+        sourceRefs: ["https://github.com/cft0808/edict"],
+        roleContract: [
+          "Review policy-sensitive rooms and return governance decisions with reasons.",
+          "Escalate to approval or veto when the room crosses policy boundaries."
+        ],
+        inbox: {
+          activeRoomLimit: 2,
+          ackSlaSeconds: 600,
+          burstCoalesceSeconds: 180
+        },
+        collaborators: [
+          {
+            agentId: "menxia",
+            reason: "Support hard governance review with explicit policy or risk findings."
+          }
+        ]
+      },
+      {
+        agentId: "gongbu",
+        displayName: "Gongbu Works Office",
         purpose: "Run attachment-heavy work, implementation requests, and execution-heavy follow-up.",
-        publicMailboxId: "public:works",
+        publicMailboxId: "public:gongbu",
+        sourceAlignment:
+          "Aligned to the Gongbu role in Edict's six-department roster, adapted for implementation and artifact-heavy execution work.",
+        sourceRefs: ["https://github.com/cft0808/edict"],
+        roleContract: [
+          "Handle implementation-heavy or artifact-heavy rooms.",
+          "Feed implementation evidence and delivery status back into Zhongshu and Shangshu."
+        ],
         inbox: {
           activeRoomLimit: 3,
           ackSlaSeconds: 900,
@@ -265,6 +456,10 @@ const AGENT_TEMPLATES: AgentTemplate[] = [
           {
             agentId: "zhongshu",
             reason: "Feed implementation evidence back into final drafts."
+          },
+          {
+            agentId: "shangshu",
+            reason: "Keep execution status aligned with operational follow-through."
           }
         ]
       }
@@ -290,10 +485,11 @@ const AGENT_TEMPLATES: AgentTemplate[] = [
       }
     ],
     headcount: {
-      persistentAgents: 6,
+      persistentAgents: 10,
       burstTargets: 2,
       notes: [
-        "Use this when multiple room types are active at once and review or approvals regularly block the front desk.",
+        "Use this when the inbox has sustained load across multiple room types and governance or execution keeps blocking the front desk.",
+        "This template is intentionally closer to Edict's full roster: Taizi + three provinces + six departments.",
         "Keep burst researchers and drafters for spikes; keep durable offices for recurring governance and operations."
       ]
     }

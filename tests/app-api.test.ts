@@ -1717,6 +1717,9 @@ describe("app api", () => {
         expect.objectContaining({ agentId: "assistant", publicMailboxId: "public:assistant" })
       ])
     );
+    const founderSoulPath = applyJson.createdAgents.find((entry) => entry.agentId === "assistant")?.soulPath;
+    expect(founderSoulPath).toBeTruthy();
+    expect(fs.readFileSync(founderSoulPath ?? "", "utf8")).toContain("one-person-company operating model");
 
     const workbenchResponse = await fetch(`${baseUrl}/api/console/workbench?mode=connect&accountId=acct-templates`);
     const workbenchJson = (await workbenchResponse.json()) as {
@@ -1772,6 +1775,37 @@ describe("app api", () => {
     expect(customJson.agentDirectory).toEqual(
       expect.arrayContaining([expect.objectContaining({ agentId: "ops-review", publicMailboxId: "public:ops-review" })])
     );
+
+    const edictResponse = await fetch(`${baseUrl}/api/console/agent-templates/three-provinces-six-departments/apply`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        accountId: "acct-templates"
+      })
+    });
+    const edictJson = (await edictResponse.json()) as {
+      createdAgents: Array<{ agentId: string; soulPath: string }>;
+    };
+
+    expect(edictResponse.status).toBe(200);
+    expect(edictJson.createdAgents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ agentId: "taizi" }),
+        expect.objectContaining({ agentId: "zhongshu" }),
+        expect.objectContaining({ agentId: "menxia" }),
+        expect.objectContaining({ agentId: "shangshu" }),
+        expect.objectContaining({ agentId: "hubu" }),
+        expect.objectContaining({ agentId: "xingbu" }),
+        expect.objectContaining({ agentId: "gongbu" })
+      ])
+    );
+    const taiziSoulPath = edictJson.createdAgents.find((entry) => entry.agentId === "taizi")?.soulPath;
+    expect(taiziSoulPath).toBeTruthy();
+    const taiziSoul = fs.readFileSync(taiziSoulPath ?? "", "utf8");
+    expect(taiziSoul).toContain("Edict's Taizi role");
+    expect(taiziSoul).toContain("## Role Contract");
 
     fixture.handle.close();
   });

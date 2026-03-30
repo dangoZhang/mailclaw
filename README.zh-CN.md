@@ -141,7 +141,13 @@ MailClaw 已经内置了可一键接入的常驻智能体模板，包括：
 
 - <https://github.com/cyfyifanchen/one-person-company>
 
-`Three Provinces, Six Departments` 模板则是 MailClaw 自带的一等编组模板，用来表达更强的审阅、治理和分工结构。
+MailClaw 复用的是这里的经营方式和组织思路，而不是直接照搬 soul 文件。上游项目更像“一人公司如何运作”的方法论，MailClaw 把它落成了一个前台收件、后台分工的常驻模板。
+
+`Three Provinces, Six Departments` 模板则更接近直接对齐。MailClaw 会把 `Taizi / Zhongshu / Menxia / Shangshu / 六部` 这一套角色结构，对齐到 OpenClaw 生态里的这个项目：
+
+- <https://github.com/cft0808/edict>
+
+应用该模板时，生成出来的 `SOUL.md` 会带上上游对齐说明和角色契约，避免只剩名字相似、行为却越来越偏。
 
 ## 文档
 
