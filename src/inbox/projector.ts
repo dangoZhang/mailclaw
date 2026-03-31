@@ -3,6 +3,7 @@ import type { DatabaseSync } from "node:sqlite";
 
 import type { InboxItem, PublicAgentInbox, ThreadRoom } from "../core/types.js";
 import { findLatestMailMessageForThread } from "../storage/repositories/mail-messages.js";
+import { getMailAccount } from "../storage/repositories/mail-accounts.js";
 import { listRoomQueueJobs } from "../queue/thread-queue.js";
 import { listSubAgentRunsForRoom } from "../storage/repositories/subagent-runs.js";
 import { getThreadRoom, listThreadRooms } from "../storage/repositories/thread-rooms.js";
@@ -71,7 +72,7 @@ export function projectPublicAgentInbox(
     .filter(
       (room) =>
         room.accountId === input.accountId &&
-        resolveInboxParticipantRole(room, input.agentId) !== null
+        resolveInboxParticipantRole(db, room, input.agentId) !== null
     )
     .map((room) => projectInboxItemForRoom(db, {
       inbox,
@@ -99,7 +100,7 @@ export function projectInboxItemForRoom(
   const room = getThreadRoom(db, input.roomKey);
   const participantRole =
     room && room.accountId === input.inbox.accountId
-      ? resolveInboxParticipantRole(room, input.inbox.agentId)
+      ? resolveInboxParticipantRole(db, room, input.inbox.agentId)
       : null;
   if (!room || !participantRole) {
     return null;
@@ -236,6 +237,7 @@ export function listProjectedInboxItems(db: DatabaseSync, inboxId: string) {
 }
 
 function resolveInboxParticipantRole(
+  db: DatabaseSync,
   room: ThreadRoom,
   agentId: string
 ): InboxItem["participantRole"] | null {
@@ -244,15 +246,58 @@ function resolveInboxParticipantRole(
     return null;
   }
 
-  if (normalizeAddress(room.frontAgentAddress) === normalizedAgentId) {
+  const accountRouting = readAccountAgentRouting(getMailAccount(db, room.accountId)?.settings);
+  const durableRoutingActive =
+    Boolean(accountRouting.defaultFrontAgentId) || accountRouting.durableAgentIds.length > 0;
+  const durableAgentIds = new Set(
+    [accountRouting.defaultFrontAgentId, ...accountRouting.durableAgentIds]
+      .map((value) => normalizeAddress(value))
+      .filter((value) => value.length > 0)
+  );
+  const roomHasDurableAgents =
+    [room.frontAgentId, ...(room.publicAgentIds ?? []), ...(room.collaboratorAgentIds ?? [])]
+      .map((value) => normalizeAddress(value))
+      .some((value) => durableAgentIds.has(value));
+
+  if (durableRoutingActive && durableAgentIds.size > 0 && !durableAgentIds.has(normalizedAgentId)) {
+    return null;
+  }
+
+  if (
+    accountRouting.defaultFrontAgentId === normalizedAgentId &&
+    [...(room.publicAgentIds ?? []), ...(room.collaboratorAgentIds ?? [])].some(
+      (value) => normalizeAddress(value) === normalizedAgentId
+    )
+  ) {
     return "front";
   }
 
   if (
-    (room.collaboratorAgentAddresses ?? []).some(
-      (address) => normalizeAddress(address) === normalizedAgentId
+    accountRouting.defaultFrontAgentId === normalizedAgentId &&
+    !roomHasDurableAgents &&
+    normalizeAddress(room.frontAgentAddress).length > 0
+  ) {
+    return "front";
+  }
+
+  if (normalizeAddress(room.frontAgentId) === normalizedAgentId) {
+    return "front";
+  }
+
+  if (!durableRoutingActive && normalizeAddress(room.frontAgentAddress) === normalizedAgentId) {
+    return "front";
+  }
+
+  if (
+    (room.collaboratorAgentIds ?? []).some(
+      (agentIdValue) => normalizeAddress(agentIdValue) === normalizedAgentId
     ) ||
-    (room.publicAgentAddresses ?? []).some((address) => normalizeAddress(address) === normalizedAgentId)
+    (room.publicAgentIds ?? []).some((agentIdValue) => normalizeAddress(agentIdValue) === normalizedAgentId) ||
+    (!durableRoutingActive &&
+      ((room.collaboratorAgentAddresses ?? []).some(
+        (address) => normalizeAddress(address) === normalizedAgentId
+      ) ||
+        (room.publicAgentAddresses ?? []).some((address) => normalizeAddress(address) === normalizedAgentId)))
   ) {
     return "collaborator";
   }
@@ -262,4 +307,21 @@ function resolveInboxParticipantRole(
 
 function normalizeAddress(value?: string) {
   return value?.trim().toLowerCase() ?? "";
+}
+
+function readAccountAgentRouting(settings?: Record<string, unknown>) {
+  const routing =
+    settings && typeof settings.agentRouting === "object" && settings.agentRouting !== null
+      ? (settings.agentRouting as Record<string, unknown>)
+      : null;
+  return {
+    defaultFrontAgentId:
+      typeof routing?.defaultFrontAgentId === "string" ? normalizeAddress(routing.defaultFrontAgentId) : "",
+    durableAgentIds: Array.isArray(routing?.durableAgentIds)
+      ? routing.durableAgentIds
+          .filter((value): value is string => typeof value === "string")
+          .map((value) => normalizeAddress(value))
+          .filter((value) => value.length > 0)
+      : []
+  };
 }
