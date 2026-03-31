@@ -1999,6 +1999,64 @@ describe("app api", () => {
     fixture.handle.close();
   });
 
+  it("includes collaborator-only durable agents in the mailbox console", async () => {
+    const fixture = createFixture();
+    upsertMailAccount(fixture.handle.db, {
+      accountId: "acct-collab-console",
+      provider: "forward",
+      emailAddress: "demo.user@gmail.com",
+      status: "active",
+      settings: {},
+      createdAt: "2026-03-27T00:00:00.000Z",
+      updatedAt: "2026-03-27T00:00:00.000Z"
+    });
+    saveThreadRoom(fixture.handle.db, {
+      roomKey: buildRoomSessionKey("acct-collab-console", "thread-collab-only"),
+      accountId: "acct-collab-console",
+      stableThreadId: "thread-collab-only",
+      parentSessionKey: "thread-collab-only",
+      collaboratorAgentIds: ["research"],
+      state: "idle",
+      revision: 1,
+      lastInboundSeq: 0,
+      lastOutboundSeq: 0
+    });
+
+    const server = createAppServer({
+      config: fixture.config,
+      mailApi: fixture.runtime
+    });
+
+    servers.push(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+
+    const address = server.address();
+    if (address === null || typeof address === "string") {
+      throw new Error("Expected address info");
+    }
+
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+    const mailboxConsoleResponse = await fetch(`${baseUrl}/api/accounts/acct-collab-console/mailbox-console`);
+    const mailboxConsoleJson = (await mailboxConsoleResponse.json()) as {
+      publicAgentInboxes: Array<{
+        inbox: { agentId: string };
+        items: Array<{ roomKey: string; participantRole: string }>;
+      }>;
+    };
+
+    expect(mailboxConsoleResponse.status).toBe(200);
+    expect(mailboxConsoleJson.publicAgentInboxes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          inbox: expect.objectContaining({ agentId: "research" })
+        })
+      ])
+    );
+
+    fixture.handle.close();
+  });
+
   it("remaps legacy mailbox inbox items onto the durable front agent after a template is applied", async () => {
     const fixture = createFixture();
     upsertMailAccount(fixture.handle.db, {

@@ -1152,8 +1152,18 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
       .filter((room) => room.accountId === accountId)
       .flatMap((room) =>
         accountAgentRouting.durableAgentIds.length > 0 || room.frontAgentId || (room.publicAgentIds?.length ?? 0) > 0
-          ? [room.frontAgentId, ...(room.publicAgentIds ?? [])]
-          : [room.frontAgentAddress, ...(room.publicAgentAddresses ?? [])]
+          ? [
+              room.frontAgentId,
+              ...(room.publicAgentIds ?? []),
+              ...(room.collaboratorAgentIds ?? []),
+              ...(room.collaboratorAgentAddresses ?? [])
+            ]
+          : [
+              room.frontAgentAddress,
+              ...(room.publicAgentAddresses ?? []),
+              ...(room.collaboratorAgentIds ?? []),
+              ...(room.collaboratorAgentAddresses ?? [])
+            ]
       )
       .filter((agentId): agentId is string =>
         typeof agentId === "string" &&
