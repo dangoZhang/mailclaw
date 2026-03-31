@@ -284,7 +284,7 @@ export function listConsoleRooms(
     .filter((summary) => matchesRoomFilters(summary, input))
     .sort((left, right) => compareDescending(left.latestActivityAt, right.latestActivityAt));
 
-  return typeof input.limit === "number" ? summaries.slice(0, Math.max(1, input.limit)) : summaries;
+  return typeof input.limit === "number" ? summaries.slice(0, Math.max(0, input.limit)) : summaries;
 }
 
 export function getConsoleRoom(db: DatabaseSync, roomKey: string): ConsoleRoomDetail | null {
@@ -355,7 +355,7 @@ export function listConsoleApprovals(
     })
     .sort((left, right) => compareDescending(left.updatedAt, right.updatedAt));
 
-  return typeof input.limit === "number" ? filtered.slice(0, Math.max(1, input.limit)) : filtered;
+  return typeof input.limit === "number" ? filtered.slice(0, Math.max(0, input.limit)) : filtered;
 }
 
 export function listConsoleAccounts(

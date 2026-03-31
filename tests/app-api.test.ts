@@ -956,6 +956,14 @@ describe("app api", () => {
       })
     ]);
 
+    const emptyFeedResponse = await fetch(
+      `${baseUrl}/api/accounts/acct-1/mailboxes/${encodeURIComponent("internal:assistant:researcher")}/feed?limit=0`
+    );
+    const emptyFeedJson = (await emptyFeedResponse.json()) as Array<unknown>;
+
+    expect(emptyFeedResponse.status).toBe(200);
+    expect(emptyFeedJson).toHaveLength(0);
+
     const workbenchResponse = await fetch(
       `${baseUrl}/api/console/workbench?mode=mailboxes&accountId=acct-1&mailboxId=${encodeURIComponent("internal:assistant:researcher")}&mailboxFeedLimit=1`
     );
@@ -1276,6 +1284,12 @@ describe("app api", () => {
       ])
     );
 
+    const emptyRoomsResponse = await fetch(`${baseUrl}/api/console/rooms?accountId=acct-1&limit=0`);
+    const emptyRoomsJson = (await emptyRoomsResponse.json()) as Array<unknown>;
+
+    expect(emptyRoomsResponse.status).toBe(200);
+    expect(emptyRoomsJson).toHaveLength(0);
+
     const roomResponse = await fetch(
       `${baseUrl}/api/console/rooms/${encodeURIComponent(inboundJson.ingested.roomKey)}`
     );
@@ -1334,6 +1348,12 @@ describe("app api", () => {
         })
       ])
     );
+
+    const emptyApprovalsResponse = await fetch(`${baseUrl}/api/console/approvals?accountId=acct-1&limit=0`);
+    const emptyApprovalsJson = (await emptyApprovalsResponse.json()) as Array<unknown>;
+
+    expect(emptyApprovalsResponse.status).toBe(200);
+    expect(emptyApprovalsJson).toHaveLength(0);
 
     const accountsResponse = await fetch(`${baseUrl}/api/console/accounts`);
     const accountsJson = (await accountsResponse.json()) as Array<{
@@ -2441,6 +2461,29 @@ describe("app api", () => {
 
     expect(dispatchResponse.status).toBe(200);
     expect(dispatchJson).toMatchObject({
+      attempted: 0,
+      dispatched: 0,
+      failed: 0
+    });
+
+    const emptyDispatchResponse = await fetch(`${baseUrl}/api/gateway/outcomes/dispatch`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        roomKey,
+        limit: 0
+      })
+    });
+    const emptyDispatchJson = (await emptyDispatchResponse.json()) as {
+      attempted: number;
+      dispatched: number;
+      failed: number;
+    };
+
+    expect(emptyDispatchResponse.status).toBe(200);
+    expect(emptyDispatchJson).toMatchObject({
       attempted: 0,
       dispatched: 0,
       failed: 0

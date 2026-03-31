@@ -1665,7 +1665,7 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
         }));
     });
 
-    return typeof input.limit === "number" ? pending.slice(0, Math.max(1, input.limit)) : pending;
+    return typeof input.limit === "number" ? pending.slice(0, Math.max(0, input.limit)) : pending;
   };
   const dispatchPendingGatewayOutcomes = async (input: {
     roomKey?: string;

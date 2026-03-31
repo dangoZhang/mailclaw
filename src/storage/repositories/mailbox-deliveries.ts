@@ -188,7 +188,7 @@ export function listMailboxFeedEntries(
     originKinds?: VirtualMailboxViewEntry["message"]["originKind"][];
   }
 ): VirtualMailboxViewEntry[] {
-  const limitClause = typeof input.limit === "number" ? `LIMIT ${Math.max(1, input.limit)}` : "";
+  const limitClause = typeof input.limit === "number" ? `LIMIT ${Math.max(0, input.limit)}` : "";
   const { clause, params } = buildOriginKindsFilter("message.origin_kind", input.originKinds);
   const rows = db
     .prepare(
