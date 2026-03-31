@@ -97,7 +97,7 @@ function normalizeAddress(address: ProviderAddress): NormalizedMailAddress {
 function normalizeAttachments(attachments: ProviderAttachment[]): NormalizedAttachment[] {
   return attachments.map((attachment, index) => ({
     filename: attachment.filename?.trim() || `attachment-${index + 1}`,
-    mimeType: attachment.mimeType?.trim() || "application/octet-stream",
+    mimeType: attachment.mimeType?.trim() || attachment.contentType?.trim() || "application/octet-stream",
     size: attachment.size,
     contentId: attachment.contentId?.trim() || undefined,
     disposition: attachment.disposition?.trim() || undefined

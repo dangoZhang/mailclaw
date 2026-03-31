@@ -160,24 +160,87 @@ function extractLineValue(inputText: string, prefix: string) {
 }
 
 function extractPrimaryBody(inputText: string) {
-  const blocks = inputText
-    .split(/\n\s*\n/)
-    .map((block) => block.trim())
-    .filter(Boolean);
+  const captureHeadings = new Set(["Current inbound body:", "Draft reply:"]);
+  const structuredSectionPrefixes = [
+    "Default mail skills",
+    "From:",
+    "Subject:",
+    "Reply-To:",
+    "Role:",
+    "Routing context:",
+    "Latest room pre snapshot:",
+    "Shared facts:",
+    "Worker summaries:",
+    "Worker draft replies:",
+    "Attachment inventory:"
+  ];
+  const nonBodyPrefixes = [
+    "- Mail Read:",
+    "- Mail Write:",
+    "Return JSON",
+    "Each fact should",
+    "Summarize the most relevant attachment evidence",
+    "Identify supporting evidence",
+    "Prepare a draft reply direction",
+    "Review the draft reply for factual or policy issues.",
+    "Decide whether the draft may be sent automatically.",
+    "Return internal-only analysis.",
+    "Respond with JSON when possible:"
+  ];
 
-  return (
-    blocks.find(
-      (block) =>
-        !block.startsWith("Default mail skills") &&
-        !block.startsWith("From:") &&
-        !block.startsWith("Subject:") &&
-        !block.startsWith("Reply-To:") &&
-        !block.startsWith("Routing context:") &&
-        !block.startsWith("Latest room pre snapshot:") &&
-        !block.startsWith("Shared facts:") &&
-        !block.startsWith("Worker summaries:")
-    ) ?? ""
-  );
+  const lines = inputText.split("\n");
+  const collected: string[] = [];
+  let captureBody = false;
+  let skippingStructuredBullets = false;
+
+  for (const rawLine of lines) {
+    const trimmed = rawLine.trim();
+
+    if (!trimmed) {
+      if (collected.length > 0) {
+        collected.push("");
+      }
+      continue;
+    }
+
+    if (captureBody) {
+      if (
+        captureHeadings.has(trimmed) ||
+        structuredSectionPrefixes.some((prefix) => trimmed.startsWith(prefix))
+      ) {
+        break;
+      }
+      collected.push(trimmed);
+      continue;
+    }
+
+    if (captureHeadings.has(trimmed)) {
+      captureBody = true;
+      skippingStructuredBullets = false;
+      continue;
+    }
+
+    if (structuredSectionPrefixes.some((prefix) => trimmed.startsWith(prefix))) {
+      if (collected.length > 0) {
+        break;
+      }
+      skippingStructuredBullets = true;
+      continue;
+    }
+
+    if (nonBodyPrefixes.some((prefix) => trimmed.startsWith(prefix))) {
+      continue;
+    }
+
+    if (skippingStructuredBullets && trimmed.startsWith("- ")) {
+      continue;
+    }
+
+    skippingStructuredBullets = false;
+    collected.push(trimmed);
+  }
+
+  return collected.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
 function truncateToSentence(inputText: string, limit: number) {

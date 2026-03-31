@@ -6,10 +6,12 @@ export interface ProviderAddress {
 export interface ProviderAttachment {
   filename?: string;
   mimeType?: string;
+  contentType?: string;
   size?: number;
   contentId?: string;
   disposition?: "inline" | "attachment" | string;
   data?: string | Uint8Array;
+  contentBase64?: string;
 }
 
 export interface ProviderHeader {

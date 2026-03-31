@@ -41,7 +41,7 @@ import {
   persistRunArtifact
 } from "../storage/artifacts.js";
 import { normalizeMailEnvelope, stripHtml } from "../providers/normalize.js";
-import type { ProviderMailEnvelope } from "../providers/types.js";
+import type { ProviderAttachment, ProviderMailEnvelope } from "../providers/types.js";
 import {
   cancelQueuedRoomJobs,
   cancelRoomJob,
@@ -83,7 +83,7 @@ import {
 import { type MailOutboxRecord } from "../storage/repositories/mail-outbox.js";
 import { insertControlPlaneOutboxRecord } from "../storage/repositories/outbox-intents.js";
 import { syncRoomMemoryNamespaces } from "../storage/repositories/memory-registry.js";
-import { getMailAccount } from "../storage/repositories/mail-accounts.js";
+import { getMailAccount, type MailAccountRecord } from "../storage/repositories/mail-accounts.js";
 import { appendProviderEvent } from "../storage/repositories/provider-events.js";
 import { upsertRoomParticipant } from "../storage/repositories/room-participants.js";
 import {
@@ -208,7 +208,7 @@ export function ingestIncomingMail(
   );
 
   const existingRoom = getThreadRoom(deps.db, roomKey);
-  const roomRouting = resolveRoomAgentRouting(existingRoom, mailboxRoute);
+  const roomRouting = resolveRoomAgentRouting(existingRoom, mailboxRoute, account);
   const handoffActive = existingRoom?.state === "handoff";
   const revision = resolution.isDuplicate ? existingRoom?.revision ?? 1 : (existingRoom?.revision ?? 0) + 1;
   const lastInboundSeq = resolution.isDuplicate
@@ -225,8 +225,11 @@ export function ingestIncomingMail(
       roomRouting.frontAgentAddress
     ),
     frontAgentAddress: roomRouting.frontAgentAddress,
+    frontAgentId: roomRouting.frontAgentId,
     publicAgentAddresses: roomRouting.publicAgentAddresses,
+    publicAgentIds: roomRouting.publicAgentIds,
     collaboratorAgentAddresses: roomRouting.collaboratorAgentAddresses,
+    collaboratorAgentIds: roomRouting.collaboratorAgentIds,
     summonedRoles: roomRouting.summonedRoles,
     state: handoffActive ? ("handoff" as const) : ("queued" as const),
     revision,
@@ -412,7 +415,10 @@ export function ingestIncomingMail(
       canonicalMailboxAddress: mailboxRoute.canonicalMailboxAddress,
       routedFrontAgentAddress: mailboxRoute.frontAgentAddress,
       frontAgentAddress: roomRouting.frontAgentAddress,
+      frontAgentId: roomRouting.frontAgentId ?? null,
+      publicAgentIds: roomRouting.publicAgentIds,
       collaboratorAgentAddresses: roomRouting.collaboratorAgentAddresses,
+      collaboratorAgentIds: roomRouting.collaboratorAgentIds,
       summonedRoles: roomRouting.summonedRoles,
       bindingSource: resolution.source,
       matchedMessageId: resolution.matchedMessageId ?? null,
@@ -432,14 +438,15 @@ export function ingestIncomingMail(
   for (const [index, attachment] of normalized.attachments.entries()) {
     const attachmentId = randomUUID();
     const rawAttachment = input.envelope.attachments?.[index];
-    const contentSha256 = hashAttachmentContent(rawAttachment?.data);
+    const rawAttachmentData = resolveProviderAttachmentData(rawAttachment);
+    const contentSha256 = hashAttachmentContent(rawAttachmentData);
     const reusableAttachment = contentSha256
       ? findReusableMailAttachmentByHash(deps.db, {
           roomKey,
           contentSha256
         })
       : null;
-    const extractedText = extractAttachmentText(rawAttachment?.data, attachment.mimeType, attachment.filename);
+    const extractedText = extractAttachmentText(rawAttachmentData, attachment.mimeType, attachment.filename);
     const summaryText = summarizeAttachment(
       attachment.filename,
       attachment.mimeType,
@@ -461,7 +468,7 @@ export function ingestIncomingMail(
           disposition: attachment.disposition,
           summaryText,
           extractedText,
-          rawData: rawAttachment?.data
+          rawData: rawAttachmentData
         }
       });
     const storedAttachment = insertMailAttachment(deps.db, {
@@ -631,7 +638,9 @@ export function ingestIncomingMail(
       inboundSeq: lastInboundSeq,
       messageDedupeKey: resolution.dedupeKey,
       frontAgentAddress: roomRouting.frontAgentAddress,
+      frontAgentId: roomRouting.frontAgentId ?? null,
       collaboratorAgentAddresses: roomRouting.collaboratorAgentAddresses,
+      collaboratorAgentIds: roomRouting.collaboratorAgentIds,
       summonedRoles: roomRouting.summonedRoles,
       autoReplySuppressed: handoffActive
     }
@@ -661,6 +670,19 @@ export function ingestIncomingMail(
     dedupeKey: resolution.dedupeKey,
     ...(handoffActive ? { reasons: ["handoff_active"] } : {})
   };
+}
+
+function resolveProviderAttachmentData(attachment: ProviderAttachment | undefined) {
+  if (!attachment) {
+    return undefined;
+  }
+  if (typeof attachment.data !== "undefined") {
+    return attachment.data;
+  }
+  if (typeof attachment.contentBase64 === "string" && attachment.contentBase64.trim().length > 0) {
+    return attachment.contentBase64.trim();
+  }
+  return undefined;
 }
 
 export async function processNextRoomJob(
@@ -730,7 +752,8 @@ export async function processLeasedRoomJob(
     limit: 4
   });
   const existingSharedFacts = readRoomSharedFactsArtifact(room.sharedFactsRef);
-  const preludeWorkerSummaries = deps.config.features.swarmWorkers
+  const shouldRunPreludeWorkers = deps.config.features.swarmWorkers || roomUsesDurableAgentRoster(room);
+  const preludeWorkerSummaries = shouldRunPreludeWorkers
     ? await executePreludeWorkers({
         db: deps.db,
         config: deps.config,
@@ -1405,9 +1428,16 @@ function collectParticipants(
 
 function resolveRoomAgentRouting(
   existingRoom: ReturnType<typeof getThreadRoom>,
-  mailboxRoute: ReturnType<typeof resolveMailboxRoute>
+  mailboxRoute: ReturnType<typeof resolveMailboxRoute>,
+  account?: MailAccountRecord | null
 ) {
+  const accountRouting = readAccountAgentRoutingHints(account);
   const frontAgentAddress = existingRoom?.frontAgentAddress ?? mailboxRoute.frontAgentAddress;
+  const frontAgentId =
+    existingRoom?.frontAgentId ??
+    accountRouting.defaultFrontAgentId ??
+    mailboxRoute.frontAgentId ??
+    frontAgentAddress;
   const currentFrontAliasIsPublic =
     normalizeRecipient(mailboxRoute.frontAgentAddress).length > 0 &&
     mailboxRoute.publicAgentAddresses.some(
@@ -1421,21 +1451,58 @@ function resolveRoomAgentRouting(
       : [],
     mailboxRoute.collaboratorAgentAddresses
   ).filter((address) => normalizeRecipient(address) !== normalizeRecipient(frontAgentAddress));
+  const collaboratorAgentIds = mergeOrderedRecipientLists(
+    existingRoom?.collaboratorAgentIds ?? [],
+    accountRouting.collaboratorAgentIds,
+    mailboxRoute.collaboratorAgentIds,
+    mailboxRoute.collaboratorAgentAddresses.filter(looksLikeDurableAgentId)
+  ).filter((agentId) => normalizeRecipient(agentId) !== normalizeRecipient(frontAgentId));
 
   return {
     frontAgentAddress,
+    frontAgentId,
     publicAgentAddresses: mergeOrderedRecipientLists(
       frontAgentAddress ? [frontAgentAddress] : [],
       existingRoom?.publicAgentAddresses ?? [],
-      mailboxRoute.publicAgentAddresses,
-      collaboratorAgentAddresses
+      mailboxRoute.publicAgentAddresses
+    ),
+    publicAgentIds: mergeOrderedRecipientLists(
+      frontAgentId ? [frontAgentId] : [],
+      existingRoom?.publicAgentIds ?? [],
+      mailboxRoute.publicAgentIds,
+      accountRouting.durableAgentIds,
+      collaboratorAgentIds
     ),
     collaboratorAgentAddresses,
+    collaboratorAgentIds,
     summonedRoles: mergeOrderedWorkerRoles(
       existingRoom?.summonedRoles ?? [],
       mailboxRoute.summonedRoles
     )
   };
+}
+
+function readAccountAgentRoutingHints(account?: MailAccountRecord | null) {
+  const settings =
+    typeof account?.settings === "object" && account.settings !== null
+      ? (account.settings as Record<string, unknown>)
+      : {};
+  const routing =
+    typeof settings.agentRouting === "object" && settings.agentRouting !== null
+      ? (settings.agentRouting as Record<string, unknown>)
+      : {};
+
+  return {
+    defaultFrontAgentId: readNormalizedAgentId(routing.defaultFrontAgentId),
+    collaboratorAgentIds: readNormalizedAgentIdList(routing.collaboratorAgentIds),
+    durableAgentIds: readNormalizedAgentIdList(routing.durableAgentIds)
+  };
+}
+
+function roomUsesDurableAgentRoster(room: NonNullable<ReturnType<typeof getThreadRoom>>) {
+  return [...(room.publicAgentAddresses ?? []), ...(room.collaboratorAgentAddresses ?? [])].some((value) =>
+    looksLikeDurableAgentId(value)
+  );
 }
 
 function resolveExecutionAgentId(config: AppConfig, role: WorkerRole) {
@@ -2394,21 +2461,36 @@ async function executePreludeSubAgentTurns(input: {
       inputsHash,
       createdAt: input.now
     });
-    const dispatched = await dispatchSubAgentMailbox(input.db, input.config, input.subAgentTransport, {
-      mailboxId: target.mailboxId,
-      consumerId: `${input.room.parentSessionKey}:subagent-dispatch:${target.targetId}:r${input.revision}`,
-      batchSize: 1,
-      roomKey: input.room.roomKey,
-      now: input.now
-    });
-    const dispatchedReceipt = dispatched.find((entry) => entry.run.parentMessageId === taskMessage.message.messageId);
+    try {
+      const dispatched = await dispatchSubAgentMailbox(input.db, input.config, input.subAgentTransport, {
+        mailboxId: target.mailboxId,
+        consumerId: `${input.room.parentSessionKey}:subagent-dispatch:${target.targetId}:r${input.revision}`,
+        batchSize: 1,
+        roomKey: input.room.roomKey,
+        now: input.now
+      });
+      const dispatchedReceipt = dispatched.find((entry) => entry.run.parentMessageId === taskMessage.message.messageId);
 
-    receipts.push({
-      role: resolveSubAgentWorkerRole(target.resultSchema),
-      taskMessageId: taskMessage.message.messageId,
-      resultMessageId: dispatchedReceipt?.resultMessageId,
-      threadId: taskMessage.thread.threadId
-    });
+      receipts.push({
+        role: resolveSubAgentWorkerRole(target.resultSchema),
+        taskMessageId: taskMessage.message.messageId,
+        resultMessageId: dispatchedReceipt?.resultMessageId,
+        threadId: taskMessage.thread.threadId
+      });
+    } catch (error) {
+      appendThreadLedgerEvent(input.db, {
+        roomKey: input.room.roomKey,
+        revision: input.revision,
+        type: "subagent.run.failed",
+        payload: {
+          targetId: target.targetId,
+          mailboxId: target.mailboxId,
+          parentMessageId: taskMessage.message.messageId,
+          stage: "dispatch",
+          error: error instanceof Error ? error.message : String(error)
+        }
+      });
+    }
   }
 
   return collectSubAgentReplySummaries({
@@ -3267,12 +3349,19 @@ function formatWorkerContext(workerSummaries: WorkerExecutionSummary[]) {
 
 function formatRoutingContext(room: NonNullable<ReturnType<typeof getThreadRoom>>) {
   const lines = [
-    room.frontAgentAddress ? `- Front agent identity: ${room.frontAgentAddress}` : "",
+    room.frontAgentId ? `- Front agent: ${room.frontAgentId}` : "",
+    room.frontAgentAddress ? `- Front mailbox identity: ${room.frontAgentAddress}` : "",
+    (room.publicAgentIds?.length ?? 0) > 0
+      ? `- Public agents: ${room.publicAgentIds?.join(", ")}`
+      : "",
     (room.publicAgentAddresses?.length ?? 0) > 0
       ? `- Public agent identities: ${room.publicAgentAddresses?.join(", ")}`
       : "",
+    (room.collaboratorAgentIds?.length ?? 0) > 0
+      ? `- Visible collaborator agents: ${room.collaboratorAgentIds?.join(", ")}`
+      : "",
     (room.collaboratorAgentAddresses?.length ?? 0) > 0
-      ? `- Visible collaborator agents: ${room.collaboratorAgentAddresses?.join(", ")}`
+      ? `- Collaborator mailbox identities: ${room.collaboratorAgentAddresses?.join(", ")}`
       : "",
     (room.summonedRoles?.length ?? 0) > 0
       ? `- Explicitly summoned worker roles: ${room.summonedRoles?.join(", ")}`
@@ -4126,4 +4215,35 @@ function resolveRuntimeControlPlane(config: AppConfig) {
 
 function normalizeRecipient(value: string) {
   return value.trim().toLowerCase();
+}
+
+function readNormalizedAgentId(value: unknown) {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function readNormalizedAgentIdList(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return uniqueRecipients(
+    value
+      .filter((entry): entry is string => typeof entry === "string")
+      .map((entry) => entry.trim().toLowerCase())
+      .filter((entry) => entry.length > 0)
+  );
+}
+
+function looksLikeDurableAgentId(value?: string) {
+  if (typeof value !== "string") {
+    return false;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return normalized.length > 0 && !normalized.includes("@");
 }
