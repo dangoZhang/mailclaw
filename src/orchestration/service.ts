@@ -717,6 +717,18 @@ export async function processLeasedRoomJob(
   }
 
   const agentExecutor = deps.agentExecutor ?? createDefaultMailAgentExecutor(deps.config);
+  const readCurrentRoom = () => getThreadRoom(deps.db, leased.roomKey) ?? room;
+  const saveCurrentRoom = (
+    changes: Partial<NonNullable<ReturnType<typeof getThreadRoom>>>
+  ) => {
+    const currentRoom = readCurrentRoom();
+    const nextRoom = {
+      ...currentRoom,
+      ...changes
+    };
+    saveThreadRoom(deps.db, nextRoom);
+    return nextRoom;
+  };
   const roomAttachments = listMailAttachmentsForRoom(deps.db, room.roomKey);
   let roomMailTask = updateRoomMailTaskNode(
     createRoomMailTaskNode({
@@ -852,8 +864,7 @@ export async function processLeasedRoomJob(
     now: requestStartedAt
   });
 
-  saveThreadRoom(deps.db, {
-    ...room,
+  saveCurrentRoom({
     state: "running"
   });
 
@@ -1249,22 +1260,15 @@ export async function processLeasedRoomJob(
       status: "done"
     });
     saveTaskNode(deps.db, roomMailTask);
-    saveThreadRoom(deps.db, {
-      ...room,
+    const completedRoom = saveCurrentRoom({
       state: "done",
-      lastOutboundSeq: room.lastOutboundSeq + outbox.length,
+      lastOutboundSeq: readCurrentRoom().lastOutboundSeq + outbox.length,
       summaryRef,
       sharedFactsRef: updatedSharedFactsRef
     });
     const projectLink = maybeBindRoomToProject({
       db: deps.db,
-      room: {
-        ...room,
-        state: "done",
-        lastOutboundSeq: room.lastOutboundSeq + outbox.length,
-        summaryRef,
-        sharedFactsRef: updatedSharedFactsRef
-      },
+      room: completedRoom,
       subject: message.rawSubject ?? message.normalizedSubject,
       body: message.textBody,
       createdAt: execution.completedAt
@@ -1332,16 +1336,12 @@ export async function processLeasedRoomJob(
       }
     });
     if (!staleRevision) {
-      saveThreadRoom(deps.db, {
-        ...room,
+      const failedRoom = saveCurrentRoom({
         state: "failed"
       });
       const project = maybeBindRoomToProject({
         db: deps.db,
-        room: {
-          ...room,
-          state: "failed"
-        },
+        room: failedRoom,
         subject: message.rawSubject ?? message.normalizedSubject,
         body: message.textBody,
         createdAt: completedAt
@@ -1500,9 +1500,12 @@ function readAccountAgentRoutingHints(account?: MailAccountRecord | null) {
 }
 
 function roomUsesDurableAgentRoster(room: NonNullable<ReturnType<typeof getThreadRoom>>) {
-  return [...(room.publicAgentAddresses ?? []), ...(room.collaboratorAgentAddresses ?? [])].some((value) =>
-    looksLikeDurableAgentId(value)
-  );
+  return [
+    ...(room.publicAgentAddresses ?? []),
+    ...(room.publicAgentIds ?? []),
+    ...(room.collaboratorAgentAddresses ?? []),
+    ...(room.collaboratorAgentIds ?? [])
+  ].some((value) => looksLikeDurableAgentId(value));
 }
 
 function resolveExecutionAgentId(config: AppConfig, role: WorkerRole) {
@@ -2323,7 +2326,7 @@ async function executePreludeWorkers(input: {
   }
 
   saveThreadRoom(input.db, {
-    ...input.room,
+    ...(getThreadRoom(input.db, input.room.roomKey) ?? input.room),
     state: "waiting_workers"
   });
 
@@ -3348,20 +3351,27 @@ function formatWorkerContext(workerSummaries: WorkerExecutionSummary[]) {
 }
 
 function formatRoutingContext(room: NonNullable<ReturnType<typeof getThreadRoom>>) {
+  const visibleCollaborators: string[] =
+    (room.collaboratorAgentAddresses?.length ?? 0) > 0
+      ? [...(room.collaboratorAgentAddresses ?? [])]
+      : room.collaboratorAgentIds ?? [];
   const lines = [
-    room.frontAgentId ? `- Front agent: ${room.frontAgentId}` : "",
-    room.frontAgentAddress ? `- Front mailbox identity: ${room.frontAgentAddress}` : "",
+    room.frontAgentAddress ? `- Front agent identity: ${room.frontAgentAddress}` : "",
+    room.frontAgentId &&
+    normalizeRecipient(room.frontAgentId) !== normalizeRecipient(room.frontAgentAddress ?? "")
+      ? `- Front agent: ${room.frontAgentId}`
+      : "",
     (room.publicAgentIds?.length ?? 0) > 0
       ? `- Public agents: ${room.publicAgentIds?.join(", ")}`
       : "",
     (room.publicAgentAddresses?.length ?? 0) > 0
       ? `- Public agent identities: ${room.publicAgentAddresses?.join(", ")}`
       : "",
-    (room.collaboratorAgentIds?.length ?? 0) > 0
-      ? `- Visible collaborator agents: ${room.collaboratorAgentIds?.join(", ")}`
+    visibleCollaborators.length > 0
+      ? `- Visible collaborator agents: ${visibleCollaborators.join(", ")}`
       : "",
-    (room.collaboratorAgentAddresses?.length ?? 0) > 0
-      ? `- Collaborator mailbox identities: ${room.collaboratorAgentAddresses?.join(", ")}`
+    (room.collaboratorAgentIds?.length ?? 0) > 0
+      ? `- Collaborator agent ids: ${room.collaboratorAgentIds?.join(", ")}`
       : "",
     (room.summonedRoles?.length ?? 0) > 0
       ? `- Explicitly summoned worker roles: ${room.summonedRoles?.join(", ")}`

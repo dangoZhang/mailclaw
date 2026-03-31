@@ -429,6 +429,42 @@ export class RuntimeApiError extends Error {
   }
 }
 
+interface AsyncSemaphore {
+  acquire(): Promise<void>;
+  release(): void;
+}
+
+function createAsyncSemaphore(maxActive: number): AsyncSemaphore {
+  let active = 0;
+  const waiters: Array<() => void> = [];
+
+  return {
+    async acquire() {
+      if (active < maxActive) {
+        active += 1;
+        return;
+      }
+
+      await new Promise<void>((resolve) => {
+        waiters.push(() => {
+          active += 1;
+          resolve();
+        });
+      });
+    },
+    release() {
+      if (active > 0) {
+        active -= 1;
+      }
+
+      const next = waiters.shift();
+      if (next) {
+        next();
+      }
+    }
+  };
+}
+
 export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
   const agentExecutor = deps.agentExecutor ?? createDefaultMailAgentExecutor(deps.config);
   const smtpSender = deps.smtpSender ?? createConfiguredSmtpSender(deps.config, deps.smtpTransportFactory);
@@ -2685,6 +2721,7 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
       maxRuns?: number;
       now?: string;
     } = {}) {
+      const turnSemaphore = createAsyncSemaphore(Math.max(1, deps.config.queue.maxGlobalWorkers));
       const workerPool = createWorkerPool({
         maxGlobalWorkers: Math.min(
           deps.config.queue.maxConcurrentRooms,
@@ -2723,11 +2760,21 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
         }
 
         scheduled += 1;
+        const cappedAgentExecutor: MailAgentExecutor = {
+          async executeMailTurn(input) {
+            await turnSemaphore.acquire();
+            try {
+              return await agentExecutor.executeMailTurn(input);
+            } finally {
+              turnSemaphore.release();
+            }
+          }
+        };
         const task = processLeasedRoomJob(
           {
             db: deps.db,
             config: deps.config,
-            agentExecutor,
+            agentExecutor: cappedAgentExecutor,
             subAgentTransport
           },
           leased as LeasedRoomJob
