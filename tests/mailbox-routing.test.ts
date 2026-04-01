@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import type { NormalizedMailEnvelope } from "../src/providers/types.js";
-import { filterInternalAliasRecipients, resolveMailboxRoute } from "../src/threading/mailbox-routing.js";
+import {
+  describeAgentRoutingTarget,
+  filterInternalAliasRecipients,
+  resolveMailboxRoute
+} from "../src/threading/mailbox-routing.js";
 
 function buildEnvelope(overrides: Partial<NormalizedMailEnvelope> = {}): NormalizedMailEnvelope {
   return {
@@ -172,5 +176,88 @@ describe("mailbox routing", () => {
     );
 
     expect(recipients).toEqual(["alice@ai.example.com", "bob@example.com"]);
+  });
+
+  it("routes plus-addressed ingress onto the matching durable agent id", () => {
+    const route = resolveMailboxRoute({
+      account: {
+        accountId: "acct-1",
+        provider: "imap",
+        emailAddress: "assistant@ai.example.com",
+        status: "active",
+        settings: {
+          agentRouting: {
+            defaultFrontAgentId: "assistant",
+            durableAgentIds: ["assistant", "research", "ops"],
+            collaboratorAgentIds: ["research", "ops"]
+          }
+        },
+        createdAt: "2026-03-25T00:00:00.000Z",
+        updatedAt: "2026-03-25T00:00:00.000Z"
+      },
+      fallbackMailboxAddress: "assistant@ai.example.com",
+      envelope: buildEnvelope({
+        to: [{ email: "assistant+research@ai.example.com" }]
+      })
+    });
+
+    expect(route.frontAgentAddress).toBe("assistant@ai.example.com");
+    expect(route.frontAgentId).toBe("research");
+    expect(route.publicAgentAddresses).toEqual(["assistant+research@ai.example.com"]);
+    expect(route.publicAgentIds).toEqual(expect.arrayContaining(["assistant", "research", "ops"]));
+  });
+
+  it("falls back to subject hints when mail lands on the shared intake address", () => {
+    const route = resolveMailboxRoute({
+      account: {
+        accountId: "acct-1",
+        provider: "imap",
+        emailAddress: "assistant@ai.example.com",
+        status: "active",
+        settings: {
+          agentRouting: {
+            defaultFrontAgentId: "assistant",
+            durableAgentIds: ["assistant", "research", "ops"],
+            collaboratorAgentIds: ["research", "ops"]
+          }
+        },
+        createdAt: "2026-03-25T00:00:00.000Z",
+        updatedAt: "2026-03-25T00:00:00.000Z"
+      },
+      fallbackMailboxAddress: "assistant@ai.example.com",
+      envelope: buildEnvelope({
+        subject: "[agent:research] Please review",
+        to: [{ email: "assistant@ai.example.com" }]
+      })
+    });
+
+    expect(route.frontAgentAddress).toBe("assistant@ai.example.com");
+    expect(route.frontAgentId).toBe("research");
+  });
+
+  it("describes the preferred agent ingress address and subject fallback", () => {
+    const target = describeAgentRoutingTarget({
+      account: {
+        accountId: "acct-1",
+        provider: "imap",
+        emailAddress: "assistant@ai.example.com",
+        status: "active",
+        settings: {
+          agentRouting: {
+            defaultFrontAgentId: "assistant",
+            durableAgentIds: ["assistant", "research"]
+          }
+        },
+        createdAt: "2026-03-25T00:00:00.000Z",
+        updatedAt: "2026-03-25T00:00:00.000Z"
+      },
+      fallbackMailboxAddress: "assistant@ai.example.com",
+      agentId: "research"
+    });
+
+    expect(target).toEqual({
+      ingressAddresses: ["assistant+research@ai.example.com"],
+      subjectRoutingHint: "[agent:research]"
+    });
   });
 });

@@ -1599,6 +1599,7 @@ describe("app api", () => {
           href: "/workbench/mail?mode=connect",
           embeddedHref: "/workbench/mail/tab?mode=connect"
         }),
+        expect.objectContaining({ id: "agents", embeddedHref: expect.stringContaining("/workbench/mail/tab") }),
         expect.objectContaining({ id: "rooms", active: true, embeddedHref: expect.stringContaining("/workbench/mail/tab") })
       ])
     });
@@ -1836,9 +1837,9 @@ describe("app api", () => {
           embeddedHref: "/workbench/mail/tab?mode=connect"
         }),
         expect.objectContaining({
-          id: "accounts",
-          href: "/workbench/mail?mode=accounts",
-          embeddedHref: "/workbench/mail/tab?mode=accounts"
+          id: "agents",
+          href: "/workbench/mail?mode=agents",
+          embeddedHref: "/workbench/mail/tab?mode=agents"
         }),
         expect.objectContaining({
           id: "rooms",
@@ -1916,7 +1917,12 @@ describe("app api", () => {
         connect: {
           templateApplyAccountId: string | null;
           agentTemplates: Array<{ templateId: string }>;
-          agentDirectory: Array<{ agentId: string; virtualMailboxes: string[] }>;
+          agentDirectory: Array<{
+            agentId: string;
+            virtualMailboxes: string[];
+            routingAddress?: string;
+            subjectRoutingHint?: string;
+          }>;
           headcountRecommendations: Array<{ templateId: string }>;
         };
       };
@@ -1929,7 +1935,9 @@ describe("app api", () => {
       agentDirectory: expect.arrayContaining([
         expect.objectContaining({
           agentId: "assistant",
-          virtualMailboxes: expect.arrayContaining(["public:assistant", "internal:assistant:orchestrator"])
+          virtualMailboxes: expect.arrayContaining(["public:assistant", "internal:assistant:orchestrator"]),
+          routingAddress: "mailclaw+assistant@example.com",
+          subjectRoutingHint: "[agent:assistant]"
         })
       ]),
       headcountRecommendations: expect.arrayContaining([expect.objectContaining({ templateId: "one-person-company" })])

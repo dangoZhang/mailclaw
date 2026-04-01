@@ -51,6 +51,8 @@ export interface AgentDirectoryEntry {
   publicMailboxId: string;
   virtualMailboxes: string[];
   collaboratorAgentIds: string[];
+  routingAddress?: string;
+  subjectRoutingHint?: string;
   templateId?: string;
 }
 
@@ -78,7 +80,7 @@ const AGENT_TEMPLATES: AgentTemplate[] = [
         purpose: "Own the front inbox, triage rooms, ACK quickly, and decide when work should split.",
         publicMailboxId: "public:assistant",
         sourceAlignment:
-          "Adapted from the one-person-company operating model. The upstream project is a solo-operator playbook, not a ready-made soul roster, so MailClaw maps it into durable inbox roles.",
+          "Adapted from the one-person-company operating model. The upstream project is a solo-operator playbook, not a ready-made soul roster, so MailClaws maps it into durable inbox roles.",
         sourceRefs: ["https://github.com/cyfyifanchen/one-person-company"],
         roleContract: [
           "Stay on the public inbox and keep the room moving with ACK, progress, and clear delegation.",
@@ -107,7 +109,7 @@ const AGENT_TEMPLATES: AgentTemplate[] = [
         purpose: "Turn room questions into evidence-backed claims and reusable summaries.",
         publicMailboxId: "public:research",
         sourceAlignment:
-          "A MailClaw durable peer added on top of the solo-operator model so one person can stay responsive while deep evidence work runs behind internal mail.",
+          "A MailClaws durable peer added on top of the solo-operator model so one person can stay responsive while deep evidence work runs behind internal mail.",
         sourceRefs: ["https://github.com/cyfyifanchen/one-person-company"],
         roleContract: [
           "Read the task mail, room Pre, and referenced evidence before doing any new retrieval.",
@@ -132,7 +134,7 @@ const AGENT_TEMPLATES: AgentTemplate[] = [
         purpose: "Review commitments, approvals, and human handoff readiness before side effects.",
         publicMailboxId: "public:ops",
         sourceAlignment:
-          "A MailClaw durable peer added to make the solo-operator pattern safe for governed send, approvals, and handoff.",
+          "A MailClaws durable peer added to make the solo-operator pattern safe for governed send, approvals, and handoff.",
         sourceRefs: ["https://github.com/cyfyifanchen/one-person-company"],
         roleContract: [
           "Review commitments before they become outbound promises.",

@@ -1435,8 +1435,8 @@ function resolveRoomAgentRouting(
   const frontAgentAddress = existingRoom?.frontAgentAddress ?? mailboxRoute.frontAgentAddress;
   const frontAgentId =
     existingRoom?.frontAgentId ??
-    accountRouting.defaultFrontAgentId ??
     mailboxRoute.frontAgentId ??
+    accountRouting.defaultFrontAgentId ??
     frontAgentAddress;
   const currentFrontAliasIsPublic =
     normalizeRecipient(mailboxRoute.frontAgentAddress).length > 0 &&

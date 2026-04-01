@@ -327,6 +327,73 @@ describe("public agent inbox", () => {
     fixture.handle.close();
   });
 
+  it("projects plus-addressed ingress into the matched durable agent inbox", async () => {
+    const fixture = createFixture({
+      MAILCLAW_FEATURE_OPENCLAW_BRIDGE: "false"
+    });
+    upsertMailAccount(fixture.handle.db, {
+      accountId: "acct-1",
+      provider: "imap",
+      emailAddress: "assistant@ai.example.com",
+      status: "active",
+      settings: {
+        agentRouting: {
+          defaultFrontAgentId: "assistant",
+          durableAgentIds: ["assistant", "research", "ops"],
+          collaboratorAgentIds: ["research", "ops"]
+        }
+      },
+      createdAt: "2026-03-26T04:00:00.000Z",
+      updatedAt: "2026-03-26T04:00:00.000Z"
+    });
+
+    await fixture.runtime.ingest({
+      accountId: "acct-1",
+      mailboxAddress: "assistant@ai.example.com",
+      processImmediately: false,
+      envelope: {
+        providerMessageId: "provider-plus-research-1",
+        messageId: "<inbox-plus-research@example.com>",
+        subject: "Route this to research",
+        from: {
+          email: "sender@example.com"
+        },
+        to: [{ email: "assistant+research@ai.example.com" }],
+        text: "Research should own this thread.",
+        headers: [
+          {
+            name: "Message-ID",
+            value: "<inbox-plus-research@example.com>"
+          },
+          {
+            name: "Delivered-To",
+            value: "<assistant+research@ai.example.com>"
+          }
+        ]
+      }
+    });
+
+    const room = fixture.runtime.listRooms()[0];
+    expect(room).toMatchObject({
+      frontAgentAddress: "assistant@ai.example.com",
+      frontAgentId: "research"
+    });
+
+    const inboxes = fixture.runtime.listPublicAgentInboxes("acct-1");
+    const researchInbox = inboxes.find((inbox) => inbox.agentId === "research");
+    expect(researchInbox).toBeTruthy();
+    expect(fixture.runtime.listInboxItems(researchInbox!.inboxId)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          agentId: "research",
+          participantRole: "front"
+        })
+      ])
+    );
+
+    fixture.handle.close();
+  });
+
   it("projects collaborator-visible rooms into collaborator inboxes without changing front ownership", () => {
     const fixture = createFixture();
     const roomKey = seedRoom({

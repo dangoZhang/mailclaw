@@ -194,7 +194,7 @@ import {
   validateOutboundRecipients
 } from "../reporting/rfc.js";
 import { buildParticipantFingerprint, normalizeSubject } from "../threading/dedupe.js";
-import { filterInternalAliasRecipients } from "../threading/mailbox-routing.js";
+import { describeAgentRoutingTarget, filterInternalAliasRecipients } from "../threading/mailbox-routing.js";
 import {
   ingestIncomingMail,
   type LeasedRoomJob,
@@ -566,7 +566,14 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
     const inboxAgentAddresses = room
       ? Array.from(
           new Set(
-            [room.frontAgentAddress, ...(room.publicAgentAddresses ?? [])].filter(
+            [
+              room.frontAgentId,
+              ...(room.publicAgentIds ?? []),
+              ...(room.collaboratorAgentIds ?? []),
+              room.frontAgentAddress,
+              ...(room.publicAgentAddresses ?? []),
+              ...(room.collaboratorAgentAddresses ?? [])
+            ].filter(
               (value): value is string => typeof value === "string" && value.trim().length > 0
             )
           )
@@ -1283,8 +1290,9 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
     );
     const accountMailboxes = input.accountId ? listVirtualMailboxesForAccount(deps.db, input.accountId) : [];
     const inboxes = input.accountId ? listPublicAgentInboxesForAccount(deps.db, input.accountId) : [];
+    const account = input.accountId ? getMailAccount(deps.db, input.accountId) : null;
     const accountAgentRouting = input.accountId
-      ? readAccountAgentRoutingSettings(getMailAccount(deps.db, input.accountId)?.settings ?? {})
+      ? readAccountAgentRoutingSettings(account?.settings ?? {})
       : createEmptyAccountAgentRouting();
     const filesystemAgents = fs.existsSync(agentRoot)
       ? fs
@@ -1314,6 +1322,14 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
 
     return agentIds.map((agentId) => {
       const templateRecord = templateIndex.get(agentId);
+      const routingTarget =
+        account?.emailAddress && account.accountId
+          ? describeAgentRoutingTarget({
+              account,
+              fallbackMailboxAddress: account.emailAddress,
+              agentId
+            })
+          : null;
       const agentMailboxes = accountMailboxes
         .filter(
           (mailbox) =>
@@ -1337,6 +1353,8 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
 
       return {
         ...entry,
+        routingAddress: routingTarget?.ingressAddresses[0] ?? entry.routingAddress,
+        subjectRoutingHint: routingTarget?.subjectRoutingHint ?? entry.subjectRoutingHint,
         inbox: inboxes.find((inbox) => inbox.agentId === agentId) ?? null,
         virtualMailboxes: Array.from(new Set([...entry.virtualMailboxes, ...agentMailboxes])).sort((left, right) =>
           left.localeCompare(right)
@@ -1513,7 +1531,7 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
     };
   };
   const buildConsoleWorkbenchWorkspace = (input: {
-    mode?: "connect" | "accounts" | "rooms" | "mailboxes" | "approvals";
+    mode?: "connect" | "agents" | "accounts" | "rooms" | "mailboxes" | "approvals";
     selectedAccountId: string | null;
     selectedRoomKey: string | null;
     selectedMailboxId: string | null;
@@ -1535,12 +1553,20 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
             ? "approvals"
             : input.accounts.length === 0
               ? "mail"
-              : "accounts");
+              : "agents");
     const connectPlan = buildConnectOnboardingPlan({
       emailAddress: selectedAccount?.emailAddress
     });
     const templateAccountId = input.selectedAccountId ?? input.accounts[0]?.accountId ?? null;
     const templateTenantId = templateAccountId ?? "default";
+    const agentDirectory = listAgentDirectory({
+      tenantId: templateTenantId,
+      accountId: templateAccountId ?? undefined
+    });
+    const agentSkills = listSkillsForAgents({
+      tenantId: templateTenantId,
+      accountId: templateAccountId ?? undefined
+    });
     const standaloneBasePath = "/workbench/mail";
     const embeddedBasePath = "/workbench/mail/tab";
     const buildTabHref = (
@@ -1605,30 +1631,16 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
           count: null
         },
         {
-          id: "accounts",
-          label: "Accounts",
-          href: buildTabHref(standaloneBasePath, "accounts", {
+          id: "agents",
+          label: "Agents",
+          href: buildTabHref(standaloneBasePath, "agents", {
             accountId: input.selectedAccountId
           }),
-          embeddedHref: buildTabHref(embeddedBasePath, "accounts", {
+          embeddedHref: buildTabHref(embeddedBasePath, "agents", {
             accountId: input.selectedAccountId
           }),
-          active: activeTab === "accounts",
-          count: input.accounts.length
-        },
-        {
-          id: "rooms",
-          label: "Rooms",
-          href: buildTabHref(standaloneBasePath, "rooms", {
-            accountId: input.selectedAccountId,
-            roomKey: input.selectedRoomKey
-          }),
-          embeddedHref: buildTabHref(embeddedBasePath, "rooms", {
-            accountId: input.selectedAccountId,
-            roomKey: input.selectedRoomKey
-          }),
-          active: activeTab === "rooms",
-          count: input.rooms.length
+          active: activeTab === "agents",
+          count: agentDirectory.length
         },
         {
           id: "mailboxes",
@@ -1643,6 +1655,20 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
           }),
           active: activeTab === "mailboxes",
           count: input.mailboxConsole?.virtualMailboxes?.length ?? 0
+        },
+        {
+          id: "rooms",
+          label: "Rooms",
+          href: buildTabHref(standaloneBasePath, "rooms", {
+            accountId: input.selectedAccountId,
+            roomKey: input.selectedRoomKey
+          }),
+          embeddedHref: buildTabHref(embeddedBasePath, "rooms", {
+            accountId: input.selectedAccountId,
+            roomKey: input.selectedRoomKey
+          }),
+          active: activeTab === "rooms",
+          count: input.rooms.length
         },
         {
           id: "approvals",
@@ -1710,14 +1736,8 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
           notes: [...provider.notes]
         })),
         agentTemplates: listConfiguredAgentTemplates(),
-        agentDirectory: listAgentDirectory({
-          tenantId: templateTenantId,
-          accountId: templateAccountId ?? undefined
-        }),
-        skills: listSkillsForAgents({
-          tenantId: templateTenantId,
-          accountId: templateAccountId ?? undefined
-        }),
+        agentDirectory,
+        skills: agentSkills,
         headcountRecommendations: listHeadcountRecommendations(templateAccountId ?? undefined)
       },
       mailboxWorkspace: input.selectedAccountId
@@ -2401,7 +2421,7 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
       };
     },
     getConsoleWorkbench(input: {
-      mode?: "connect" | "accounts" | "rooms" | "mailboxes" | "approvals";
+      mode?: "connect" | "agents" | "accounts" | "rooms" | "mailboxes" | "approvals";
       accountId?: string;
       roomKey?: string;
       mailboxId?: string;
@@ -2756,6 +2776,22 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
         burstCoalesceSeconds: input.burstCoalesceSeconds ?? 90,
         now
       });
+
+      const account = getMailAccount(deps.db, input.accountId);
+      if (account) {
+        const existingRouting = readAccountAgentRoutingSettings(account.settings ?? {});
+        upsertMailAccount(deps.db, {
+          ...account,
+          settings: mergeAgentRoutingIntoAccountSettings(account.settings, {
+            templateId: existingRouting.templateId ?? "custom",
+            defaultFrontAgentId: existingRouting.defaultFrontAgentId ?? input.agentId,
+            durableAgentIds: [...existingRouting.durableAgentIds, input.agentId],
+            collaboratorAgentIds: [...existingRouting.collaboratorAgentIds, ...(input.collaboratorAgentIds ?? [])],
+            updatedAt: now
+          }),
+          updatedAt: now
+        });
+      }
 
       return {
         accountId: input.accountId,
@@ -4367,6 +4403,7 @@ function readAccountAgentRoutingSettings(settings: Record<string, unknown>) {
       : {};
 
   return {
+    templateId: typeof routing.templateId === "string" ? routing.templateId : undefined,
     defaultFrontAgentId: normalizeAgentId(typeof routing.defaultFrontAgentId === "string" ? routing.defaultFrontAgentId : undefined),
     durableAgentIds: uniqueAgentIds(Array.isArray(routing.durableAgentIds) ? routing.durableAgentIds.filter((v): v is string => typeof v === "string") : []),
     collaboratorAgentIds: uniqueAgentIds(Array.isArray(routing.collaboratorAgentIds) ? routing.collaboratorAgentIds.filter((v): v is string => typeof v === "string") : [])
@@ -4375,6 +4412,7 @@ function readAccountAgentRoutingSettings(settings: Record<string, unknown>) {
 
 function createEmptyAccountAgentRouting() {
   return {
+    templateId: undefined,
     defaultFrontAgentId: undefined,
     durableAgentIds: [] as string[],
     collaboratorAgentIds: [] as string[]
