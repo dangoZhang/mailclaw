@@ -2080,7 +2080,6 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const workspace = state.data && state.data.workspace ? state.data.workspace : null;
         const connect = workspace && workspace.connect ? workspace.connect : null;
         const providerCount = connect && Array.isArray(connect.providerOptions) ? connect.providerOptions.length : 0;
-        const loginCommand = (connect && connect.recommendedLoginCommand) || "mailclaws login";
         const connectEmailAddress = state.connectEmailAddress || "";
         const providerOptions = connect && Array.isArray(connect.providerOptions) ? connect.providerOptions : [];
         const knownWebProviders = connect && Array.isArray(connect.knownWebProviders) ? connect.knownWebProviders : [];
@@ -2113,18 +2112,23 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const currentSignature = currentPayload ? buildConnectPayloadSignature(currentPayload) : "";
         const validation = state.connectValidation || { status: "idle", signature: "", result: null, error: "" };
         const validationReady = validation.status === "success" && validation.signature === currentSignature;
-        const templates = connect && Array.isArray(connect.agentTemplates) ? connect.agentTemplates : [];
-        const directory = connect && Array.isArray(connect.agentDirectory) ? connect.agentDirectory : [];
-        const headcount = connect && Array.isArray(connect.headcountRecommendations) ? connect.headcountRecommendations : [];
-        const skills = connect && Array.isArray(connect.skills) ? connect.skills : [];
+        const emailReady = connectEmailAddress.indexOf("@") !== -1;
+        const detectedProviderName =
+          (detectedWebProvider && detectedWebProvider.displayName) ||
+          (detectedProvider && detectedProvider.displayName) ||
+          l("Generic IMAP", "通用 IMAP");
+        const loginHint = selectedLogin && selectedLogin.credentialHint
+          ? selectedLogin.credentialHint
+          : l("Use the credential accepted by the provider's IMAP/SMTP service.", "请填写该提供商 IMAP/SMTP 接受的凭证。");
+
         return (
           renderWorkspaceHero({
             eyebrow: l("Mail setup", "邮件接入"),
-            title: l("Connect one mailbox and start from the room.", "连接一个邮箱，从房间视图开始。"),
-            copy: l("This workbench is for the durable truth layer: account health, rooms, internal mailboxes, approvals, gateway projections, and the durable agent roster all stay visible from one route.", "这个工作台用于持久真相层：账号健康、房间、内部邮箱、审批、网关投影和持久代理名单都在同一路由里可见。"),
-            actions:
-              '<a class="btn primary" href="' + escapeHtmlClient((connect && connect.browserPath) || routeBasePath()) + '">' + escapeHtmlClient(l("Open Mail", "打开邮件工作台")) + '</a>' +
-              '<a class="btn" href="' + escapeHtmlClient((connect && connect.onboardingApiPath) || ((config.apiBasePath || "/api") + "/connect/onboarding")) + '" target="_blank" rel="noreferrer">' + escapeHtmlClient(l("Onboarding API", "接入 API")) + '</a>',
+            title: l("Enter your email address first.", "先输入你的邮箱地址。"),
+            copy: l(
+              "Like Outlook or Apple Mail, the first step should be the mailbox address. MailClaws detects the provider, opens the correct login page, and keeps manual IMAP/SMTP as a fallback only.",
+              "和 Outlook、Apple Mail 一样，第一步应该只输入邮箱地址。MailClaws 会识别提供商、打开正确的登录页，手工 IMAP/SMTP 只作为兜底。"
+            ),
             summaryItems: [
               { label: l("providers", "提供商"), value: String(providerCount) },
               { label: l("accounts", "账号"), value: String((state.data && state.data.accounts ? state.data.accounts.length : 0)) },
@@ -2132,20 +2136,43 @@ export function renderOpenClawWorkbenchShellHtml(input: {
               { label: l("approvals", "审批"), value: String((state.data && state.data.approvals ? state.data.approvals.length : 0)) }
             ]
           }) +
-          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Connect a mailbox", "连接邮箱")) + '</h3><span class="muted">' + escapeHtmlClient(l("Workbench mail tab", "工作台邮件页签")) + '</span></div>' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Add an account", "添加账号")) + '</h3><span class="muted">' + escapeHtmlClient(detectedProviderName) + '</span></div>' +
           '<div class="panel-body">' +
-          '<div class="card-title">' + escapeHtmlClient(l("Start with one real mailbox, then inspect rooms and internal mail from the same workbench route.", "先接入一个真实邮箱，再从同一路由查看房间和内部邮件。")) + '</div>' +
-          '<div class="detail">' + escapeHtmlClient(l("The workbench keeps the setup path narrow on purpose: validate IMAP and SMTP first, create the account only after both pass, then send one real test email and inspect the room.", "工作台刻意收窄接入路径：先校验 IMAP 和 SMTP，双双通过后再创建账号，然后发送一封真实测试邮件并查看房间。")) + '</div>' +
+          '<div class="card-title">' + escapeHtmlClient(l("Start with your mailbox address. The provider and preset servers are inferred automatically.", "先输入邮箱地址。提供商和预设服务器参数会自动识别。")) + '</div>' +
+          '<div class="detail">' + escapeHtmlClient(l("Manual IMAP and SMTP fields are still available, but only under Advanced options.", "手工 IMAP 和 SMTP 字段仍然可用，但已收进“高级选项”。")) + '</div>' +
           '<label><div class="section-label">' + escapeHtmlClient(l("Mailbox address", "邮箱地址")) + '</div><input class="console-input" id="connect-email-input" type="email" placeholder="you@example.com" value="' + escapeHtmlClient(connectEmailAddress) + '" /></label>' +
           '<div class="detail">' + escapeHtmlClient(
-            (detectedWebProvider || detectedProvider)
-              ? l("Detected mailbox provider: ", "已识别邮箱提供商：") + ((detectedWebProvider && detectedWebProvider.displayName) || detectedProvider.displayName) + l(". Start with the provider web page, then return with the mailbox password, app password, or authorization code.", "。先打开提供商网页登录，然后带着邮箱密码、应用专用密码或授权码回来。")
-              : l("Enter a mailbox address to detect the provider, reveal the matching web login path, and see the credential type MailClaws will need.", "输入邮箱地址后，系统会识别提供商、显示对应网页登录路径，并提示 MailClaws 所需的凭证类型。")
+            emailReady
+              ? l("Detected provider: ", "已识别提供商：") + detectedProviderName + l(". Continue to the mailbox login page first, then come back to finish connection.", "。先去该邮箱登录页完成登录或生成专用凭证，再回来完成连接。")
+              : l("Enter a mailbox address to detect the provider and jump to the correct mailbox login page.", "输入邮箱地址后，系统会识别提供商并跳到正确的邮箱登录页。")
           ) + '</div>' +
+          '<div class="chips">' +
+          (emailReady ? renderPill(detectedProviderName, "pill--ok") : "") +
+          (selectedPreset && selectedPreset.imapHost ? renderPill("IMAP " + selectedPreset.imapHost, "") : "") +
+          (selectedPreset && selectedPreset.smtpHost ? renderPill("SMTP " + selectedPreset.smtpHost, "") : "") +
+          '</div>' +
+          '<div class="detail-grid">' +
+          '<label><div class="section-label">' + escapeHtmlClient((selectedLogin && selectedLogin.credentialLabel) || l("Mailbox password / app password / authorization code", "邮箱密码 / 应用专用密码 / 授权码")) + '</div><input class="console-input" data-connect-field="credential" type="password" autocomplete="current-password" placeholder="' + escapeHtmlClient(l("credential", "凭证")) + '" value="' + escapeHtmlClient(credentialValue) + '" /></label>' +
+          '</div>' +
+          '<div class="detail">' + escapeHtmlClient(loginHint) + '</div>' +
+          (validation.status === "success"
+            ? '<div class="detail">' + escapeHtmlClient(l("Validation passed: IMAP ", "校验通过：IMAP ")) + escapeHtmlClient((validation.result && validation.result.imap && validation.result.imap.host) || "ok") + ' / SMTP ' + escapeHtmlClient((validation.result && validation.result.smtp && validation.result.smtp.host) || "ok") + '.</div>'
+            : validation.status === "failed"
+              ? '<div class="error-banner">' + escapeHtmlClient(validation.error || l("Mailbox validation failed.", "邮箱校验失败。")) + '</div>'
+              : '<div class="detail">' + escapeHtmlClient(l("Open the provider login first, then validate the mailbox before creating the account.", "先打开提供商登录页，再校验邮箱，最后创建账号。")) + '</div>') +
+          '<div class="actions-inline">' +
+          (selectedWebLoginUrl
+            ? '<a class="btn primary" href="' + escapeHtmlClient(selectedWebLoginUrl) + '" target="_blank" rel="noreferrer">' + escapeHtmlClient(l("Continue to " + detectedProviderName, "继续前往 " + detectedProviderName)) + '</a>'
+            : '') +
+          '<button class="btn" data-action="validate-mailbox">' + escapeHtmlClient(l("Validate Mailbox", "校验邮箱")) + '</button>' +
+          '<button class="btn primary" data-action="connect-mailbox"' + (validationReady ? "" : " disabled") + '>' + escapeHtmlClient(l("Connect Mailbox", "连接邮箱")) + '</button>' +
+          '</div>' +
+          '<details class="panel">' +
+          '<summary class="panel-header"><h3>' + escapeHtmlClient(l("Advanced options", "高级选项")) + '</h3><span class="muted">' + escapeHtmlClient(l("manual IMAP / SMTP fallback", "手工 IMAP / SMTP 兜底")) + '</span></summary>' +
+          '<div class="panel-body">' +
           '<div class="detail-grid">' +
           '<label><div class="section-label">' + escapeHtmlClient(l("Account ID", "账号 ID")) + '</div><input class="console-input" data-connect-field="accountId" placeholder="acct-you-example-com" value="' + escapeHtmlClient(accountIdValue) + '" /></label>' +
           '<label><div class="section-label">' + escapeHtmlClient(l("Display name", "显示名称")) + '</div><input class="console-input" data-connect-field="displayName" placeholder="you" value="' + escapeHtmlClient(displayNameValue) + '" /></label>' +
-          '<label><div class="section-label">' + escapeHtmlClient((selectedLogin && selectedLogin.credentialLabel) || l("Mailbox password / app password / authorization code", "邮箱密码 / 应用专用密码 / 授权码")) + '</div><input class="console-input" data-connect-field="credential" type="password" autocomplete="current-password" placeholder="' + escapeHtmlClient(l("credential", "凭证")) + '" value="' + escapeHtmlClient(credentialValue) + '" /></label>' +
           '<label><div class="section-label">' + escapeHtmlClient(l("Inbound whitelist", "入站白名单")) + '</div><label class="detail"><input type="checkbox" data-connect-field="allowSelfOnly"' + (allowSelfOnly ? " checked" : "") + ' /> ' + escapeHtmlClient(l("Allow only this mailbox address during first connect", "首次连接时只允许该邮箱地址发来邮件")) + '</label></label>' +
           '<label><div class="section-label">IMAP Host</div><input class="console-input" data-connect-field="imapHost" placeholder="imap.example.com" value="' + escapeHtmlClient(imapHostValue) + '" /></label>' +
           '<label><div class="section-label">IMAP Port</div><input class="console-input" data-connect-field="imapPort" inputmode="numeric" placeholder="993" value="' + escapeHtmlClient(imapPortValue) + '" /></label>' +
@@ -2161,86 +2188,14 @@ export function renderOpenClawWorkbenchShellHtml(input: {
               ? l("Default safety policy is on: the first connected account only accepts inbound mail from its own address until you widen the whitelist later.", "默认安全策略已开启：首次接入的账号只接受来自其自身地址的来信，直到你后续放宽白名单。")
               : l("Inbound sender allowlist is open for this connect payload. Only turn this off when you are ready to accept mail from other senders.", "当前接入载荷对入站发件人白名单已放开。只有准备好接收其他发件人的邮件时才应这样做。")
           ) + '</div>' +
-          (validation.status === "success"
-            ? '<div class="detail">' + escapeHtmlClient(l("Validation passed: IMAP ", "校验通过：IMAP ")) + escapeHtmlClient((validation.result && validation.result.imap && validation.result.imap.host) || "ok") + ' / SMTP ' + escapeHtmlClient((validation.result && validation.result.smtp && validation.result.smtp.host) || "ok") + '.</div>'
-            : validation.status === "failed"
-              ? '<div class="error-banner">' + escapeHtmlClient(validation.error || l("Mailbox validation failed.", "邮箱校验失败。")) + '</div>'
-              : '<div class="detail">' + escapeHtmlClient(l("Use Validate Mailbox explicitly before you create the account.", "创建账号前必须先显式执行“校验邮箱”。")) + '</div>') +
-          '<div class="actions-inline">' +
-          (selectedWebLoginUrl
-            ? '<a class="btn" href="' + escapeHtmlClient(selectedWebLoginUrl) + '" target="_blank" rel="noreferrer">' + escapeHtmlClient(l("Open Provider Login", "打开提供商登录页")) + '</a>'
-            : '') +
-          '<button class="btn" data-action="validate-mailbox">' + escapeHtmlClient(l("Validate Mailbox", "校验邮箱")) + '</button>' +
-          '<button class="btn primary" data-action="connect-mailbox"' + (validationReady ? "" : " disabled") + '>' + escapeHtmlClient(l("Connect Mailbox", "连接邮箱")) + '</button>' +
-          '</div>' +
-          '<div class="mono-block">' + escapeHtmlClient((connect && connect.recommendedStartCommand) || "mailclaws dashboard") + "</div>" +
-          '<div class="mono-block">' + escapeHtmlClient(loginCommand) + "</div>" +
-          (detectedWebProvider && !providerOptions.some(function(provider) { return provider.id === detectedWebProvider.id; })
-            ? '<div class="provider-grid">' + renderConnectProviderCard({
-                id: detectedWebProvider.id,
-                displayName: detectedWebProvider.displayName,
-                accountProvider: "imap",
-                setupKind: detectedWebProvider.connectProviderId ? "app_password" : "app_password",
-                mailboxDomains: detectedWebProvider.mailboxDomains,
-                recommendedCommand: "mailclaws login " + escapeHtmlClient(connectEmailAddress || "you@example.com"),
-                web: detectedWebProvider.web,
-                summary: "Open the official mailbox site first, then return to MailClaws and use the generic IMAP/SMTP login path.",
-                connectProviderId: detectedWebProvider.connectProviderId
-              }, connectEmailAddress, detectedWebProvider.id) + "</div>"
-            : "") +
           (providerOptions.length > 0
             ? '<div class="provider-grid">' + providerOptions.map(function(provider) {
                 return renderConnectProviderCard(provider, connectEmailAddress, detectedProvider && detectedProvider.id);
               }).join("") + "</div>"
             : '<div class="empty">' + escapeHtmlClient(l("No provider metadata is available.", "没有可用的提供商元数据。")) + '</div>') +
-          "</div></div>" +
-          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Agent Templates", "代理模板")) + '</h3><span class="muted">' + escapeHtmlClient(countText(String(templates.length), "presets", " 个预设")) + '</span></div><div class="panel-body">' +
-          (templates.length > 0
-            ? '<div class="mailbox-feed">' + templates.map(function(template) { return renderAgentTemplateCard(template, connect); }).join("") + "</div>"
-            : '<div class="empty">' + escapeHtmlClient(l("No agent templates are available.", "没有可用的代理模板。")) + '</div>') +
-          "</div></div>" +
-          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Custom Agent", "自定义代理")) + '</h3><span class="muted">' + escapeHtmlClient(l("durable soul + mailbox", "持久灵魂 + 邮箱")) + '</span></div><div class="panel-body">' +
-          '<div class="detail">' + escapeHtmlClient(l("Create one durable agent with its own SOUL.md, internal mailboxes, inbox policy, and directory entry.", "创建一个拥有独立 SOUL.md、内部邮箱、收件策略和目录项的持久代理。")) + '</div>' +
-          '<div class="detail-grid">' +
-          '<label><div class="section-label">' + escapeHtmlClient(l("Agent ID", "代理 ID")) + '</div><input class="console-input" data-custom-agent-field="agentId" placeholder="assistant-ops" /></label>' +
-          '<label><div class="section-label">' + escapeHtmlClient(l("Display Name", "显示名称")) + '</div><input class="console-input" data-custom-agent-field="displayName" placeholder="Assistant Ops" /></label>' +
-          '<label><div class="section-label">' + escapeHtmlClient(l("Public Mailbox", "公开邮箱")) + '</div><input class="console-input" data-custom-agent-field="publicMailboxId" placeholder="public:assistant-ops" /></label>' +
-          '<label><div class="section-label">' + escapeHtmlClient(l("Collaborators", "协作者")) + '</div><input class="console-input" data-custom-agent-field="collaboratorAgentIds" placeholder="assistant,research" /></label>' +
           '</div>' +
-          '<label><div class="section-label">' + escapeHtmlClient(l("Purpose", "用途")) + '</div><textarea class="console-textarea" data-custom-agent-field="purpose" placeholder="' + escapeHtmlClient(l("Own escalations, coordinate approvals, and feed final-ready packets back to the front desk.", "负责升级事项、协调审批，并把最终可交付结果回传前台。")) + '"></textarea></label>' +
-          (((connect && connect.templateApplyAccountId) || "").length > 0
-            ? '<div class="actions-inline"><button class="btn" data-action="create-custom-agent" data-account-id="' + escapeHtmlClient(connect.templateApplyAccountId || "") + '" data-tenant-id="' + escapeHtmlClient((connect && connect.templateApplyTenantId) || connect.templateApplyAccountId || "") + '">' + escapeHtmlClient(l("Create Agent", "创建代理")) + '</button></div>'
-            : '<div class="detail">' + escapeHtmlClient(l("Connect an account first, then create custom durable agents in that workspace.", "请先连接一个账号，然后再在该工作区创建自定义持久代理。")) + '</div>') +
-          "</div></div>" +
-          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Agent Directory", "代理目录")) + '</h3><span class="muted">' + escapeHtmlClient(countText(String(directory.length), "durable agents", " 个持久代理")) + '</span></div><div class="panel-body">' +
-          (directory.length > 0
-            ? '<div class="mailbox-feed">' + directory.map(renderAgentDirectoryCard).join("") + "</div>"
-            : '<div class="empty">' + escapeHtmlClient(l("Apply a template or initialize an agent memory workspace to create durable souls.", "应用模板或初始化代理记忆工作区后，才能创建持久灵魂。")) + '</div>') +
-          "</div></div>" +
-          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Skills", "技能")) + '</h3><span class="muted">' + escapeHtmlClient(countText(String(skills.reduce(function(total, entry) { return total + ((entry.skills || []).length || 0); }, 0)), "visible skills", " 个可见技能")) + '</span></div><div class="panel-body">' +
-          '<div class="detail">' + escapeHtmlClient(l("Every durable agent starts with two built-in mail skills. Add markdown skills when you want reusable reading, writing, or review behavior without carrying more transcript.", "每个持久代理默认带两个内建邮件技能。需要复用读取、写作或评审行为且不想增加更多上下文时，再添加 markdown 技能。")) + '</div>' +
-          '<div class="mono-block">mailclaws skills list ' + escapeHtmlClient((connect && connect.templateApplyAccountId) || "[accountId]") + "</div>" +
-          (skills.length > 0
-            ? '<div class="mailbox-feed">' + skills.map(renderAgentSkillGroup).join("") + "</div>"
-            : '<div class="empty">' + escapeHtmlClient(l("Connect or create a durable agent to inspect skills.", "连接或创建一个持久代理后才能查看技能。")) + '</div>') +
-          "</div></div>" +
-          '<div class="panel"><div class="panel-header"><h3>HeadCount</h3><span class="muted">' + escapeHtmlClient(l("recommended starting shapes", "推荐起步编制")) + '</span></div><div class="panel-body">' +
-          (headcount.length > 0
-            ? '<div class="mailbox-feed">' + headcount.map(function(entry) {
-                return (
-                  '<div class="timeline-entry">' +
-                  '<div class="meta"><span>' + escapeHtmlClient(entry.displayName || entry.templateId || "template") + '</span><span>' + escapeHtmlClient(entry.confidence || "starter") + "</span></div>" +
-                  '<div class="title">' + escapeHtmlClient(entry.summary || "") + "</div>" +
-                  '<div class="chips">' +
-                  renderPill(prefixedText("persistent ", "持久 ", entry.persistentAgents || 0), "") +
-                  renderPill(prefixedText("burst ", "突发 ", entry.burstTargets || 0), "") +
-                  "</div>" +
-                  '<div class="detail">' + escapeHtmlClient((entry.reasons || []).join(" | ")) + "</div>" +
-                  "</div>"
-                );
-              }).join("") + "</div>"
-            : '<div class="empty">' + escapeHtmlClient(l("Headcount recommendations appear after MailClaws can see account or burst-work load.", "MailClaws 能看到账号负载或突发负载后，才会出现编制建议。")) + '</div>') +
-          "</div></div>"
+          '</details>' +
+          '</div></div>'
         );
       }
 
