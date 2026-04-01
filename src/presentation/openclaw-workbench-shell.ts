@@ -2219,7 +2219,6 @@ export function renderOpenClawWorkbenchShellHtml(input: {
       function renderConnectHome() {
         const workspace = state.data && state.data.workspace ? state.data.workspace : null;
         const connect = workspace && workspace.connect ? workspace.connect : null;
-        const providerCount = connect && Array.isArray(connect.providerOptions) ? connect.providerOptions.length : 0;
         const connectEmailAddress = state.connectEmailAddress || "";
         const providerOptions = connect && Array.isArray(connect.providerOptions) ? connect.providerOptions : [];
         const knownWebProviders = connect && Array.isArray(connect.knownWebProviders) ? connect.knownWebProviders : [];
@@ -2257,6 +2256,10 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           (detectedWebProvider && detectedWebProvider.displayName) ||
           (detectedProvider && detectedProvider.displayName) ||
           l("Generic IMAP", "通用 IMAP");
+        const workingFlowLabel = l(
+          "Working path: email address -> provider detection -> official mailbox sign-in -> advanced connect fallback",
+          "已跑通链路：邮箱地址 -> 提供商识别 -> 官方邮箱登录 -> 高级接入兜底"
+        );
         const loginHint = selectedLogin && selectedLogin.credentialHint
           ? selectedLogin.credentialHint
           : l("Use the credential accepted by the provider's IMAP/SMTP service.", "请填写该提供商 IMAP/SMTP 接受的凭证。");
@@ -2271,6 +2274,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
               "MailClaws 会识别提供商并带你去正确的邮箱登录页。只有在确实需要时，才会展开手工服务器配置。"
             )
           ) + '</div>' +
+          '<div class="connect-landing__status">' + escapeHtmlClient(workingFlowLabel) + '</div>' +
           '<div class="connect-landing__form">' +
           '<label class="connect-landing__label"><span class="connect-landing__label-text">' + escapeHtmlClient(l("Email address", "邮箱地址")) + '</span><input class="connect-landing__input" id="connect-email-input" type="email" placeholder="you@example.com" value="' + escapeHtmlClient(connectEmailAddress) + '" /></label>' +
           '<div class="connect-landing__actions">' +
