@@ -1663,6 +1663,7 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
         browserPath: standaloneBasePath,
         embeddedBrowserPath: embeddedBasePath,
         onboardingApiPath: "/api/connect/onboarding",
+        providerDiscoveryApiPath: "/api/connect/discover",
         recommendedStartCommand: "mailclaws onboard you@example.com",
         recommendedLoginCommand: "mailclaws login",
         templateApplyAccountId: templateAccountId,

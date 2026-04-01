@@ -5,6 +5,7 @@ import { renderOAuthCallbackHtml } from "./auth/oauth-core.js";
 import { renderOpenClawWorkbenchShellHtml } from "./presentation/openclaw-workbench-shell.js";
 import {
   buildConnectOnboardingPlan,
+  discoverConnectProvider,
   getConnectDiscovery,
   getUnsupportedOAuthProviderMessage,
   listConnectProviderGuides,
@@ -249,6 +250,17 @@ async function handleRequest(options: {
         buildConnectOnboardingPlan({
           emailAddress: requestUrl.searchParams.get("emailAddress") ?? undefined,
           providerHint: requestUrl.searchParams.get("provider") ?? undefined
+        })
+      );
+      return;
+    }
+
+    if (request.method === "GET" && requestUrl.pathname === "/api/connect/discover") {
+      writeJson(
+        response,
+        200,
+        await discoverConnectProvider({
+          emailAddress: requestUrl.searchParams.get("emailAddress") ?? undefined
         })
       );
       return;

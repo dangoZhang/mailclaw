@@ -57,11 +57,28 @@ export interface ConnectDiscovery {
     providersPath: string;
     providerDetailPathTemplate: string;
     onboardingPath: string;
+    providerDiscoveryPath: string;
     oauthStartPathTemplate: string;
     oauthCallbackPathTemplate: string;
   };
   supportedOAuthProviders: OAuthProviderMetadata[];
   providerCount: number;
+}
+
+export interface ConnectProviderDiscoveryResult {
+  emailAddress: string;
+  domain: string;
+  source: "preset" | "domain_autoconfig" | "domain_well_known" | "ispdb" | "generic";
+  confidence: "high" | "medium";
+  displayName: string;
+  provider: Pick<
+    ConnectProviderGuide,
+    "id" | "displayName" | "accountProvider" | "setupKind" | "recommendedCommand"
+  >;
+  preset: ConnectProviderGuide["preset"] | null;
+  login: ConnectProviderGuide["login"] | null;
+  web: ConnectProviderGuide["web"] | null;
+  notes: string[];
 }
 
 export interface ConnectOnboardingPlan {
@@ -116,6 +133,7 @@ export interface KnownMailboxWebProvider {
 }
 
 const MAILCTL_CMD = "mailclaws";
+const CONNECT_DISCOVERY_TIMEOUT_MS = 4000;
 
 const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
   {
@@ -695,6 +713,7 @@ export function getConnectDiscovery(): ConnectDiscovery {
       providersPath: "/api/connect/providers",
       providerDetailPathTemplate: "/api/connect/providers/:provider",
       onboardingPath: "/api/connect/onboarding",
+      providerDiscoveryPath: "/api/connect/discover",
       oauthStartPathTemplate: "/api/auth/:provider/start",
       oauthCallbackPathTemplate: "/api/auth/:provider/callback"
     },
@@ -757,6 +776,57 @@ export function resolveConnectProviderByEmailAddress(emailAddress: string | unde
     return resolveConnectProviderGuide("imap");
   }
   return resolveConnectProviderGuide(resolveConnectProviderByDomain(domain));
+}
+
+export async function discoverConnectProvider(
+  input: {
+    emailAddress?: string;
+    fetchImpl?: typeof fetch;
+  }
+): Promise<ConnectProviderDiscoveryResult | null> {
+  const normalizedEmailAddress = input.emailAddress?.trim().toLowerCase();
+  const domain = normalizedEmailAddress?.split("@")[1]?.trim().toLowerCase();
+  if (!normalizedEmailAddress || !domain) {
+    return null;
+  }
+
+  const knownGuide = resolveConnectProviderByEmailAddress(normalizedEmailAddress);
+  if (knownGuide && knownGuide.id !== "imap" && knownGuide.id !== "forward") {
+    return buildDiscoveryResultFromGuide({
+      emailAddress: normalizedEmailAddress,
+      domain,
+      guide: knownGuide,
+      source: "preset",
+      confidence: "high"
+    });
+  }
+
+  const fetchImpl = input.fetchImpl ?? fetch;
+  const discoveredConfig = await discoverAutoconfigProfile({
+    emailAddress: normalizedEmailAddress,
+    domain,
+    fetchImpl
+  });
+  if (discoveredConfig) {
+    return buildDiscoveryResultFromAutoconfig({
+      emailAddress: normalizedEmailAddress,
+      domain,
+      config: discoveredConfig
+    });
+  }
+
+  const genericGuide = resolveConnectProviderGuide("imap");
+  if (!genericGuide) {
+    return null;
+  }
+
+  return buildDiscoveryResultFromGuide({
+    emailAddress: normalizedEmailAddress,
+    domain,
+    guide: genericGuide,
+    source: "generic",
+    confidence: "medium"
+  });
 }
 
 export function getUnsupportedOAuthProviderMessage(provider: string | undefined) {
@@ -905,6 +975,230 @@ function resolveConnectProviderByDomain(domain: string) {
     return matched.id;
   }
   return "imap";
+}
+
+async function discoverAutoconfigProfile(input: {
+  emailAddress: string;
+  domain: string;
+  fetchImpl: typeof fetch;
+}) {
+  const candidates = [
+    {
+      source: "domain_autoconfig" as const,
+      url: `https://autoconfig.${input.domain}/mail/config-v1.1.xml?emailaddress=${encodeURIComponent(input.emailAddress)}`
+    },
+    {
+      source: "domain_well_known" as const,
+      url: `https://${input.domain}/.well-known/autoconfig/mail/config-v1.1.xml?emailaddress=${encodeURIComponent(input.emailAddress)}`
+    },
+    {
+      source: "ispdb" as const,
+      url: `https://autoconfig.thunderbird.net/v1.1/${encodeURIComponent(input.domain)}`
+    }
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      const response = await input.fetchImpl(candidate.url, {
+        headers: {
+          accept: "application/xml, text/xml;q=0.9, text/plain;q=0.5, */*;q=0.1"
+        },
+        redirect: "follow",
+        signal: AbortSignal.timeout(CONNECT_DISCOVERY_TIMEOUT_MS)
+      });
+      if (!response.ok) {
+        continue;
+      }
+      const xml = await response.text();
+      const parsed = parseThunderbirdAutoconfigXml(xml);
+      if (parsed) {
+        return {
+          ...parsed,
+          source: candidate.source
+        };
+      }
+    } catch {}
+  }
+
+  return null;
+}
+
+function parseThunderbirdAutoconfigXml(xml: string) {
+  if (!xml || !xml.includes("<clientConfig")) {
+    return null;
+  }
+
+  const incomingServer = findAutoconfigServer(xml, "incomingServer", "imap");
+  const outgoingServer = findAutoconfigServer(xml, "outgoingServer", "smtp");
+  if (!incomingServer || !outgoingServer) {
+    return null;
+  }
+
+  const imapPort = Number.parseInt(incomingServer.port || "", 10);
+  const smtpPort = Number.parseInt(outgoingServer.port || "", 10);
+  if (!incomingServer.hostname || !Number.isFinite(imapPort) || !outgoingServer.hostname || !Number.isFinite(smtpPort)) {
+    return null;
+  }
+
+  return {
+    displayName:
+      readAutoconfigTag(xml, "displayShortName") ||
+      readAutoconfigTag(xml, "displayName") ||
+      readAutoconfigTag(xml, "domain"),
+    preset: {
+      imapHost: incomingServer.hostname,
+      imapPort,
+      imapSecure: socketTypeUsesImplicitTls(incomingServer.socketType),
+      imapMailbox: "INBOX",
+      smtpHost: outgoingServer.hostname,
+      smtpPort,
+      smtpSecure: socketTypeUsesImplicitTls(outgoingServer.socketType)
+    }
+  };
+}
+
+function findAutoconfigServer(xml: string, tagName: "incomingServer" | "outgoingServer", expectedType: string) {
+  const expression = new RegExp(`<${tagName}\\b([^>]*)>([\\s\\S]*?)<\\/${tagName}>`, "gi");
+  for (const match of xml.matchAll(expression)) {
+    const attributes = match[1] || "";
+    const body = match[2] || "";
+    const typeMatch = attributes.match(/\btype=["']([^"']+)["']/i);
+    if ((typeMatch?.[1] || "").trim().toLowerCase() !== expectedType) {
+      continue;
+    }
+    return {
+      hostname: readAutoconfigTag(body, "hostname"),
+      port: readAutoconfigTag(body, "port"),
+      socketType: readAutoconfigTag(body, "socketType")
+    };
+  }
+  return null;
+}
+
+function readAutoconfigTag(xml: string, tagName: string) {
+  const match = xml.match(new RegExp(`<${tagName}>([\\s\\S]*?)<\\/${tagName}>`, "i"));
+  return decodeXmlText(match?.[1] || "").trim();
+}
+
+function decodeXmlText(value: string) {
+  return value
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&");
+}
+
+function socketTypeUsesImplicitTls(socketType: string) {
+  const normalized = socketType.trim().toUpperCase();
+  return normalized === "SSL" || normalized === "SSL/TLS";
+}
+
+function buildDiscoveryResultFromGuide(input: {
+  emailAddress: string;
+  domain: string;
+  guide: ConnectProviderGuide;
+  source: ConnectProviderDiscoveryResult["source"];
+  confidence: ConnectProviderDiscoveryResult["confidence"];
+}) {
+  const knownWebProvider = resolveKnownMailboxWebProviderByEmailAddress(input.emailAddress);
+  return {
+    emailAddress: input.emailAddress,
+    domain: input.domain,
+    source: input.source,
+    confidence: input.confidence,
+    displayName: input.guide.displayName,
+    provider: {
+      id: input.guide.id,
+      displayName: input.guide.displayName,
+      accountProvider: input.guide.accountProvider,
+      setupKind: input.guide.setupKind,
+      recommendedCommand: input.guide.recommendedCommand
+    },
+    preset: input.guide.preset
+      ? {
+          ...input.guide.preset
+        }
+      : null,
+    login: input.guide.login
+      ? {
+          ...input.guide.login,
+          steps: [...input.guide.login.steps]
+        }
+      : null,
+    web: input.guide.web
+      ? {
+          ...input.guide.web
+        }
+      : knownWebProvider?.web
+        ? {
+            ...knownWebProvider.web
+          }
+        : null,
+    notes: [...input.guide.notes]
+  } satisfies ConnectProviderDiscoveryResult;
+}
+
+function buildDiscoveryResultFromAutoconfig(input: {
+  emailAddress: string;
+  domain: string;
+  config: {
+    source: "domain_autoconfig" | "domain_well_known" | "ispdb";
+    displayName?: string;
+    preset: NonNullable<ConnectProviderGuide["preset"]>;
+  };
+}) {
+  const matchedGuide = resolveConnectProviderGuide(resolveConnectProviderByDomain(input.domain));
+  const genericGuide = resolveConnectProviderGuide("imap");
+  const guide = matchedGuide && matchedGuide.id !== "forward" ? matchedGuide : genericGuide;
+  if (!guide) {
+    throw new Error("generic imap provider guide is missing");
+  }
+  const knownWebProvider = resolveKnownMailboxWebProviderByEmailAddress(input.emailAddress);
+  return {
+    emailAddress: input.emailAddress,
+    domain: input.domain,
+    source: input.config.source,
+    confidence: input.config.source === "ispdb" ? "medium" : "high",
+    displayName:
+      input.config.displayName ||
+      knownWebProvider?.displayName ||
+      (matchedGuide && matchedGuide.id !== "imap" ? matchedGuide.displayName : input.domain),
+    provider: {
+      id: matchedGuide && matchedGuide.id !== "forward" ? matchedGuide.id : "imap",
+      displayName:
+        matchedGuide && matchedGuide.id !== "imap"
+          ? matchedGuide.displayName
+          : input.config.displayName || knownWebProvider?.displayName || "Generic IMAP/SMTP",
+      accountProvider: "imap",
+      setupKind: "app_password",
+      recommendedCommand: guide.recommendedCommand
+    },
+    preset: {
+      ...input.config.preset
+    },
+    login: guide.login
+      ? {
+          ...guide.login,
+          steps: [...guide.login.steps]
+        }
+      : null,
+    web: knownWebProvider?.web
+      ? {
+          ...knownWebProvider.web
+        }
+      : matchedGuide?.web
+        ? {
+            ...matchedGuide.web
+          }
+        : null,
+    notes: [
+      input.config.source === "ispdb"
+        ? "Auto-configured from the Thunderbird ISPDB-compatible discovery service."
+        : "Auto-configured from the mailbox domain's Thunderbird-compatible autoconfig endpoint.",
+      ...(guide.notes ?? [])
+    ]
+  } satisfies ConnectProviderDiscoveryResult;
 }
 
 function listAlternativeProviders(providerId: ConnectProviderId) {

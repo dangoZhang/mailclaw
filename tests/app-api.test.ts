@@ -28,6 +28,7 @@ const servers: Array<ReturnType<typeof createAppServer>> = [];
 const tempDirs: string[] = [];
 
 afterEach(async () => {
+  vi.unstubAllGlobals();
   await Promise.all(
     servers.splice(0).map(
       (server) =>
@@ -474,6 +475,7 @@ describe("app api", () => {
         providersPath: string;
         providerDetailPathTemplate: string;
         onboardingPath: string;
+        providerDiscoveryPath: string;
         oauthStartPathTemplate: string;
         oauthCallbackPathTemplate: string;
       };
@@ -494,6 +496,7 @@ describe("app api", () => {
         providersPath: "/api/connect/providers",
         providerDetailPathTemplate: "/api/connect/providers/:provider",
         onboardingPath: "/api/connect/onboarding",
+        providerDiscoveryPath: "/api/connect/discover",
         oauthStartPathTemplate: "/api/auth/:provider/start",
         oauthCallbackPathTemplate: "/api/auth/:provider/callback"
       },
@@ -599,6 +602,55 @@ describe("app api", () => {
         }
       }
     });
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<clientConfig version="1.1">
+  <emailProvider id="example.net">
+    <displayShortName>Example Mail</displayShortName>
+    <incomingServer type="imap">
+      <hostname>imap.example.net</hostname>
+      <port>993</port>
+      <socketType>SSL</socketType>
+    </incomingServer>
+    <outgoingServer type="smtp">
+      <hostname>smtp.example.net</hostname>
+      <port>465</port>
+      <socketType>SSL</socketType>
+    </outgoingServer>
+  </emailProvider>
+</clientConfig>`;
+    const originalFetch = fetch;
+    const fetchMock = vi.fn(async () =>
+      new Response(xml, {
+        status: 200,
+        headers: {
+          "content-type": "application/xml"
+        }
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const providerDiscoveryResponse = await originalFetch(`${baseUrl}/api/connect/discover?emailAddress=person@example.net`);
+    const providerDiscoveryJson = (await providerDiscoveryResponse.json()) as {
+      source: string;
+      displayName: string;
+      provider: { id: string };
+      preset: { imapHost: string; smtpHost: string };
+    };
+
+    expect(providerDiscoveryResponse.status).toBe(200);
+    expect(providerDiscoveryJson).toMatchObject({
+      source: "domain_autoconfig",
+      displayName: "Example Mail",
+      provider: {
+        id: "imap"
+      },
+      preset: {
+        imapHost: "imap.example.net",
+        smtpHost: "smtp.example.net"
+      }
+    });
+    expect(fetchMock).toHaveBeenCalled();
 
     fixture.handle.close();
   });

@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
+  discoverConnectProvider,
   listKnownMailboxWebProviders,
   resolveConnectProviderByEmailAddress,
   resolveConnectProviderGuide
@@ -51,5 +52,83 @@ describe("connect provider guides", () => {
       emailFirst: true,
       credentialLabel: "Mailbox password / app password / authorization code"
     });
+  });
+
+  it("keeps known presets local and does not hit remote autoconfig", async () => {
+    const fetchMock = vi.fn();
+
+    const discovery = await discoverConnectProvider({
+      emailAddress: "person@gmail.com",
+      fetchImpl: fetchMock as unknown as typeof fetch
+    });
+
+    expect(discovery).toMatchObject({
+      source: "preset",
+      provider: {
+        id: "gmail"
+      },
+      preset: {
+        imapHost: "imap.gmail.com",
+        smtpHost: "smtp.gmail.com"
+      }
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("uses Thunderbird-style autoconfig when the domain is not built in", async () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<clientConfig version="1.1">
+  <emailProvider id="example.net">
+    <domain>example.net</domain>
+    <displayShortName>Example Mail</displayShortName>
+    <incomingServer type="imap">
+      <hostname>imap.example.net</hostname>
+      <port>993</port>
+      <socketType>SSL</socketType>
+      <username>%EMAILADDRESS%</username>
+    </incomingServer>
+    <outgoingServer type="smtp">
+      <hostname>smtp.example.net</hostname>
+      <port>465</port>
+      <socketType>SSL</socketType>
+      <username>%EMAILADDRESS%</username>
+    </outgoingServer>
+  </emailProvider>
+</clientConfig>`;
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.startsWith("https://autoconfig.example.net/")) {
+        return new Response(xml, {
+          status: 200,
+          headers: {
+            "content-type": "application/xml"
+          }
+        });
+      }
+      return new Response("not found", {
+        status: 404
+      });
+    });
+
+    const discovery = await discoverConnectProvider({
+      emailAddress: "person@example.net",
+      fetchImpl: fetchMock as unknown as typeof fetch
+    });
+
+    expect(discovery).toMatchObject({
+      emailAddress: "person@example.net",
+      domain: "example.net",
+      source: "domain_autoconfig",
+      provider: {
+        id: "imap",
+        accountProvider: "imap"
+      },
+      preset: {
+        imapHost: "imap.example.net",
+        imapPort: 993,
+        smtpHost: "smtp.example.net",
+        smtpPort: 465
+      }
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

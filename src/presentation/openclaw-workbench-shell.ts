@@ -1502,6 +1502,12 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         data: null,
         language: "en",
         connectEmailAddress: "",
+        connectDiscovery: {
+          status: "idle",
+          emailAddress: "",
+          result: null,
+          error: ""
+        },
         connectDraft: {
           allowSelfOnly: true
         },
@@ -1515,6 +1521,8 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         navDrawerOpen: false,
         route: null
       };
+      let connectDiscoveryTimer = null;
+      let connectDiscoveryRequestId = 0;
 
       function l(english, chinese) {
         return state.language === "zh-CN" ? chinese : english;
@@ -1628,6 +1636,79 @@ export function renderOpenClawWorkbenchShellHtml(input: {
       function listPrimaryInboxEntries(entries, primaryInbox) {
         const primaryEntry = selectPrimaryInboxEntry(entries, primaryInbox);
         return primaryEntry ? [primaryEntry] : [];
+      }
+
+      function getResolvedConnectDiscovery(emailAddress) {
+        const normalizedEmail = String(emailAddress || "").trim().toLowerCase();
+        const discovery = state.connectDiscovery || {};
+        if (!normalizedEmail || discovery.status !== "success" || discovery.emailAddress !== normalizedEmail) {
+          return null;
+        }
+        return discovery.result || null;
+      }
+
+      function clearConnectDiscovery() {
+        if (connectDiscoveryTimer) {
+          window.clearTimeout(connectDiscoveryTimer);
+          connectDiscoveryTimer = null;
+        }
+        connectDiscoveryRequestId += 1;
+        state.connectDiscovery = {
+          status: "idle",
+          emailAddress: "",
+          result: null,
+          error: ""
+        };
+      }
+
+      function scheduleConnectDiscovery() {
+        const workspace = state.data && state.data.workspace ? state.data.workspace : null;
+        const connect = workspace && workspace.connect ? workspace.connect : null;
+        const discoveryApiPath = connect && connect.providerDiscoveryApiPath ? connect.providerDiscoveryApiPath : "/api/connect/discover";
+        const normalizedEmail = String(state.connectEmailAddress || "").trim().toLowerCase();
+        clearConnectDiscovery();
+        if (normalizedEmail.indexOf("@") === -1) {
+          render();
+          return;
+        }
+        const requestId = connectDiscoveryRequestId;
+        state.connectDiscovery = {
+          status: "loading",
+          emailAddress: normalizedEmail,
+          result: null,
+          error: ""
+        };
+        render();
+        connectDiscoveryTimer = window.setTimeout(function() {
+          const normalizedDiscoveryApiPath = discoveryApiPath.indexOf("/api") === 0
+            ? discoveryApiPath.slice(4)
+            : discoveryApiPath;
+          void requestJson((config.apiBasePath || "/api") + normalizedDiscoveryApiPath + "?emailAddress=" + encodeURIComponent(normalizedEmail))
+            .then(function(result) {
+              if (requestId !== connectDiscoveryRequestId) {
+                return;
+              }
+              state.connectDiscovery = {
+                status: "success",
+                emailAddress: normalizedEmail,
+                result: result,
+                error: ""
+              };
+              render();
+            })
+            .catch(function(error) {
+              if (requestId !== connectDiscoveryRequestId) {
+                return;
+              }
+              state.connectDiscovery = {
+                status: "error",
+                emailAddress: normalizedEmail,
+                result: null,
+                error: error instanceof Error ? error.message : String(error)
+              };
+              render();
+            });
+        }, 250);
       }
 
       function parseRoute(pathname, search) {
@@ -1799,8 +1880,14 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const connect = workspace && workspace.connect ? workspace.connect : null;
         const providerOptions = connect && Array.isArray(connect.providerOptions) ? connect.providerOptions : [];
         const selectedProvider = resolveManualConnectProvider(state.connectEmailAddress, providerOptions);
-        const preset = selectedProvider && selectedProvider.preset ? selectedProvider.preset : null;
         const emailAddress = String(state.connectEmailAddress || "").trim().toLowerCase();
+        const discovery = getResolvedConnectDiscovery(emailAddress);
+        const preset =
+          discovery && discovery.preset
+            ? discovery.preset
+            : selectedProvider && selectedProvider.preset
+              ? selectedProvider.preset
+              : null;
         const accountId = readConnectDraftValue("accountId", createSuggestedAccountIdClient(emailAddress));
         const displayName = readConnectDraftValue("displayName", inferSuggestedDisplayNameClient(emailAddress));
         const credential = readConnectDraftValue("credential", "");
@@ -2253,14 +2340,21 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const connectEmailAddress = state.connectEmailAddress || "";
         const providerOptions = connect && Array.isArray(connect.providerOptions) ? connect.providerOptions : [];
         const knownWebProviders = connect && Array.isArray(connect.knownWebProviders) ? connect.knownWebProviders : [];
+        const connectDiscovery = getResolvedConnectDiscovery(connectEmailAddress);
         const detectedProvider = resolveProviderForMailbox(connectEmailAddress, providerOptions);
         const selectedProvider = resolveManualConnectProvider(connectEmailAddress, providerOptions);
         const detectedWebProvider = resolveKnownWebProviderForMailbox(connectEmailAddress, knownWebProviders);
-        const selectedPreset = selectedProvider && selectedProvider.preset ? selectedProvider.preset : null;
-        const selectedLogin = selectedProvider && selectedProvider.login ? selectedProvider.login : null;
-        const selectedWebLoginUrl = selectedProvider && selectedProvider.web && selectedProvider.web.loginUrl
-          ? selectedProvider.web.loginUrl
-          : detectedWebProvider && detectedWebProvider.web ? detectedWebProvider.web.loginUrl : "";
+        const selectedPreset = connectDiscovery && connectDiscovery.preset
+          ? connectDiscovery.preset
+          : selectedProvider && selectedProvider.preset ? selectedProvider.preset : null;
+        const selectedLogin = connectDiscovery && connectDiscovery.login
+          ? connectDiscovery.login
+          : selectedProvider && selectedProvider.login ? selectedProvider.login : null;
+        const selectedWebLoginUrl = connectDiscovery && connectDiscovery.web && connectDiscovery.web.loginUrl
+          ? connectDiscovery.web.loginUrl
+          : selectedProvider && selectedProvider.web && selectedProvider.web.loginUrl
+            ? selectedProvider.web.loginUrl
+            : detectedWebProvider && detectedWebProvider.web ? detectedWebProvider.web.loginUrl : "";
         const accountIdValue = readConnectDraftValue("accountId", createSuggestedAccountIdClient(connectEmailAddress));
         const displayNameValue = readConnectDraftValue("displayName", inferSuggestedDisplayNameClient(connectEmailAddress));
         const credentialValue = readConnectDraftValue("credential", "");
@@ -2284,6 +2378,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const validationReady = validation.status === "success" && validation.signature === currentSignature;
         const emailReady = connectEmailAddress.indexOf("@") !== -1;
         const detectedProviderName =
+          (connectDiscovery && connectDiscovery.displayName) ||
           (detectedWebProvider && detectedWebProvider.displayName) ||
           (detectedProvider && detectedProvider.displayName) ||
           l("Generic IMAP", "通用 IMAP");
@@ -2291,6 +2386,19 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           "MailClaws can detect your provider and open the correct mailbox sign-in page.",
           "MailClaws 可以识别你的邮箱服务，并打开正确的登录页。"
         );
+        const discoveryStatus =
+          state.connectDiscovery && state.connectDiscovery.emailAddress === String(connectEmailAddress || "").trim().toLowerCase()
+            ? state.connectDiscovery.status
+            : "idle";
+        const discoverySourceLabel = connectDiscovery && connectDiscovery.source
+          ? (
+              connectDiscovery.source === "preset"
+                ? l("Built-in preset", "内置预设")
+                : connectDiscovery.source === "ispdb"
+                  ? "ISPDB"
+                  : l("Autoconfig", "自动配置")
+            )
+          : "";
         const loginHint = selectedLogin && selectedLogin.credentialHint
           ? selectedLogin.credentialHint
           : l("Use the credential accepted by the provider's IMAP/SMTP service.", "请填写该提供商 IMAP/SMTP 接受的凭证。");
@@ -2315,12 +2423,15 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           '</div>' +
           '<div class="connect-landing__footer">' +
           '<div class="connect-landing__status">' + escapeHtmlClient(
-            emailReady
+            discoveryStatus === "loading"
+              ? l("Checking mailbox provider settings…", "正在检查邮箱提供商配置…")
+              : emailReady
               ? l("Detected provider: ", "已识别提供商：") + detectedProviderName + l(". Start there first.", "。请先从这里开始。")
               : l("Type one email address to detect the provider and open the correct sign-in page.", "输入一个邮箱地址后，系统会识别提供商并打开正确的登录页。")
           ) + '</div>' +
           '<div class="connect-landing__meta">' +
           (emailReady ? renderPill(detectedProviderName, "pill--ok") : "") +
+          (discoverySourceLabel ? renderPill(discoverySourceLabel, "") : "") +
           (selectedPreset && selectedPreset.imapHost ? renderPill("IMAP " + selectedPreset.imapHost, "") : "") +
           (selectedPreset && selectedPreset.smtpHost ? renderPill("SMTP " + selectedPreset.smtpHost, "") : "") +
           '</div>' +
@@ -2351,6 +2462,9 @@ export function renderOpenClawWorkbenchShellHtml(input: {
               : l("Inbound sender allowlist is open for this connect payload. Only turn this off when you are ready to accept mail from other senders.", "当前接入载荷对入站发件人白名单已放开。只有准备好接收其他发件人的邮件时才应这样做。")
           ) + '</div>' +
           '<div class="detail">' + escapeHtmlClient(loginHint) + '</div>' +
+          (connectDiscovery && Array.isArray(connectDiscovery.notes) && connectDiscovery.notes.length > 0
+            ? '<div class="detail">' + escapeHtmlClient(connectDiscovery.notes[0]) + '</div>'
+            : '') +
           (validation.status === "success"
             ? '<div class="detail">' + escapeHtmlClient(l("Validation passed: IMAP ", "校验通过：IMAP ")) + escapeHtmlClient((validation.result && validation.result.imap && validation.result.imap.host) || "ok") + ' / SMTP ' + escapeHtmlClient((validation.result && validation.result.smtp && validation.result.smtp.host) || "ok") + '.</div>'
             : validation.status === "failed"
@@ -3353,6 +3467,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         if (target.id === "connect-email-input") {
           state.connectEmailAddress = String(target.value || "").trim();
           clearConnectValidation();
+          scheduleConnectDiscovery();
           return;
         }
         const field = target.getAttribute("data-connect-field");
@@ -3374,6 +3489,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         if (target.id === "connect-email-input") {
           state.connectEmailAddress = String(target.value || "").trim();
           clearConnectValidation();
+          scheduleConnectDiscovery();
           render();
           return;
         }
