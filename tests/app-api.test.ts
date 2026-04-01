@@ -4912,4 +4912,57 @@ describe("app api", () => {
 
     fixture.handle.close();
   });
+
+  it("normalizes decoded mailbox query params in the mailbox workbench", async () => {
+    const fixture = createFixture();
+    upsertMailAccount(fixture.handle.db, {
+      accountId: "acct-ui",
+      provider: "forward",
+      emailAddress: "ui@example.com",
+      status: "active",
+      settings: {},
+      createdAt: "2026-03-27T00:00:00.000Z",
+      updatedAt: "2026-03-27T00:00:00.000Z"
+    });
+    fixture.runtime.upsertVirtualMailbox({
+      mailboxId: "public:ui%40example.com",
+      accountId: "acct-ui",
+      principalId: "principal:ui",
+      kind: "public",
+      active: true,
+      createdAt: "2026-03-27T00:00:00.000Z",
+      updatedAt: "2026-03-27T00:00:00.000Z"
+    });
+    const server = createAppServer({
+      config: fixture.config,
+      mailApi: fixture.runtime
+    });
+
+    servers.push(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+
+    const address = server.address();
+    if (address === null || typeof address === "string") {
+      throw new Error("Expected address info");
+    }
+
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+    const response = await fetch(
+      `${baseUrl}/api/console/workbench?mode=mailboxes&accountId=acct-ui&mailboxId=public:ui%40example.com`
+    );
+    const json = (await response.json()) as {
+      selection: { accountId: string | null; mailboxId: string | null };
+      mailboxFeed: Array<unknown>;
+    };
+
+    expect(response.status).toBe(200);
+    expect(json.selection).toMatchObject({
+      accountId: "acct-ui",
+      mailboxId: "public:ui%40example.com"
+    });
+    expect(json.mailboxFeed).toEqual([]);
+
+    fixture.handle.close();
+  });
 });

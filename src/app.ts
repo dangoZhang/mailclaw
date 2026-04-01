@@ -174,6 +174,14 @@ function ensureSearchParam(urlPath: string, key: string, value: string) {
   return withSearch(pathname, search ? `?${search}` : "", key, value);
 }
 
+function normalizeMailboxIdQueryValue(mailboxId: string | null) {
+  if (!mailboxId) {
+    return undefined;
+  }
+
+  return mailboxId.includes("@") && !mailboxId.includes("%40") ? mailboxId.replace(/@/g, "%40") : mailboxId;
+}
+
 function writeJson(response: http.ServerResponse, statusCode: number, payload: unknown) {
   response.writeHead(statusCode, {
     "content-type": "application/json; charset=utf-8"
@@ -327,8 +335,8 @@ async function handleRequest(options: {
           mode: (requestUrl.searchParams.get("mode") as "connect" | "accounts" | "rooms" | "mailboxes" | "approvals" | null) ?? undefined,
           accountId: requestUrl.searchParams.get("accountId") ?? undefined,
           roomKey: requestUrl.searchParams.get("roomKey") ?? undefined,
-          mailboxId: requestUrl.searchParams.get("mailboxId") ?? undefined,
-          mailboxFilterId: requestUrl.searchParams.get("mailboxFilterId") ?? undefined,
+          mailboxId: normalizeMailboxIdQueryValue(requestUrl.searchParams.get("mailboxId")),
+          mailboxFilterId: normalizeMailboxIdQueryValue(requestUrl.searchParams.get("mailboxFilterId")),
           roomStatuses: parseOptionalStringList(requestUrl.searchParams.get("roomStatuses")),
           originKinds: parseOptionalOriginKinds(requestUrl.searchParams.get("originKinds")),
           approvalStatuses: parseOptionalStringList(requestUrl.searchParams.get("approvalStatuses")) as
@@ -403,7 +411,7 @@ async function handleRequest(options: {
         mailApi.listConsoleRooms({
           accountId: requestUrl.searchParams.get("accountId") ?? undefined,
           roomKey: requestUrl.searchParams.get("roomKey") ?? undefined,
-          mailboxId: requestUrl.searchParams.get("mailboxId") ?? undefined,
+          mailboxId: normalizeMailboxIdQueryValue(requestUrl.searchParams.get("mailboxId")),
           statuses: parseOptionalStringList(requestUrl.searchParams.get("statuses")),
           originKinds: parseOptionalOriginKinds(requestUrl.searchParams.get("originKinds")),
           limit: parseOptionalInteger(requestUrl.searchParams.get("limit"))

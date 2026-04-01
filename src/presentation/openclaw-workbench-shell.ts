@@ -1340,6 +1340,13 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         return { base: config.embeddedShell ? "/workbench/mail/tab" : "/workbench/mail", rest: "" };
       }
 
+      function normalizeMailboxIdQueryValue(mailboxId) {
+        if (!mailboxId) {
+          return null;
+        }
+        return mailboxId.indexOf("@") !== -1 && mailboxId.indexOf("%40") === -1 ? mailboxId.replace(/@/g, "%40") : mailboxId;
+      }
+
       function parseRoute(pathname, search) {
         const parsed = {
           mode: null,
@@ -1385,7 +1392,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           parsed.roomKey = params.get("roomKey");
         }
         if (!parsed.mailboxId && params.get("mailboxId")) {
-          parsed.mailboxId = params.get("mailboxId");
+          parsed.mailboxId = normalizeMailboxIdQueryValue(params.get("mailboxId"));
         }
         parsed.status = params.get("status") || "";
         parsed.originKind = params.get("originKind") || "";
