@@ -54,21 +54,49 @@ const liveGmailEnv = {
   to: process.env.MAILCLAW_LIVE_GMAIL_TO
 };
 
-const hasLiveImapSmtpEnv = Object.values(liveImapSmtpEnv).every((value, index) => {
-  if (index === 7) {
-    return true;
-  }
-  return typeof value === "string" && value.trim().length > 0;
-});
-const hasLiveGmailEnv =
-  typeof liveGmailEnv.accessToken === "string" &&
-  liveGmailEnv.accessToken.trim().length > 0 &&
-  typeof liveGmailEnv.topicName === "string" &&
-  liveGmailEnv.topicName.trim().length > 0 &&
-  typeof liveGmailEnv.from === "string" &&
-  liveGmailEnv.from.trim().length > 0 &&
-  typeof liveGmailEnv.to === "string" &&
-  liveGmailEnv.to.trim().length > 0;
+const liveImapRequiredKeys = [
+  "MAILCLAW_LIVE_IMAP_HOST",
+  "MAILCLAW_LIVE_IMAP_PORT",
+  "MAILCLAW_LIVE_IMAP_SECURE",
+  "MAILCLAW_LIVE_IMAP_USERNAME",
+  "MAILCLAW_LIVE_IMAP_PASSWORD",
+  "MAILCLAW_LIVE_IMAP_MAILBOX",
+  "MAILCLAW_LIVE_IMAP_ADDRESS",
+  "MAILCLAW_LIVE_SMTP_HOST",
+  "MAILCLAW_LIVE_SMTP_PORT",
+  "MAILCLAW_LIVE_SMTP_SECURE",
+  "MAILCLAW_LIVE_SMTP_USERNAME",
+  "MAILCLAW_LIVE_SMTP_PASSWORD",
+  "MAILCLAW_LIVE_SMTP_FROM",
+  "MAILCLAW_LIVE_SMTP_TO"
+] as const;
+const liveGmailRequiredKeys = [
+  "MAILCLAW_LIVE_GMAIL_ACCESS_TOKEN",
+  "MAILCLAW_LIVE_GMAIL_TOPIC_NAME",
+  "MAILCLAW_LIVE_GMAIL_FROM",
+  "MAILCLAW_LIVE_GMAIL_TO"
+] as const;
+
+function listMissingEnv(requiredKeys: readonly string[]) {
+  return requiredKeys.filter((key) => {
+    const value = process.env[key];
+    return typeof value !== "string" || value.trim().length === 0;
+  });
+}
+
+const missingImapEnv = listMissingEnv(liveImapRequiredKeys);
+const missingGmailEnv = listMissingEnv(liveGmailRequiredKeys);
+const hasLiveImapSmtpEnv = missingImapEnv.length === 0;
+const hasLiveGmailEnv = missingGmailEnv.length === 0;
+
+if (!hasLiveImapSmtpEnv) {
+  console.info(
+    `[live provider smoke] skipping IMAP/SMTP smoke: missing ${missingImapEnv.join(", ")}`
+  );
+}
+if (!hasLiveGmailEnv) {
+  console.info(`[live provider smoke] skipping Gmail smoke: missing ${missingGmailEnv.join(", ")}`);
+}
 
 describe("live provider smoke", () => {
   (hasLiveImapSmtpEnv ? it : it.skip)(
