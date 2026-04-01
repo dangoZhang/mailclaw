@@ -2257,8 +2257,8 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           (detectedProvider && detectedProvider.displayName) ||
           l("Generic IMAP", "通用 IMAP");
         const workingFlowLabel = l(
-          "Working path: email address -> provider detection -> official mailbox sign-in -> advanced connect fallback",
-          "已跑通链路：邮箱地址 -> 提供商识别 -> 官方邮箱登录 -> 高级接入兜底"
+          "MailClaws can detect your provider and open the correct mailbox sign-in page.",
+          "MailClaws 可以识别你的邮箱服务，并打开正确的登录页。"
         );
         const loginHint = selectedLogin && selectedLogin.credentialHint
           ? selectedLogin.credentialHint
