@@ -13,7 +13,13 @@ export interface ConnectProviderGuide {
   displayName: string;
   aliases: string[];
   accountProvider: "gmail" | "imap" | "forward";
+  mailboxDomains: string[];
   setupKind: "browser_oauth" | "app_password" | "forward_ingest";
+  web?: {
+    loginUrl?: string;
+    signupUrl?: string;
+    settingsUrl?: string;
+  };
   authApi?: {
     startPath: string;
     callbackPath?: string;
@@ -80,7 +86,7 @@ export interface ConnectOnboardingPlan {
   notes: string[];
 }
 
-const MAILCTL_CMD = "mailctl";
+const MAILCTL_CMD = "mailclaws";
 
 const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
   {
@@ -88,7 +94,13 @@ const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
     displayName: "Gmail",
     aliases: ["gmail", "google", "googlemail"],
     accountProvider: "gmail",
+    mailboxDomains: ["gmail.com", "googlemail.com"],
     setupKind: "browser_oauth",
+    web: {
+      loginUrl: "https://accounts.google.com/",
+      signupUrl: "https://accounts.google.com/signup",
+      settingsUrl: "https://mail.google.com/"
+    },
     authApi: {
       startPath: "/api/auth/gmail/start",
       callbackPath: "/api/auth/gmail/callback",
@@ -96,10 +108,10 @@ const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
       programmaticMethod: "POST",
       querySecretPolicy: "forbidden"
     },
-    recommendedCommand: "mailctl connect login gmail <accountId> [displayName]",
+    recommendedCommand: "mailclaws login gmail <accountId> [displayName]",
     commands: [
-      "mailctl connect login gmail <accountId> [displayName]",
-      "mailctl connect login oauth gmail <accountId> [displayName] --topic-name <projects/.../topics/...>"
+      "mailclaws login gmail <accountId> [displayName]",
+      "mailclaws login oauth gmail <accountId> [displayName] --topic-name <projects/.../topics/...>"
     ],
     inboundModes: ["gmail_watch", "gmail_history_recovery"],
     outboundModes: ["gmail_api_send"],
@@ -114,7 +126,7 @@ const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
     notes: [
       "Browser redirects can use GET /api/auth/gmail/start, but pass client secrets only through POST or env-backed CLI login.",
       "Add a Pub/Sub topic to make Gmail watch/history recovery ready immediately after login.",
-      "Use Gmail browser OAuth for the best MailClaw fit; it preserves Gmail watch/history semantics instead of falling back to generic IMAP."
+      "Use Gmail browser OAuth for the best MailClaws fit; it preserves Gmail watch/history semantics instead of falling back to generic IMAP."
     ]
   },
   {
@@ -122,7 +134,13 @@ const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
     displayName: "Outlook",
     aliases: ["outlook", "microsoft", "office365", "hotmail", "live", "msn"],
     accountProvider: "imap",
+    mailboxDomains: ["outlook.com", "hotmail.com", "live.com", "msn.com", "office365.com"],
     setupKind: "browser_oauth",
+    web: {
+      loginUrl: "https://outlook.live.com/mail/",
+      signupUrl: "https://signup.live.com/",
+      settingsUrl: "https://outlook.live.com/mail/"
+    },
     authApi: {
       startPath: "/api/auth/outlook/start",
       callbackPath: "/api/auth/outlook/callback",
@@ -130,17 +148,17 @@ const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
       programmaticMethod: "POST",
       querySecretPolicy: "forbidden"
     },
-    recommendedCommand: "mailctl connect login outlook <accountId> [displayName]",
+    recommendedCommand: "mailclaws login outlook <accountId> [displayName]",
     commands: [
-      "mailctl connect login outlook <accountId> [displayName]",
-      "mailctl connect login oauth outlook <accountId> [displayName] --tenant <tenant>"
+      "mailclaws login outlook <accountId> [displayName]",
+      "mailclaws login oauth outlook <accountId> [displayName] --tenant <tenant>"
     ],
     inboundModes: ["imap_watch"],
     outboundModes: ["account_smtp"],
     requiredEnvVars: ["MAILCLAW_MICROSOFT_OAUTH_CLIENT_ID"],
     optionalEnvVars: ["MAILCLAW_MICROSOFT_OAUTH_CLIENT_SECRET", "MAILCLAW_MICROSOFT_OAUTH_TENANT"],
     notes: [
-      "Outlook and Microsoft 365 currently land in MailClaw as IMAP/SMTP accounts with OAuth-backed credentials.",
+      "Outlook and Microsoft 365 currently land in MailClaws as IMAP/SMTP accounts with OAuth-backed credentials.",
       "If tenant-specific consent is needed, pass --tenant or configure MAILCLAW_MICROSOFT_OAUTH_TENANT."
     ]
   },
@@ -149,9 +167,15 @@ const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
     displayName: "QQ Mail",
     aliases: ["qq"],
     accountProvider: "imap",
+    mailboxDomains: ["qq.com"],
     setupKind: "app_password",
-    recommendedCommand: "mailctl connect login qq [accountId] [displayName]",
-    commands: ["mailctl connect login qq [accountId] [displayName]"],
+    web: {
+      loginUrl: "https://mail.qq.com/",
+      signupUrl: "https://ssl.zc.qq.com/",
+      settingsUrl: "https://mail.qq.com/"
+    },
+    recommendedCommand: "mailclaws login qq [accountId] [displayName]",
+    commands: ["mailclaws login qq [accountId] [displayName]"],
     inboundModes: ["imap_watch"],
     outboundModes: ["account_smtp"],
     requiredEnvVars: [],
@@ -166,16 +190,21 @@ const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
     displayName: "iCloud Mail",
     aliases: ["icloud", "me", "mac"],
     accountProvider: "imap",
+    mailboxDomains: ["icloud.com", "me.com", "mac.com"],
     setupKind: "app_password",
-    recommendedCommand: "mailctl connect login icloud [accountId] [displayName]",
-    commands: ["mailctl connect login icloud [accountId] [displayName]"],
+    web: {
+      loginUrl: "https://www.icloud.com/mail/",
+      settingsUrl: "https://www.icloud.com/mail/"
+    },
+    recommendedCommand: "mailclaws login icloud [accountId] [displayName]",
+    commands: ["mailclaws login icloud [accountId] [displayName]"],
     inboundModes: ["imap_watch"],
     outboundModes: ["account_smtp"],
     requiredEnvVars: [],
     optionalEnvVars: [],
     notes: [
       "iCloud usually needs an app-specific password generated from Apple ID settings.",
-      "Use this preset when you want MailClaw to receive and send mail through iCloud over IMAP/SMTP."
+      "Use this preset when you want MailClaws to receive and send mail through iCloud over IMAP/SMTP."
     ]
   },
   {
@@ -183,9 +212,15 @@ const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
     displayName: "Yahoo Mail",
     aliases: ["yahoo"],
     accountProvider: "imap",
+    mailboxDomains: ["yahoo.com"],
     setupKind: "app_password",
-    recommendedCommand: "mailctl connect login yahoo [accountId] [displayName]",
-    commands: ["mailctl connect login yahoo [accountId] [displayName]"],
+    web: {
+      loginUrl: "https://mail.yahoo.com/",
+      signupUrl: "https://login.yahoo.com/account/create",
+      settingsUrl: "https://mail.yahoo.com/"
+    },
+    recommendedCommand: "mailclaws login yahoo [accountId] [displayName]",
+    commands: ["mailclaws login yahoo [accountId] [displayName]"],
     inboundModes: ["imap_watch"],
     outboundModes: ["account_smtp"],
     requiredEnvVars: [],
@@ -197,9 +232,14 @@ const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
     displayName: "NetEase 163 Mail",
     aliases: ["163"],
     accountProvider: "imap",
+    mailboxDomains: ["163.com"],
     setupKind: "app_password",
-    recommendedCommand: "mailctl connect login 163 [accountId] [displayName]",
-    commands: ["mailctl connect login 163 [accountId] [displayName]"],
+    web: {
+      loginUrl: "https://mail.163.com/",
+      settingsUrl: "https://mail.163.com/"
+    },
+    recommendedCommand: "mailclaws login 163 [accountId] [displayName]",
+    commands: ["mailclaws login 163 [accountId] [displayName]"],
     inboundModes: ["imap_watch"],
     outboundModes: ["account_smtp"],
     requiredEnvVars: [],
@@ -211,9 +251,14 @@ const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
     displayName: "NetEase 126 Mail",
     aliases: ["126"],
     accountProvider: "imap",
+    mailboxDomains: ["126.com"],
     setupKind: "app_password",
-    recommendedCommand: "mailctl connect login 126 [accountId] [displayName]",
-    commands: ["mailctl connect login 126 [accountId] [displayName]"],
+    web: {
+      loginUrl: "https://mail.126.com/",
+      settingsUrl: "https://mail.126.com/"
+    },
+    recommendedCommand: "mailclaws login 126 [accountId] [displayName]",
+    commands: ["mailclaws login 126 [accountId] [displayName]"],
     inboundModes: ["imap_watch"],
     outboundModes: ["account_smtp"],
     requiredEnvVars: [],
@@ -225,9 +270,10 @@ const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
     displayName: "Generic IMAP/SMTP",
     aliases: ["imap", "password", "generic", "custom"],
     accountProvider: "imap",
+    mailboxDomains: [],
     setupKind: "app_password",
-    recommendedCommand: "mailctl connect login [imap|password]",
-    commands: ["mailctl connect login", "mailctl connect login imap", "mailctl connect login password"],
+    recommendedCommand: "mailclaws login [imap|password]",
+    commands: ["mailclaws login", "mailclaws login imap", "mailclaws login password"],
     inboundModes: ["imap_watch"],
     outboundModes: ["account_smtp"],
     requiredEnvVars: [],
@@ -242,6 +288,7 @@ const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
     displayName: "Forward / raw MIME fallback",
     aliases: ["forward", "raw", "mime", "rfc822"],
     accountProvider: "forward",
+    mailboxDomains: [],
     setupKind: "forward_ingest",
     recommendedCommand: "POST /api/accounts { provider: \"forward\" } + POST /api/inbound/raw",
     commands: [
@@ -254,8 +301,8 @@ const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
     optionalEnvVars: [],
     notes: [
       "Create or update the account through POST /api/accounts, then send RFC822 content to POST /api/inbound/raw.",
-      "Use this when the mailbox app can forward RFC822 mail to MailClaw but does not have a direct first-party provider adapter here.",
-      "Forward mode keeps MailClaw provider-agnostic while still letting the room kernel, outbox, and virtual mail plane stay in control."
+      "Use this when the mailbox app can forward RFC822 mail to MailClaws but does not have a direct first-party provider adapter here.",
+      "Forward mode keeps MailClaws provider-agnostic while still letting the room kernel, outbox, and virtual mail plane stay in control."
     ]
   }
 ];
@@ -283,12 +330,20 @@ export function listConnectProviderGuides() {
         }
       : {}),
     aliases: [...guide.aliases],
+    mailboxDomains: [...guide.mailboxDomains],
     commands: [...guide.commands],
     inboundModes: [...guide.inboundModes],
     outboundModes: [...guide.outboundModes],
     requiredEnvVars: [...guide.requiredEnvVars],
     optionalEnvVars: [...guide.optionalEnvVars],
-    notes: [...guide.notes]
+    notes: [...guide.notes],
+    ...(guide.web
+      ? {
+          web: {
+            ...guide.web
+          }
+        }
+      : {})
   }));
 }
 
@@ -312,12 +367,20 @@ export function resolveConnectProviderGuide(provider: string | undefined) {
             }
           : {}),
         aliases: [...guide.aliases],
+        mailboxDomains: [...guide.mailboxDomains],
         commands: [...guide.commands],
         inboundModes: [...guide.inboundModes],
         outboundModes: [...guide.outboundModes],
         requiredEnvVars: [...guide.requiredEnvVars],
         optionalEnvVars: [...guide.optionalEnvVars],
-        notes: [...guide.notes]
+        notes: [...guide.notes],
+        ...(guide.web
+          ? {
+              web: {
+                ...guide.web
+              }
+            }
+          : {})
       }
     : null;
 }
@@ -358,18 +421,27 @@ export function getConnectDiscovery(): ConnectDiscovery {
   };
 }
 
+export function resolveConnectProviderByEmailAddress(emailAddress: string | undefined) {
+  const normalizedEmailAddress = emailAddress?.trim().toLowerCase();
+  const domain = normalizedEmailAddress?.split("@")[1]?.trim().toLowerCase();
+  if (!domain) {
+    return resolveConnectProviderGuide("imap");
+  }
+  return resolveConnectProviderGuide(resolveConnectProviderByDomain(domain));
+}
+
 export function getUnsupportedOAuthProviderMessage(provider: string | undefined) {
   const normalized = provider?.trim().toLowerCase();
   if (!normalized) {
-    return "oauth login provider is required; see `mailctl connect providers` for supported setup paths";
+    return "oauth login provider is required; see `mailclaws connect providers` for supported setup paths";
   }
   if (normalized === "qq") {
-    return "QQ Mail does not expose a supported browser OAuth flow here; use `mailctl connect login qq` and enter the QQ authorization code/app password.";
+    return "QQ Mail does not expose a supported browser OAuth flow here; use `mailclaws login qq` and enter the QQ authorization code/app password.";
   }
   if (["icloud", "me", "mac", "yahoo", "163", "126"].includes(normalized)) {
-    return `OAuth login is not wired for ${normalized} here; use \`mailctl connect login ${normalized}\` or \`mailctl connect providers ${normalized}\` for the IMAP/app-password path.`;
+    return `OAuth login is not wired for ${normalized} here; use \`mailclaws login ${normalized}\` or \`mailclaws connect providers ${normalized}\` for the IMAP/app-password path.`;
   }
-  return `unsupported oauth login provider: ${provider}; see \`mailctl connect providers\``;
+  return `unsupported oauth login provider: ${provider}; see \`mailclaws connect providers\``;
 }
 
 export function buildConnectOnboardingPlan(input: {
@@ -418,15 +490,15 @@ export function buildConnectOnboardingPlan(input: {
         accountIdSuggestion,
         displayNameSuggestion
       }),
-      observeAccounts: `${MAILCTL_CMD} observe accounts`,
+      observeAccounts: `${MAILCTL_CMD} accounts`,
       observeWorkbench:
         accountIdSuggestion === "<accountId>"
-          ? `${MAILCTL_CMD} observe workbench <accountId>`
-          : `${MAILCTL_CMD} observe workbench ${accountIdSuggestion}`,
+          ? `${MAILCTL_CMD} workbench <accountId>`
+          : `${MAILCTL_CMD} workbench ${accountIdSuggestion}`,
       observeInboxes:
         accountIdSuggestion === "<accountId>"
-          ? `${MAILCTL_CMD} observe inboxes <accountId>`
-          : `${MAILCTL_CMD} observe inboxes ${accountIdSuggestion}`
+          ? `${MAILCTL_CMD} inboxes <accountId>`
+          : `${MAILCTL_CMD} inboxes ${accountIdSuggestion}`
     },
     console: {
       browserPath: "/workbench/mail",
@@ -439,11 +511,11 @@ export function buildConnectOnboardingPlan(input: {
         inspectRuntime: `${MAILCTL_CMD} observe runtime`,
         inspectWorkbench:
           accountIdSuggestion === "<accountId>"
-            ? `${MAILCTL_CMD} observe workbench <accountId>`
-            : `${MAILCTL_CMD} observe workbench ${accountIdSuggestion}`,
+            ? `${MAILCTL_CMD} workbench <accountId>`
+            : `${MAILCTL_CMD} workbench ${accountIdSuggestion}`,
         notes: [
-          "Keep Gateway/bridge mode enabled first; MailClaw adds room truth, virtual mail, approvals, and replay on top of the OpenClaw substrate.",
-          "Do not treat OpenClaw session transcript as MailClaw truth. Inspect rooms, mailbox feeds, and `/workbench/mail` instead."
+          "Keep Gateway/bridge mode enabled first; MailClaws adds room truth, virtual mail, approvals, and replay on top of the OpenClaw substrate.",
+          "Do not treat OpenClaw session transcript as MailClaws truth. Inspect rooms, mailbox feeds, and `/workbench/mail` instead."
         ]
       }
     },
@@ -547,15 +619,15 @@ function renderOnboardingLoginCommand(
 ) {
   const displayNamePart = input.displayNameSuggestion ? ` "${input.displayNameSuggestion}"` : " [displayName]";
   if (provider.setupKind === "browser_oauth") {
-    return `${MAILCTL_CMD} connect login ${provider.id} ${input.accountIdSuggestion}${displayNamePart}`;
+    return `${MAILCTL_CMD} login ${provider.id} ${input.accountIdSuggestion}${displayNamePart}`;
   }
   if (provider.id === "imap") {
-    return `${MAILCTL_CMD} connect login`;
+    return `${MAILCTL_CMD} login`;
   }
   if (provider.id === "forward") {
     return "curl -X POST http://127.0.0.1:3000/api/accounts -H 'content-type: application/json' -d '{\"provider\":\"forward\",\"accountId\":\"<accountId>\",\"emailAddress\":\"you@example.com\"}'";
   }
-  return `${MAILCTL_CMD} connect login ${provider.id} ${input.accountIdSuggestion}${displayNamePart}`;
+  return `${MAILCTL_CMD} login ${provider.id} ${input.accountIdSuggestion}${displayNamePart}`;
 }
 
 function buildOnboardingChecklist(
@@ -591,7 +663,7 @@ function buildOnboardingChecklist(
   return steps;
 }
 
-function createSuggestedAccountId(emailAddress: string) {
+export function createSuggestedAccountId(emailAddress: string) {
   return `acct-${emailAddress
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
@@ -599,6 +671,6 @@ function createSuggestedAccountId(emailAddress: string) {
     .slice(0, 48)}`;
 }
 
-function inferSuggestedDisplayName(emailAddress: string) {
+export function inferSuggestedDisplayName(emailAddress: string) {
   return emailAddress.split("@")[0]?.trim() || emailAddress;
 }

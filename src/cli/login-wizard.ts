@@ -13,26 +13,13 @@ export function createTerminalPrompter(
   input: NodeJS.ReadStream = process.stdin,
   output: NodeJS.WriteStream = process.stdout
 ): MailctlPrompter {
+  const useTerminalMode = Boolean(input.isTTY && output.isTTY);
   let muted = false;
-  const mirror = new Writable({
-    write(chunk, encoding, callback) {
-      if (!muted) {
-        output.write(chunk, encoding as BufferEncoding, callback);
-        return;
-      }
-
-      const value = chunk.toString();
-      if (value.includes("\n")) {
-        output.write("\n");
-      }
-      callback();
-    }
-  });
   const rl = readline.createInterface({
     input,
-    output: mirror,
-    terminal: true
+    ...(useTerminalMode ? { output: createPromptMirror(output, () => muted), terminal: true } : { terminal: false })
   });
+  const lineIterator = !useTerminalMode ? rl[Symbol.asyncIterator]() : null;
 
   return {
     async ask(prompt, options) {
@@ -43,7 +30,9 @@ export function createTerminalPrompter(
       output.write(`${prompt}${suffix}: `);
       muted = options?.secret === true;
       try {
-        const answer = await rl.question("");
+        const answer = useTerminalMode
+          ? await rl.question("")
+          : await readNextPromptLine(lineIterator);
         const trimmed = answer.trim();
         return trimmed.length > 0 ? trimmed : options?.defaultValue ?? "";
       } finally {
@@ -57,6 +46,42 @@ export function createTerminalPrompter(
       rl.close();
     }
   };
+}
+
+function createPromptMirror(
+  output: NodeJS.WriteStream,
+  isMuted: () => boolean
+) {
+  const mirror = new Writable({
+    write(chunk, encoding, callback) {
+      if (!isMuted()) {
+        output.write(chunk, encoding as BufferEncoding, callback);
+        return;
+      }
+
+      const value = chunk.toString();
+      if (value.includes("\n")) {
+        output.write("\n");
+      }
+      callback();
+    }
+  });
+  return mirror;
+}
+
+async function readNextPromptLine(
+  iterator: AsyncIterator<string> | null
+) {
+  if (!iterator) {
+    return "";
+  }
+
+  const result = await iterator.next();
+  if (result.done) {
+    throw new Error("input stream closed while waiting for login input");
+  }
+
+  return result.value;
 }
 
 export interface InteractiveMailboxLoginResult {
@@ -75,7 +100,7 @@ export async function promptInteractiveMailboxLogin(
   } = {}
 ): Promise<InteractiveMailboxLoginResult> {
   const warnings: string[] = [];
-  const emailAddress = await askRequired(prompter, "Email address", options.emailAddress);
+  const emailAddress = options.emailAddress?.trim() || (await askRequired(prompter, "Email address", options.emailAddress));
   const profile = detectMailboxProfile(emailAddress, options.providerPreset);
   if (profile?.warning) {
     warnings.push(profile.warning);
@@ -157,7 +182,7 @@ export function resolveMailboxProfilePreset(providerPreset?: string): MailboxPro
         smtpPort: 465,
         smtpSecure: true,
         warning:
-          "Gmail password login usually needs an app password. If you want browser OAuth instead, use `mailctl connect login gmail <accountId>`."
+          "Gmail password login usually needs an app password. If you want browser OAuth instead, use `mailclaws login gmail <accountId>`."
       };
     case "qq":
       return {
@@ -183,7 +208,7 @@ export function resolveMailboxProfilePreset(providerPreset?: string): MailboxPro
         smtpPort: 587,
         smtpSecure: false,
         warning:
-          "Outlook and Microsoft 365 support browser OAuth. If you want OAuth instead of IMAP/SMTP credentials, use `mailctl connect login outlook <accountId>`."
+          "Outlook and Microsoft 365 support browser OAuth. If you want OAuth instead of IMAP/SMTP credentials, use `mailclaws login outlook <accountId>`."
       };
     case "icloud":
     case "me":

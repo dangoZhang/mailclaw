@@ -1607,7 +1607,21 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
         providerOptions: listConnectProviderGuides().map((guide) => ({
           id: guide.id,
           displayName: guide.displayName,
-          setupKind: guide.setupKind
+          accountProvider: guide.accountProvider,
+          setupKind: guide.setupKind,
+          mailboxDomains: guide.mailboxDomains,
+          recommendedCommand: guide.recommendedCommand,
+          web: guide.web
+            ? {
+                ...guide.web
+              }
+            : null,
+          summary:
+            guide.setupKind === "browser_oauth"
+              ? `${guide.displayName} browser login and MailClaws OAuth connect`
+              : guide.setupKind === "app_password"
+                ? `${guide.displayName} IMAP/SMTP login with password or app password`
+                : "Forward raw RFC822 mail into MailClaws without direct mailbox credentials"
         })),
         agentTemplates: listConfiguredAgentTemplates(),
         agentDirectory: listAgentDirectory({

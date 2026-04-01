@@ -12,8 +12,11 @@ import { type MicrosoftOAuthClientLike } from "../auth/microsoft-oauth.js";
 import { renderOAuthCallbackHtml } from "../auth/oauth-core.js";
 import {
   buildConnectOnboardingPlan,
+  createSuggestedAccountId,
+  inferSuggestedDisplayName,
   listConnectProviderGuides,
   resolveConnectProviderGuide,
+  resolveConnectProviderByEmailAddress,
   getPasswordPresetProvider,
   getUnsupportedOAuthProviderMessage,
   resolveOAuthProvider
@@ -1478,18 +1481,65 @@ async function handleLogin(
   const parsed = parseLoginArgs(args);
   if (!parsed) {
     stderr.write(
-      "usage: mailctl connect login [imap|password|qq|icloud|yahoo|163|126] | <gmail|outlook> <accountId> [displayName] [--client-id <id>] [--client-secret <secret>] [--login-hint <email>] [--tenant <tenant>] [--topic-name <topic>] [--user-id <userId>] [--label-ids <csv>] [--scopes <csv>] [--no-browser] [--timeout-seconds <seconds>] | oauth <gmail|outlook> <accountId> [displayName] [--client-id <id>] [--client-secret <secret>] [--login-hint <email>] [--tenant <tenant>] [--topic-name <topic>] [--user-id <userId>] [--label-ids <csv>] [--scopes <csv>] [--no-browser] [--timeout-seconds <seconds>]>\n"
+      "usage: mailctl connect login [emailAddress] | [imap|password|qq|icloud|yahoo|163|126] | <gmail|outlook> <accountId> [displayName] [--client-id <id>] [--client-secret <secret>] [--login-hint <email>] [--tenant <tenant>] [--topic-name <topic>] [--user-id <userId>] [--label-ids <csv>] [--scopes <csv>] [--no-browser] [--timeout-seconds <seconds>] | oauth <gmail|outlook> <accountId> [displayName] [--client-id <id>] [--client-secret <secret>] [--login-hint <email>] [--tenant <tenant>] [--topic-name <topic>] [--user-id <userId>] [--label-ids <csv>] [--scopes <csv>] [--no-browser] [--timeout-seconds <seconds>]>\n"
     );
     return 1;
   }
 
-  const passwordPresetProvider = getPasswordPresetProvider(parsed.provider);
+  let ownedPrompter: MailctlPrompter | null = null;
+  const getPrompter = () => {
+    if (deps?.prompter) {
+      return deps.prompter;
+    }
+    if (!ownedPrompter) {
+      ownedPrompter = createTerminalPrompter();
+    }
+    return ownedPrompter;
+  };
+  const closeOwnedPrompter = () => {
+    if (ownedPrompter) {
+      ownedPrompter.close();
+    }
+  };
+
+  let provider = parsed.provider;
+  let emailAddress = parsed.emailAddress;
+  let accountId = parsed.accountId;
+  let displayName = parsed.displayName;
+  let loginHint = parsed.loginHint;
+
+  if (!provider) {
+    const prompter = getPrompter();
+    emailAddress = emailAddress ?? (await prompter.ask("Email address")).trim();
+    const detectedProvider = resolveConnectProviderByEmailAddress(emailAddress);
+    if (!detectedProvider) {
+      stderr.write(`could not detect a mailbox provider for ${emailAddress}\n`);
+      return 1;
+    }
+    provider = detectedProvider.id;
+    loginHint = loginHint ?? emailAddress;
+    accountId = accountId ?? createSuggestedAccountId(emailAddress);
+    displayName = displayName ?? inferSuggestedDisplayName(emailAddress);
+    stderr.write(`Detected ${detectedProvider.displayName} for ${emailAddress}\n`);
+    if (detectedProvider.setupKind === "browser_oauth") {
+      stderr.write(`${detectedProvider.displayName} uses browser OAuth here; MailClaws will open the provider login page instead of collecting the web password in the terminal.\n`);
+      if (detectedProvider.web?.loginUrl) {
+        stderr.write(`Provider login: ${detectedProvider.web.loginUrl}\n`);
+      }
+      if (detectedProvider.web?.signupUrl) {
+        stderr.write(`Need a new mailbox? Register here: ${detectedProvider.web.signupUrl}\n`);
+      }
+    }
+  }
+
+  const passwordPresetProvider = getPasswordPresetProvider(provider);
   if (passwordPresetProvider) {
-    const prompter = deps?.prompter ?? createTerminalPrompter();
+    const prompter = getPrompter();
     try {
       const result = await promptInteractiveMailboxLogin(prompter, {
-        accountId: parsed.accountId,
-        displayName: parsed.displayName,
+        accountId,
+        displayName,
+        emailAddress,
         providerPreset: passwordPresetProvider
       });
       for (const warning of result.warnings) {
@@ -1502,17 +1552,17 @@ async function handleLogin(
       writePayload(stdout, mode, account, `Connected mailbox ${account.emailAddress} as ${account.accountId}`);
       return 0;
     } finally {
-      prompter.close();
+      closeOwnedPrompter();
     }
   }
 
-  const oauthProvider = resolveOAuthProvider(parsed.provider);
+  const oauthProvider = resolveOAuthProvider(provider);
   if (!oauthProvider) {
-    stderr.write(`${getUnsupportedOAuthProviderMessage(parsed.provider)}\n`);
+    stderr.write(`${getUnsupportedOAuthProviderMessage(provider)}\n`);
     return 1;
   }
 
-  if (!parsed.accountId) {
+  if (!accountId) {
     stderr.write(
       `usage: mailctl connect login ${oauthProvider.id} <accountId> [displayName] [--client-id <id>] [--client-secret <secret>] [--login-hint <email>] [--tenant <tenant>] [--topic-name <topic>] [--user-id <userId>] [--label-ids <csv>] [--scopes <csv>] [--no-browser] [--timeout-seconds <seconds>]\n`
     );
@@ -1584,9 +1634,9 @@ async function handleLogin(
     const redirectUri = `http://127.0.0.1:${address.port}/callback`;
     const started = runtime.startOAuthLogin({
       provider: oauthProvider.id,
-      accountId: parsed.accountId,
-      displayName: parsed.displayName,
-      loginHint: parsed.loginHint,
+      accountId,
+      displayName,
+      loginHint,
       redirectUri,
       clientId: parsed.clientId,
       clientSecret: parsed.clientSecret,
@@ -1600,6 +1650,9 @@ async function handleLogin(
       throw new Error(`${oauthProvider.displayName.toLowerCase()} oauth start did not return a session id`);
     }
 
+    if (emailAddress && !parsed.noBrowser) {
+      stderr.write(`Connecting ${emailAddress} via ${oauthProvider.displayName}\n`);
+    }
     stderr.write(`Open this URL if the browser does not launch:\n${started.authorizeUrl}\n`);
     if (!parsed.noBrowser) {
       try {
@@ -1622,6 +1675,7 @@ async function handleLogin(
     );
     return 0;
   } finally {
+    closeOwnedPrompter();
     callbackServer.close();
   }
 }
@@ -1741,7 +1795,7 @@ function renderConsoleApprovals(approvals: ReturnType<MailRuntime["listConsoleAp
 function renderConnectProviderGuides(guides: ReturnType<typeof listConnectProviderGuides>) {
   return [
     `Connect providers: ${guides.length}`,
-    "Use `mailclaws login` for the generic interactive path; it asks for your email first and works with any IMAP/SMTP mailbox.",
+    "Use `mailclaws login` or `mailclaws login you@example.com` for the generic interactive path; MailClaws will detect the provider from the mailbox address first.",
     "Use `mailclaws providers <provider>` for detailed commands and env requirements.",
     "API discovery: GET /api/connect and GET /api/connect/providers",
     ...guides.map(
@@ -2042,7 +2096,8 @@ function writeUsage(stream: Pick<NodeJS.WriteStream, "write">) {
       "connect:",
       "  connect providers [provider]",
       "  connect start [emailAddress] [provider]",
-      "  connect login                         # interactive wizard for any mailbox",
+      "  connect login                         # ask for mailbox address first, then detect provider",
+      "  connect login [emailAddress]",
       "  connect login [imap|password|qq|icloud|yahoo|163|126]",
       "  connect login <gmail|outlook> <accountId> [displayName]",
       "  connect login oauth <gmail|outlook> <accountId> [displayName]",
@@ -2175,7 +2230,8 @@ function parseLoginArgs(args: string[]) {
   const values = [...args];
   if (values.length === 0) {
     return {
-      provider: "imap",
+      provider: undefined,
+      emailAddress: undefined,
       accountId: undefined,
       displayName: undefined,
       clientId: undefined,
@@ -2192,15 +2248,33 @@ function parseLoginArgs(args: string[]) {
   }
 
   let provider: string | undefined;
+  let emailAddress: string | undefined;
   if (values[0] === "oauth") {
     provider = values[1];
     values.splice(0, 2);
+  } else if ((values[0] ?? "").includes("@")) {
+    emailAddress = values.shift();
   } else {
     provider = values.shift();
   }
 
-  if (!provider) {
-    return null;
+  if (!provider && !emailAddress) {
+    return {
+      provider: undefined,
+      emailAddress: undefined,
+      accountId: undefined,
+      displayName: undefined,
+      clientId: undefined,
+      clientSecret: undefined,
+      loginHint: undefined,
+      tenant: undefined,
+      topicName: undefined,
+      userId: undefined,
+      labelIds: undefined,
+      scopes: undefined,
+      noBrowser: false,
+      timeoutSeconds: 300
+    };
   }
 
   if (getPasswordPresetProvider(provider)) {
@@ -2217,6 +2291,7 @@ function parseLoginArgs(args: string[]) {
     }
     return {
       provider,
+      emailAddress: undefined,
       accountId,
       displayName,
       clientId: undefined,
@@ -2229,6 +2304,88 @@ function parseLoginArgs(args: string[]) {
       scopes: undefined,
       noBrowser: false,
       timeoutSeconds: 300
+    };
+  }
+
+  if (!provider && emailAddress) {
+    let accountId: string | undefined;
+    let displayName: string | undefined;
+    if (values[0] && !values[0]!.startsWith("--")) {
+      accountId = values.shift();
+    }
+    if (values[0] && !values[0]!.startsWith("--")) {
+      displayName = values.shift();
+    }
+
+    let clientId: string | undefined;
+    let clientSecret: string | undefined;
+    let loginHint: string | undefined;
+    let tenant: string | undefined;
+    let topicName: string | undefined;
+    let userId: string | undefined;
+    let labelIds: string[] | undefined;
+    let scopes: string[] | undefined;
+    let noBrowser = false;
+    let timeoutSeconds = 300;
+
+    while (values.length > 0) {
+      const flag = values.shift();
+      switch (flag) {
+        case "--client-id":
+          clientId = values.shift();
+          break;
+        case "--client-secret":
+          clientSecret = values.shift();
+          break;
+        case "--login-hint":
+          loginHint = values.shift();
+          break;
+        case "--tenant":
+          tenant = values.shift();
+          break;
+        case "--topic-name":
+          topicName = values.shift();
+          break;
+        case "--user-id":
+          userId = values.shift();
+          break;
+        case "--label-ids":
+          labelIds = parseDelimitedStrings(values.shift());
+          break;
+        case "--scopes":
+          scopes = parseDelimitedStrings(values.shift());
+          break;
+        case "--no-browser":
+          noBrowser = true;
+          break;
+        case "--timeout-seconds": {
+          const parsed = parseOptionalInteger(values.shift());
+          if (!parsed) {
+            return null;
+          }
+          timeoutSeconds = parsed;
+          break;
+        }
+        default:
+          return null;
+      }
+    }
+
+    return {
+      provider: undefined,
+      emailAddress,
+      accountId,
+      displayName,
+      clientId,
+      clientSecret,
+      loginHint,
+      tenant,
+      topicName,
+      userId,
+      labelIds,
+      scopes,
+      noBrowser,
+      timeoutSeconds
     };
   }
 
@@ -2298,6 +2455,7 @@ function parseLoginArgs(args: string[]) {
 
   return {
     provider,
+    emailAddress,
     accountId,
     displayName,
     clientId,

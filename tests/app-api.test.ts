@@ -1419,6 +1419,17 @@ describe("app api", () => {
           browserPath: string;
           onboardingApiPath: string;
           recommendedStartCommand: string;
+          recommendedLoginCommand: string;
+          providerOptions: Array<{
+            id: string;
+            displayName: string;
+            mailboxDomains: string[];
+            summary: string;
+            web: null | {
+              loginUrl?: string;
+              signupUrl?: string;
+            };
+          }>;
         };
       };
       selection: { accountId: string | null; roomKey: string | null; mailboxId: string | null };
@@ -1464,7 +1475,22 @@ describe("app api", () => {
         embeddedBrowserPath: "/workbench/mail/tab",
         onboardingApiPath: "/api/connect/onboarding",
         recommendedStartCommand: "mailclaws onboard you@example.com",
-        recommendedLoginCommand: "mailclaws login"
+        recommendedLoginCommand: "mailclaws login",
+        providerOptions: expect.arrayContaining([
+          expect.objectContaining({
+            id: "gmail",
+            displayName: "Gmail",
+            mailboxDomains: expect.arrayContaining(["gmail.com"]),
+            web: expect.objectContaining({
+              loginUrl: "https://accounts.google.com/",
+              signupUrl: "https://accounts.google.com/signup"
+            })
+          }),
+          expect.objectContaining({
+            id: "imap",
+            mailboxDomains: []
+          })
+        ])
       },
       tabs: expect.arrayContaining([
         expect.objectContaining({

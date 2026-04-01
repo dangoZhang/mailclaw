@@ -1057,6 +1057,32 @@ select {
   overflow-x: auto;
 }
 
+.provider-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.provider-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--bg-elevated) 82%, transparent);
+}
+
+.provider-card--active {
+  border-color: color-mix(in srgb, var(--accent) 24%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, white 8%, transparent);
+}
+
+.provider-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 @media (max-width: 1100px) {
   .shell,
   .shell--nav-collapsed {
@@ -1297,6 +1323,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         loading: true,
         error: null,
         data: null,
+        connectEmailAddress: "",
         navCollapsed: false,
         navDrawerOpen: false,
         route: null
@@ -1406,6 +1433,48 @@ export function renderOpenClawWorkbenchShellHtml(input: {
       function routeBasePath() {
         const normalized = normalizeBasePath(window.location.pathname);
         return normalized.base;
+      }
+
+      function createSuggestedAccountIdClient(emailAddress) {
+        return "acct-" + String(emailAddress || "")
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "")
+          .slice(0, 48);
+      }
+
+      function inferSuggestedDisplayNameClient(emailAddress) {
+        const local = String(emailAddress || "").split("@")[0] || "";
+        return local.trim();
+      }
+
+      function resolveProviderForMailbox(emailAddress, providers) {
+        const normalizedEmail = String(emailAddress || "").trim().toLowerCase();
+        const domain = normalizedEmail.split("@")[1] || "";
+        if (!domain) {
+          return null;
+        }
+        const matched = (providers || []).find(function(provider) {
+          return Array.isArray(provider.mailboxDomains) && provider.mailboxDomains.includes(domain);
+        });
+        if (matched) {
+          return matched;
+        }
+        return (providers || []).find(function(provider) {
+          return provider.id === "imap";
+        }) || null;
+      }
+
+      function buildMailClawsConnectHref(provider, emailAddress) {
+        const normalizedEmail = String(emailAddress || "").trim().toLowerCase();
+        if (!provider || provider.setupKind !== "browser_oauth" || normalizedEmail.indexOf("@") === -1) {
+          return null;
+        }
+        const params = new URLSearchParams();
+        params.set("accountId", createSuggestedAccountIdClient(normalizedEmail));
+        params.set("displayName", inferSuggestedDisplayNameClient(normalizedEmail) || normalizedEmail);
+        params.set("loginHint", normalizedEmail);
+        return (config.apiBasePath || "/api") + "/auth/" + encodeURIComponent(provider.id) + "/start?" + params.toString();
       }
 
       function hrefForRoute(route) {
@@ -1732,11 +1801,54 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         );
       }
 
+      function renderConnectProviderCard(provider, emailAddress, detectedProviderId) {
+        const normalizedEmail = String(emailAddress || "").trim().toLowerCase();
+        const mailClawsConnectHref = buildMailClawsConnectHref(provider, normalizedEmail);
+        const recommendedCommand = normalizedEmail.indexOf("@") !== -1
+          ? "mailclaws login " + normalizedEmail
+          : (provider.recommendedCommand || "mailclaws login");
+        const actions = [];
+
+        if (provider.web && provider.web.loginUrl) {
+          actions.push('<a class="btn primary" href="' + escapeHtmlClient(provider.web.loginUrl) + '" target="_blank" rel="noreferrer">Open Login Page</a>');
+        }
+        if (mailClawsConnectHref) {
+          actions.push('<a class="btn" href="' + escapeHtmlClient(mailClawsConnectHref) + '">Connect In MailClaws</a>');
+        }
+        if (provider.web && provider.web.signupUrl) {
+          actions.push('<a class="btn" href="' + escapeHtmlClient(provider.web.signupUrl) + '" target="_blank" rel="noreferrer">Register Mailbox</a>');
+        }
+
+        return (
+          '<div class="provider-card' + (provider.id === detectedProviderId ? " provider-card--active" : "") + '">' +
+          '<div class="card-top">' +
+          '<div><div class="card-title">' + escapeHtmlClient(provider.displayName || provider.id) + '</div><div class="card-subtitle code">' + escapeHtmlClient(provider.id || "provider") + "</div></div>" +
+          renderPill(provider.setupKind === "browser_oauth" ? "browser oauth" : provider.setupKind === "app_password" ? "password / app password" : "forward", provider.id === detectedProviderId ? "pill--ok" : "") +
+          "</div>" +
+          '<div class="detail">' + escapeHtmlClient(provider.summary || "") + "</div>" +
+          '<div class="chips">' +
+          renderPill((provider.accountProvider || "provider") + "", "") +
+          (provider.mailboxDomains && provider.mailboxDomains.length > 0 ? renderPill(provider.mailboxDomains.join(", "), "") : renderPill("generic", "")) +
+          "</div>" +
+          '<div class="mono-block">' + escapeHtmlClient(recommendedCommand) + "</div>" +
+          (actions.length > 0
+            ? '<div class="provider-card__actions">' + actions.join("") + "</div>"
+            : '<div class="detail">No direct provider web login link is known here. Use the CLI path and enter the IMAP/SMTP details manually.</div>') +
+          (provider.web && provider.web.settingsUrl
+            ? '<div class="detail">Mailbox home: <a href="' + escapeHtmlClient(provider.web.settingsUrl) + '" target="_blank" rel="noreferrer">' + escapeHtmlClient(provider.web.settingsUrl) + "</a></div>"
+            : "") +
+          "</div>"
+        );
+      }
+
       function renderConnectHome() {
         const workspace = state.data && state.data.workspace ? state.data.workspace : null;
         const connect = workspace && workspace.connect ? workspace.connect : null;
         const providerCount = connect && Array.isArray(connect.providerOptions) ? connect.providerOptions.length : 0;
         const loginCommand = (connect && connect.recommendedLoginCommand) || "mailclaws login";
+        const connectEmailAddress = state.connectEmailAddress || "";
+        const providerOptions = connect && Array.isArray(connect.providerOptions) ? connect.providerOptions : [];
+        const detectedProvider = resolveProviderForMailbox(connectEmailAddress, providerOptions);
         const templates = connect && Array.isArray(connect.agentTemplates) ? connect.agentTemplates : [];
         const directory = connect && Array.isArray(connect.agentDirectory) ? connect.agentDirectory : [];
         const headcount = connect && Array.isArray(connect.headcountRecommendations) ? connect.headcountRecommendations : [];
@@ -1760,8 +1872,19 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           '<div class="panel-body">' +
           '<div class="card-title">Start with one real mailbox, then inspect rooms and internal mail from the same workbench route.</div>' +
           '<div class="detail">The workbench keeps the setup path narrow on purpose: connect, verify, send one real test email, then switch to room and mailbox inspection.</div>' +
+          '<label><div class="section-label">Mailbox address</div><input class="console-input" id="connect-email-input" type="email" placeholder="you@example.com" value="' + escapeHtmlClient(connectEmailAddress) + '" /></label>' +
+          '<div class="detail">' + escapeHtmlClient(
+            detectedProvider
+              ? "Detected provider: " + detectedProvider.displayName + ". Use the card below to open the provider login page, register a new mailbox, or jump into MailClaws connect."
+              : "Enter a mailbox address to detect the provider and reveal the matching web login and mailbox registration paths."
+          ) + '</div>' +
           '<div class="mono-block">' + escapeHtmlClient((connect && connect.recommendedStartCommand) || "mailclaws dashboard") + "</div>" +
           '<div class="mono-block">' + escapeHtmlClient(loginCommand) + "</div>" +
+          (providerOptions.length > 0
+            ? '<div class="provider-grid">' + providerOptions.map(function(provider) {
+                return renderConnectProviderCard(provider, connectEmailAddress, detectedProvider && detectedProvider.id);
+              }).join("") + "</div>"
+            : '<div class="empty">No provider metadata is available.</div>') +
           "</div></div>" +
           '<div class="panel"><div class="panel-header"><h3>Agent Templates</h3><span class="muted">' + escapeHtmlClient(String(templates.length)) + ' presets</span></div><div class="panel-body">' +
           (templates.length > 0
@@ -2597,6 +2720,15 @@ export function renderOpenClawWorkbenchShellHtml(input: {
             mode: "mailboxes"
           });
         }
+      });
+
+      document.addEventListener("change", function(event) {
+        const target = event.target instanceof HTMLInputElement ? event.target : null;
+        if (!target || target.id !== "connect-email-input") {
+          return;
+        }
+        state.connectEmailAddress = String(target.value || "").trim();
+        render();
       });
 
       document.addEventListener("click", function(event) {

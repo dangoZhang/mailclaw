@@ -1,13 +1,14 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { PassThrough } from "node:stream";
 
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { GmailOAuthClientLike } from "../src/auth/gmail-oauth.js";
 import type { MicrosoftOAuthClientLike } from "../src/auth/microsoft-oauth.js";
 import { createRuntimeFromEnv, runMailctl } from "../src/cli/mailctl-main.js";
-import type { MailctlPrompter } from "../src/cli/login-wizard.js";
+import { createTerminalPrompter, type MailctlPrompter } from "../src/cli/login-wizard.js";
 import { loadConfig } from "../src/config.js";
 import { createMailSidecarRuntime } from "../src/orchestration/runtime.js";
 import { MAIL_IO_PROTOCOL_NAME, MAIL_IO_PROTOCOL_VERSION } from "../src/providers/mail-io-command.js";
@@ -156,8 +157,11 @@ describe("mailctl", () => {
     saveThreadRoom(fixture.handle.db, {
       ...replayBeforeRender.room!,
       frontAgentAddress: "assistant@ai.example.com",
+      frontAgentId: "assistant",
       publicAgentAddresses: ["assistant@ai.example.com", "research@ai.example.com"],
+      publicAgentIds: ["assistant", "research"],
       collaboratorAgentAddresses: ["research@ai.example.com"],
+      collaboratorAgentIds: ["research"],
       summonedRoles: ["mail-researcher", "mail-drafter"]
     });
     const stdout = createWritableBuffer();
@@ -190,7 +194,9 @@ describe("mailctl", () => {
       room: {
         roomKey: ingested.ingested.roomKey,
         frontAgentAddress: "assistant@ai.example.com",
+        frontAgentId: "assistant",
         collaboratorAgentAddresses: ["research@ai.example.com"],
+        collaboratorAgentIds: ["research"],
         summonedRoles: ["mail-researcher", "mail-drafter"]
       }
     });
@@ -203,8 +209,8 @@ describe("mailctl", () => {
     });
 
     expect(textExitCode).toBe(0);
-    expect(textStdout.read()).toContain("Front agent: assistant@ai.example.com");
-    expect(textStdout.read()).toContain("Collaborators: research@ai.example.com");
+    expect(textStdout.read()).toContain("Front agent: assistant");
+    expect(textStdout.read()).toContain("Collaborators: research");
     expect(textStdout.read()).toContain("Summoned roles: mail-researcher, mail-drafter");
 
     fixture.handle.close();
@@ -260,7 +266,7 @@ describe("mailctl", () => {
 
     expect(exitCode).toBe(0);
     expect(stderr.read()).toBe("");
-    expect(stdout.read()).toContain("MailClaw prompt footprint benchmark");
+    expect(stdout.read()).toContain("MailClaws prompt footprint benchmark");
     expect(stdout.read()).toContain("Transcript follow-up average");
     expect(stdout.read()).toContain("Multi-agent reducer handoff");
 
@@ -296,7 +302,7 @@ describe("mailctl", () => {
     expect(listStdout.read()).toContain("Connect providers:");
     expect(listStdout.read()).toContain("API discovery: GET /api/connect and GET /api/connect/providers");
     expect(listStdout.read()).toContain(
-      "gmail | Gmail | browser OAuth | login mailclaw login gmail <accountId> [displayName]"
+      "gmail | Gmail | browser OAuth | login mailclaws login gmail <accountId> [displayName]"
     );
     expect(listStdout.read()).toContain("forward | Forward / raw MIME fallback");
     expect(listStderr.read()).toBe("");
@@ -312,7 +318,13 @@ describe("mailctl", () => {
     expect(JSON.parse(detailStdout.read())).toMatchObject({
       id: "gmail",
       accountProvider: "gmail",
+      mailboxDomains: expect.arrayContaining(["gmail.com"]),
       setupKind: "browser_oauth",
+      web: {
+        loginUrl: "https://accounts.google.com/",
+        signupUrl: "https://accounts.google.com/signup",
+        settingsUrl: "https://mail.google.com/"
+      },
       authApi: {
         startPath: "/api/auth/gmail/start",
         callbackPath: "/api/auth/gmail/callback",
@@ -320,7 +332,7 @@ describe("mailctl", () => {
         programmaticMethod: "POST",
         querySecretPolicy: "forbidden"
       },
-      recommendedCommand: "mailctl connect login gmail <accountId> [displayName]",
+      recommendedCommand: "mailclaws login gmail <accountId> [displayName]",
       requiredEnvVars: expect.arrayContaining(["MAILCLAW_GMAIL_OAUTH_CLIENT_ID"]),
       inboundModes: expect.arrayContaining(["gmail_watch", "gmail_history_recovery"]),
       outboundModes: expect.arrayContaining(["gmail_api_send"])
@@ -338,13 +350,13 @@ describe("mailctl", () => {
     });
 
     expect(exitCode).toBe(0);
-    expect(stdout.read()).toContain("MailClaw mailbox onboarding");
+    expect(stdout.read()).toContain("MailClaws mailbox onboarding");
     expect(stdout.read()).toContain("Recommended provider: Gmail (gmail)");
-    expect(stdout.read()).toContain("1. Login: mailclaw login gmail acct-person-gmail-com \"person\"");
+    expect(stdout.read()).toContain("1. Login: mailclaws login gmail acct-person-gmail-com \"person\"");
     expect(stdout.read()).toContain("2. Send one email to the connected address from another mailbox.");
     expect(stdout.read()).toContain("3. Open browser: /workbench/mail");
-    expect(stdout.read()).toContain("5. Check rooms/inbox: mailclaw rooms | mailclaw inboxes acct-person-gmail-com");
-    expect(stdout.read()).toContain("Optional internal mailbox view later: mailclaw workbench acct-person-gmail-com");
+    expect(stdout.read()).toContain("5. Check rooms/inbox: mailclaws rooms | mailclaws inboxes acct-person-gmail-com");
+    expect(stdout.read()).toContain("Optional internal mailbox view later: mailclaws workbench acct-person-gmail-com");
     expect(stderr.read()).toBe("");
 
     const jsonStdout = createWritableBuffer();
@@ -367,14 +379,128 @@ describe("mailctl", () => {
       },
       migration: {
         openClawUsers: {
-          inspectRuntime: "mailctl observe runtime"
+          inspectRuntime: "mailclaws observe runtime"
         }
       },
       commands: {
-        login: "mailctl connect login",
-        observeWorkbench: "mailctl observe workbench acct-employee-custom-example"
+        login: "mailclaws login",
+        observeWorkbench: "mailclaws workbench acct-employee-custom-example"
       }
     });
+  });
+
+  it("supports non-tty stdin for interactive password login", async () => {
+    const input = new PassThrough() as PassThrough & NodeJS.ReadStream;
+    input.isTTY = false;
+    const output = new PassThrough() as PassThrough & NodeJS.WriteStream;
+    output.isTTY = false;
+    let rendered = "";
+    output.on("data", (chunk) => {
+      rendered += chunk.toString();
+    });
+
+    const prompter = createTerminalPrompter(input, output);
+    input.end(
+      [
+        "user@qq.com",
+        "app-password-qq",
+        "acct-user-qq-com",
+        "QQ User",
+        "imap.qq.com",
+        "993",
+        "yes",
+        "INBOX",
+        "smtp.qq.com",
+        "465",
+        "yes",
+        "user@qq.com"
+      ].join("\n") + "\n"
+    );
+
+    try {
+      const loginExitCode = await runMailctl(["connect", "login", "qq"], {
+        stdout: createWritableBuffer().stream,
+        stderr: createWritableBuffer().stream,
+        prompter
+      });
+
+      expect(loginExitCode).toBe(0);
+      expect(rendered).toContain("Email address");
+      expect(rendered).toContain("Password or app password");
+    } finally {
+      prompter.close();
+    }
+  });
+
+  it("auto-detects password providers from the mailbox address", async () => {
+    const fixture = createFixture();
+    const stdout = createWritableBuffer();
+    const stderr = createWritableBuffer();
+
+    const loginExitCode = await runMailctl(["connect", "login", "user@qq.com"], {
+      runtime: fixture.runtime,
+      stdout: stdout.stream,
+      stderr: stderr.stream,
+      prompter: createPrompter([
+        "app-password-qq",
+        "acct-user-qq-com",
+        "QQ User",
+        "imap.qq.com",
+        "993",
+        "yes",
+        "INBOX",
+        "smtp.qq.com",
+        "465",
+        "yes",
+        "user@qq.com"
+      ])
+    });
+
+    expect(loginExitCode).toBe(0);
+    expect(stdout.read()).toContain("Connected mailbox user@qq.com as acct-user-qq-com");
+    expect(stderr.read()).toContain("Detected QQ Mail for user@qq.com");
+
+    const account = getMailAccount(fixture.handle.db, "acct-user-qq-com");
+    expect(account).toMatchObject({
+      accountId: "acct-user-qq-com",
+      emailAddress: "user@qq.com",
+      provider: "imap"
+    });
+
+    fixture.handle.close();
+  });
+
+  it("auto-detects Gmail and opens the OAuth browser flow", async () => {
+    const fixture = createFixture();
+    const stdout = createWritableBuffer();
+    const stderr = createWritableBuffer();
+    const openedUrls: string[] = [];
+
+    const exitCode = await runMailctl(["connect", "login", "person@gmail.com"], {
+      runtime: fixture.runtime,
+      stdout: stdout.stream,
+      stderr: stderr.stream,
+      callbackTimeoutMs: 1000,
+      openExternal: async (url) => {
+        openedUrls.push(url);
+        const authorizeUrl = new URL(url);
+        const redirectUri = authorizeUrl.searchParams.get("redirect_uri");
+        const state = authorizeUrl.searchParams.get("state");
+        if (!redirectUri || !state) {
+          throw new Error("oauth authorize url is missing redirect_uri or state");
+        }
+        await fetch(`${redirectUri}?state=${encodeURIComponent(state)}&error=access_denied&error_description=cancelled`);
+      }
+    });
+
+    expect(exitCode).toBe(1);
+    expect(openedUrls).toHaveLength(1);
+    expect(openedUrls[0]).toContain("accounts.google.com");
+    expect(stderr.read()).toContain("Detected Gmail for person@gmail.com");
+    expect(stderr.read()).toContain("Provider login: https://accounts.google.com/");
+    expect(stderr.read()).toContain("cancelled");
+
+    fixture.handle.close();
   });
 
   it("renders runtime boundary and embedded session inspection surfaces", async () => {
@@ -1131,7 +1257,7 @@ describe("mailctl", () => {
     const stdout = createWritableBuffer();
     const stderr = createWritableBuffer();
 
-    const exitCode = await runJsonMailctl(["login"], {
+    const exitCode = await runJsonMailctl(["login", "imap"], {
       runtime: fixture.runtime,
       stdout: stdout.stream,
       stderr: stderr.stream,
@@ -1208,7 +1334,7 @@ describe("mailctl", () => {
 
       expect(startExitCode).toBe(0);
       expect(onboardingStderr.read()).toBe("");
-      expect(onboardingStdout.read()).toContain("1. Login: mailclaw login qq acct-user-qq-com \"user\"");
+      expect(onboardingStdout.read()).toContain("1. Login: mailclaws login qq acct-user-qq-com \"user\"");
 
       const loginExitCode = await runMailctl(["connect", "login", "qq"], {
         stdout: loginStdout.stream,
