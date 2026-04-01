@@ -2355,21 +2355,13 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           : selectedProvider && selectedProvider.web && selectedProvider.web.loginUrl
             ? selectedProvider.web.loginUrl
             : detectedWebProvider && detectedWebProvider.web ? detectedWebProvider.web.loginUrl : "";
-        const accountIdValue = readConnectDraftValue("accountId", createSuggestedAccountIdClient(connectEmailAddress));
-        const displayNameValue = readConnectDraftValue("displayName", inferSuggestedDisplayNameClient(connectEmailAddress));
         const credentialValue = readConnectDraftValue("credential", "");
         const imapHostValue = readConnectDraftValue("imapHost", selectedPreset && selectedPreset.imapHost ? selectedPreset.imapHost : "");
         const imapPortValue = readConnectDraftValue("imapPort", selectedPreset && typeof selectedPreset.imapPort === "number" ? selectedPreset.imapPort : 993);
         const imapSecureValue = readConnectDraftBoolean("imapSecure", selectedPreset ? selectedPreset.imapSecure !== false : true);
-        const imapMailboxValue = readConnectDraftValue(
-          "imapMailbox",
-          selectedPreset && selectedPreset.imapMailbox ? selectedPreset.imapMailbox : "INBOX"
-        );
         const smtpHostValue = readConnectDraftValue("smtpHost", selectedPreset && selectedPreset.smtpHost ? selectedPreset.smtpHost : "");
         const smtpPortValue = readConnectDraftValue("smtpPort", selectedPreset && typeof selectedPreset.smtpPort === "number" ? selectedPreset.smtpPort : 587);
         const smtpSecureValue = readConnectDraftBoolean("smtpSecure", selectedPreset ? selectedPreset.smtpSecure === true : false);
-        const smtpFromValue = readConnectDraftValue("smtpFrom", connectEmailAddress);
-        const allowSelfOnly = readConnectDraftBoolean("allowSelfOnly", true);
         const currentPayload = connectEmailAddress && connectEmailAddress.indexOf("@") !== -1
           ? tryBuildConnectMailboxPayload()
           : null;
@@ -2402,6 +2394,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const loginHint = selectedLogin && selectedLogin.credentialHint
           ? selectedLogin.credentialHint
           : l("Use the credential accepted by the provider's IMAP/SMTP service.", "请填写该提供商 IMAP/SMTP 接受的凭证。");
+        const needsManualServerFields = !selectedPreset;
 
         return (
           '<section class="connect-landing"><div class="connect-landing__inner">' +
@@ -2444,27 +2437,23 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           '<div class="detail-grid">' +
           '<label><div class="section-label">' + escapeHtmlClient(l("Protocol", "协议")) + '</div><select class="console-input" disabled><option value="imap" selected>IMAP / SMTP</option></select></label>' +
           '<label><div class="section-label">' + escapeHtmlClient((selectedLogin && selectedLogin.credentialLabel) || l("Mailbox password / app password / authorization code", "邮箱密码 / 应用专用密码 / 授权码")) + '</div><input class="console-input" data-connect-field="credential" type="password" autocomplete="current-password" placeholder="' + escapeHtmlClient(l("credential", "凭证")) + '" value="' + escapeHtmlClient(credentialValue) + '" /></label>' +
-          '<label><div class="section-label">' + escapeHtmlClient(l("Account ID", "账号 ID")) + '</div><input class="console-input" data-connect-field="accountId" placeholder="acct-you-example-com" value="' + escapeHtmlClient(accountIdValue) + '" /></label>' +
-          '<label><div class="section-label">' + escapeHtmlClient(l("Display name", "显示名称")) + '</div><input class="console-input" data-connect-field="displayName" placeholder="you" value="' + escapeHtmlClient(displayNameValue) + '" /></label>' +
-          '<label><div class="section-label">' + escapeHtmlClient(l("Inbound whitelist", "入站白名单")) + '</div><label class="detail"><input type="checkbox" data-connect-field="allowSelfOnly"' + (allowSelfOnly ? " checked" : "") + ' /> ' + escapeHtmlClient(l("Allow only this mailbox address during first connect", "首次连接时只允许该邮箱地址发来邮件")) + '</label></label>' +
-          '<label><div class="section-label">IMAP Host</div><input class="console-input" data-connect-field="imapHost" placeholder="imap.example.com" value="' + escapeHtmlClient(imapHostValue) + '" /></label>' +
-          '<label><div class="section-label">IMAP Port</div><input class="console-input" data-connect-field="imapPort" inputmode="numeric" placeholder="993" value="' + escapeHtmlClient(imapPortValue) + '" /></label>' +
-          '<label><div class="section-label">' + escapeHtmlClient(l("IMAP security", "IMAP 安全")) + '</div><select class="console-input" data-connect-field="imapSecure"><option value="true"' + (imapSecureValue ? " selected" : "") + '>TLS / SSL</option><option value="false"' + (!imapSecureValue ? " selected" : "") + '>Plain / STARTTLS</option></select></label>' +
-          '<label><div class="section-label">IMAP Mailbox</div><input class="console-input" data-connect-field="imapMailbox" placeholder="INBOX" value="' + escapeHtmlClient(imapMailboxValue) + '" /></label>' +
-          '<label><div class="section-label">SMTP Host</div><input class="console-input" data-connect-field="smtpHost" placeholder="smtp.example.com" value="' + escapeHtmlClient(smtpHostValue) + '" /></label>' +
-          '<label><div class="section-label">SMTP Port</div><input class="console-input" data-connect-field="smtpPort" inputmode="numeric" placeholder="587" value="' + escapeHtmlClient(smtpPortValue) + '" /></label>' +
-          '<label><div class="section-label">' + escapeHtmlClient(l("SMTP security", "SMTP 安全")) + '</div><select class="console-input" data-connect-field="smtpSecure"><option value="true"' + (smtpSecureValue ? " selected" : "") + '>TLS / SSL</option><option value="false"' + (!smtpSecureValue ? " selected" : "") + '>Plain / STARTTLS</option></select></label>' +
-          '<label><div class="section-label">SMTP From</div><input class="console-input" data-connect-field="smtpFrom" placeholder="you@example.com" value="' + escapeHtmlClient(smtpFromValue) + '" /></label>' +
+          (needsManualServerFields
+            ? '<label><div class="section-label">IMAP Host</div><input class="console-input" data-connect-field="imapHost" placeholder="imap.example.com" value="' + escapeHtmlClient(imapHostValue) + '" /></label>' +
+              '<label><div class="section-label">IMAP Port</div><input class="console-input" data-connect-field="imapPort" inputmode="numeric" placeholder="993" value="' + escapeHtmlClient(imapPortValue) + '" /></label>' +
+              '<label><div class="section-label">' + escapeHtmlClient(l("IMAP security", "IMAP 安全")) + '</div><select class="console-input" data-connect-field="imapSecure"><option value="true"' + (imapSecureValue ? " selected" : "") + '>TLS / SSL</option><option value="false"' + (!imapSecureValue ? " selected" : "") + '>Plain / STARTTLS</option></select></label>' +
+              '<label><div class="section-label">SMTP Host</div><input class="console-input" data-connect-field="smtpHost" placeholder="smtp.example.com" value="' + escapeHtmlClient(smtpHostValue) + '" /></label>' +
+              '<label><div class="section-label">SMTP Port</div><input class="console-input" data-connect-field="smtpPort" inputmode="numeric" placeholder="587" value="' + escapeHtmlClient(smtpPortValue) + '" /></label>' +
+              '<label><div class="section-label">' + escapeHtmlClient(l("SMTP security", "SMTP 安全")) + '</div><select class="console-input" data-connect-field="smtpSecure"><option value="true"' + (smtpSecureValue ? " selected" : "") + '>TLS / SSL</option><option value="false"' + (!smtpSecureValue ? " selected" : "") + '>Plain / STARTTLS</option></select></label>'
+            : '') +
           '</div>' +
-          '<div class="detail">' + escapeHtmlClient(
-            allowSelfOnly
-              ? l("Default safety policy is on: the first connected account only accepts inbound mail from its own address until you widen the whitelist later.", "默认安全策略已开启：首次接入的账号只接受来自其自身地址的来信，直到你后续放宽白名单。")
-              : l("Inbound sender allowlist is open for this connect payload. Only turn this off when you are ready to accept mail from other senders.", "当前接入载荷对入站发件人白名单已放开。只有准备好接收其他发件人的邮件时才应这样做。")
-          ) + '</div>' +
+          '<div class="detail">' + escapeHtmlClient(l("Default safety policy stays on during first connect.", "首次接入默认保持安全白名单策略。")) + '</div>' +
           '<div class="detail">' + escapeHtmlClient(loginHint) + '</div>' +
           (connectDiscovery && Array.isArray(connectDiscovery.notes) && connectDiscovery.notes.length > 0
             ? '<div class="detail">' + escapeHtmlClient(connectDiscovery.notes[0]) + '</div>'
             : '') +
+          (!needsManualServerFields
+            ? '<div class="detail">' + escapeHtmlClient(l("Server settings were filled automatically. Usually you only need to paste the credential here.", "服务器配置已自动补齐。通常你只需要在这里粘贴凭证。")) + '</div>'
+            : '<div class="detail">' + escapeHtmlClient(l("Automatic discovery could not complete the server settings, so the manual IMAP/SMTP fields are shown here.", "自动发现未能补齐服务器配置，因此这里显示手工 IMAP/SMTP 字段。")) + '</div>') +
           (validation.status === "success"
             ? '<div class="detail">' + escapeHtmlClient(l("Validation passed: IMAP ", "校验通过：IMAP ")) + escapeHtmlClient((validation.result && validation.result.imap && validation.result.imap.host) || "ok") + ' / SMTP ' + escapeHtmlClient((validation.result && validation.result.smtp && validation.result.smtp.host) || "ok") + '.</div>'
             : validation.status === "failed"

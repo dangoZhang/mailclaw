@@ -1757,8 +1757,9 @@ describe("app api", () => {
     expect(connectHtml).toContain("Validate Mailbox");
     expect(connectHtml).toContain("Connect Mailbox");
     expect(connectHtml).toContain('data-connect-field="credential"');
-    expect(connectHtml).toContain('data-connect-field="allowSelfOnly"');
-    expect(connectHtml).toContain("Allow only this mailbox address during first connect");
+    expect(connectHtml).not.toContain('data-connect-field="allowSelfOnly"');
+    expect(connectHtml).not.toContain('data-connect-field="accountId"');
+    expect(connectHtml).not.toContain('data-connect-field="displayName"');
     const connectModuleScript = extractModuleScript(connectHtml);
     const connectInputHandler = connectModuleScript.match(
       /document\.addEventListener\("input", function\(event\) \{[\s\S]*?\n\s*\}\);/
