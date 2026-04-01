@@ -1612,6 +1612,17 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
           setupKind: guide.setupKind,
           mailboxDomains: guide.mailboxDomains,
           recommendedCommand: guide.recommendedCommand,
+          preset: guide.preset
+            ? {
+                ...guide.preset
+              }
+            : null,
+          login: guide.login
+            ? {
+                ...guide.login,
+                steps: [...guide.login.steps]
+              }
+            : null,
           web: guide.web
             ? {
                 ...guide.web

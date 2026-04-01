@@ -194,5 +194,6 @@
 - 2026-04-01 实测结果：2 个 live smoke case 均 `skipped`；并输出缺失环境变量清单（IMAP/SMTP 与 Gmail）
 - 2026-04-01 实测结果：已补齐并校验常见邮箱网页登录/注册跳转元数据（Gmail / Outlook / QQ / iCloud / Yahoo / 163 / 126 / Proton / Zoho / AOL / GMX / mail.com / Yandex / Fastmail）；对应 CLI/API 回归通过。
 - 2026-04-01 实测结果：新增并回归验证 IMAP/SMTP-only 登录入口，覆盖 Gmail / Outlook / QQ / generic provider 预设；定向测试通过。
+- 2026-04-01 实测结果：新增邮箱地址优先登录组件元数据，覆盖 Gmail / Outlook / QQ / iCloud / Yahoo / 163 / 126 七个常见直连邮箱，以及 Proton / Zoho / AOL / GMX / mail.com / Yandex / Fastmail 七个常见网页登录 fallback；CLI/API/guide 回归通过。
 - `docs/live-provider-smoke.md` 已改为说明 IMAP/SMTP-only 主路线，旧 Gmail OAuth runbook 仅保留历史说明。
 - 当前未再发现新的可复现 bug。

@@ -1826,9 +1826,19 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           '<div class="detail">' + escapeHtmlClient(provider.summary || "") + "</div>" +
           '<div class="chips">' +
           renderPill((provider.accountProvider || "provider") + "", "") +
+          (provider.login && provider.login.credentialLabel ? renderPill(provider.login.credentialLabel, "") : "") +
           (provider.mailboxDomains && provider.mailboxDomains.length > 0 ? renderPill(provider.mailboxDomains.join(", "), "") : renderPill("generic", "")) +
           "</div>" +
           '<div class="mono-block">' + escapeHtmlClient(recommendedCommand) + "</div>" +
+          (provider.preset
+            ? '<div class="detail code">IMAP ' + escapeHtmlClient(provider.preset.imapHost + ":" + provider.preset.imapPort) + ' | SMTP ' + escapeHtmlClient(provider.preset.smtpHost + ":" + provider.preset.smtpPort) + '</div>'
+            : '') +
+          (provider.login && provider.login.credentialHint
+            ? '<div class="detail">' + escapeHtmlClient(provider.login.credentialHint) + '</div>'
+            : '') +
+          (provider.login && Array.isArray(provider.login.steps) && provider.login.steps.length > 0
+            ? '<div class="detail">' + escapeHtmlClient(provider.login.steps.map(function(step, index) { return String(index + 1) + ". " + step; }).join(" ")) + '</div>'
+            : '') +
           '<div class="detail">MailClaws connects this mailbox through IMAP/SMTP. Use the provider login page first if you need to generate an app password or mailbox authorization code.</div>' +
           (actions.length > 0
             ? '<div class="provider-card__actions">' + actions.join("") + "</div>"
@@ -1876,8 +1886,8 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           '<label><div class="section-label">Mailbox address</div><input class="console-input" id="connect-email-input" type="email" placeholder="you@example.com" value="' + escapeHtmlClient(connectEmailAddress) + '" /></label>' +
           '<div class="detail">' + escapeHtmlClient(
             (detectedWebProvider || detectedProvider)
-              ? "Detected mailbox provider: " + ((detectedWebProvider && detectedWebProvider.displayName) || detectedProvider.displayName) + ". Use the card below to open the provider login page, register a new mailbox, or jump into MailClaws connect."
-              : "Enter a mailbox address to detect the provider and reveal the matching web login and mailbox registration paths."
+              ? "Detected mailbox provider: " + ((detectedWebProvider && detectedWebProvider.displayName) || detectedProvider.displayName) + ". Start with the provider web page, then return with the mailbox password, app password, or authorization code."
+              : "Enter a mailbox address to detect the provider, reveal the matching web login path, and see the credential type MailClaws will need."
           ) + '</div>' +
           '<div class="mono-block">' + escapeHtmlClient((connect && connect.recommendedStartCommand) || "mailclaws dashboard") + "</div>" +
           '<div class="mono-block">' + escapeHtmlClient(loginCommand) + "</div>" +

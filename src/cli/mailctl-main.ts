@@ -1544,6 +1544,17 @@ async function handleLogin(
   if (passwordPresetProvider) {
     const prompter = getPrompter();
     try {
+      const guide = resolveConnectProviderGuide(passwordPresetProvider);
+      if (guide?.login) {
+        stderr.write(`Credential needed: ${guide.login.credentialLabel}\n`);
+        stderr.write(`${guide.login.credentialHint}\n`);
+        if (guide.web?.loginUrl) {
+          stderr.write(`Provider login page: ${guide.web.loginUrl}\n`);
+        }
+        for (const [index, step] of guide.login.steps.entries()) {
+          stderr.write(`Login step ${index + 1}: ${step}\n`);
+        }
+      }
       const result = await promptInteractiveMailboxLogin(prompter, {
         accountId,
         displayName,
@@ -1701,6 +1712,19 @@ function renderConnectProviderGuide(guide: ReturnType<typeof resolveConnectProvi
     `${guide.displayName} (${guide.id})`,
     `Setup: ${formatConnectSetupKind(guide.setupKind)} | Account mode: ${guide.accountProvider}`,
     `Inbound: ${guide.inboundModes.join(", ")} | Outbound: ${guide.outboundModes.join(", ")}`,
+    ...(guide.login
+      ? [
+          `Credential: ${guide.login.credentialLabel}`,
+          `Credential hint: ${guide.login.credentialHint}`,
+          ...(guide.web?.loginUrl ? [`Provider login: ${guide.web.loginUrl}`] : []),
+          ...guide.login.steps.map((step, index) => `Login step ${index + 1}: ${step}`)
+        ]
+      : []),
+    ...(guide.preset
+      ? [
+          `Defaults: IMAP ${guide.preset.imapHost}:${guide.preset.imapPort} ${guide.preset.imapSecure ? "tls" : "plain"} | SMTP ${guide.preset.smtpHost}:${guide.preset.smtpPort} ${guide.preset.smtpSecure ? "tls" : "starttls/plain"}`
+        ]
+      : []),
     ...(guide.authApi
       ? [
           `Auth API: ${guide.authApi.startPath}${guide.authApi.callbackPath ? ` | callback ${guide.authApi.callbackPath}` : ""}`,

@@ -529,6 +529,13 @@ describe("app api", () => {
     expect(detailJson).toMatchObject({
       id: "gmail",
       accountProvider: "imap",
+      login: expect.objectContaining({
+        credentialLabel: "App password"
+      }),
+      preset: expect.objectContaining({
+        imapHost: "imap.gmail.com",
+        smtpHost: "smtp.gmail.com"
+      }),
       inboundModes: expect.arrayContaining(["imap_watch"]),
       requiredEnvVars: []
     });

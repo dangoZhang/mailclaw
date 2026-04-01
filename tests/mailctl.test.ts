@@ -320,6 +320,13 @@ describe("mailctl", () => {
       accountProvider: "imap",
       mailboxDomains: expect.arrayContaining(["gmail.com"]),
       setupKind: "app_password",
+      login: expect.objectContaining({
+        credentialLabel: "App password"
+      }),
+      preset: expect.objectContaining({
+        imapHost: "imap.gmail.com",
+        smtpHost: "smtp.gmail.com"
+      }),
       web: {
         loginUrl: "https://accounts.google.com/",
         signupUrl: "https://accounts.google.com/signup",
@@ -339,6 +346,9 @@ describe("mailctl", () => {
     expect(outlookExitCode).toBe(0);
     expect(JSON.parse(outlookStdout.read())).toMatchObject({
       id: "outlook",
+      login: expect.objectContaining({
+        credentialLabel: "Mailbox password or app password"
+      }),
       mailboxDomains: expect.arrayContaining(["outlook.com", "office365.com"]),
       web: {
         loginUrl: "https://outlook.office.com/mail/",
@@ -451,7 +461,7 @@ describe("mailctl", () => {
 
       expect(loginExitCode).toBe(0);
       expect(rendered).toContain("Email address");
-      expect(rendered).toContain("Password or app password");
+      expect(rendered).toContain("Authorization code");
     } finally {
       prompter.close();
     }
@@ -1342,7 +1352,7 @@ describe("mailctl", () => {
     });
 
     expect(exitCode).toBe(0);
-    expect(stderr.read()).toContain("Gmail IMAP/SMTP usually needs an app password");
+    expect(stderr.read()).toContain("Use a Google app password when the normal mailbox password is rejected.");
     expect(JSON.parse(stdout.read())).toMatchObject({
       accountId: "acct-user-gmail",
       provider: "imap",
@@ -1420,7 +1430,7 @@ describe("mailctl", () => {
       });
 
       expect(loginExitCode).toBe(0);
-      expect(loginStderr.read()).toContain("QQ Mail typically requires an authorization code");
+      expect(loginStderr.read()).toContain("QQ Mail usually rejects the web password for IMAP/SMTP.");
       expect(loginStdout.read()).toContain("Connected mailbox user@qq.com as acct-user-qq-com");
     } finally {
       process.env = previousEnv;
@@ -1645,7 +1655,7 @@ describe("mailctl", () => {
         }
       }
     });
-    expect(stderr.read()).toContain("Outlook and Microsoft 365 use the IMAP/SMTP preset here");
+    expect(stderr.read()).toContain("Try the normal mailbox password first.");
     expect(getMailAccount(fixture.handle.db, "acct-outlook")).toMatchObject({
       accountId: "acct-outlook",
       emailAddress: "user@outlook.com",

@@ -2,6 +2,7 @@ import readline from "node:readline/promises";
 import { Writable } from "node:stream";
 import process from "node:process";
 
+import { resolveConnectProviderByEmailAddress, resolveConnectProviderGuide } from "../auth/oauth-providers.js";
 import type { MailAccountRecord } from "../storage/repositories/mail-accounts.js";
 
 export interface MailctlPrompter {
@@ -102,11 +103,14 @@ export async function promptInteractiveMailboxLogin(
   const warnings: string[] = [];
   const emailAddress = options.emailAddress?.trim() || (await askRequired(prompter, "Email address", options.emailAddress));
   const profile = detectMailboxProfile(emailAddress, options.providerPreset);
-  if (profile?.warning) {
-    warnings.push(profile.warning);
-  }
+  warnings.push(...buildMailboxLoginWarnings(profile));
 
-  const password = await askRequired(prompter, "Password or app password", options.password, true);
+  const password = await askRequired(
+    prompter,
+    profile?.credentialLabel ?? "Mailbox password / app password / authorization code",
+    options.password,
+    true
+  );
   const accountId = await askRequired(
     prompter,
     "Account ID",
@@ -166,91 +170,35 @@ interface MailboxProfile {
   smtpHost: string;
   smtpPort: number;
   smtpSecure: boolean;
+  credentialLabel?: string;
+  credentialHint?: string;
+  setupUrl?: string;
+  loginUrl?: string;
+  steps?: string[];
   warning?: string;
 }
 
 export function resolveMailboxProfilePreset(providerPreset?: string): MailboxProfile | null {
-  const normalized = providerPreset?.trim().toLowerCase();
-  switch (normalized) {
-    case "gmail":
-    case "googlemail":
-      return {
-        imapHost: "imap.gmail.com",
-        imapPort: 993,
-        imapSecure: true,
-        smtpHost: "smtp.gmail.com",
-        smtpPort: 465,
-        smtpSecure: true,
-        warning: "Gmail IMAP/SMTP usually needs an app password instead of the normal web password."
-      };
-    case "qq":
-      return {
-        imapHost: "imap.qq.com",
-        imapPort: 993,
-        imapSecure: true,
-        smtpHost: "smtp.qq.com",
-        smtpPort: 465,
-        smtpSecure: true,
-        warning: "QQ Mail typically requires an authorization code instead of the web password."
-      };
-    case "outlook":
-    case "microsoft":
-    case "office365":
-    case "hotmail":
-    case "live":
-    case "msn":
-      return {
-        imapHost: "outlook.office365.com",
-        imapPort: 993,
-        imapSecure: true,
-        smtpHost: "smtp.office365.com",
-        smtpPort: 587,
-        smtpSecure: false,
-        warning:
-          "Outlook and Microsoft 365 use the IMAP/SMTP preset here. If the mailbox password is rejected, use an app password or provider-issued authorization credential."
-      };
-    case "icloud":
-    case "me":
-    case "mac":
-      return {
-        imapHost: "imap.mail.me.com",
-        imapPort: 993,
-        imapSecure: true,
-        smtpHost: "smtp.mail.me.com",
-        smtpPort: 587,
-        smtpSecure: false,
-        warning: "iCloud usually needs an app-specific password."
-      };
-    case "yahoo":
-      return {
-        imapHost: "imap.mail.yahoo.com",
-        imapPort: 993,
-        imapSecure: true,
-        smtpHost: "smtp.mail.yahoo.com",
-        smtpPort: 465,
-        smtpSecure: true
-      };
-    case "163":
-      return {
-        imapHost: "imap.163.com",
-        imapPort: 993,
-        imapSecure: true,
-        smtpHost: "smtp.163.com",
-        smtpPort: 465,
-        smtpSecure: true
-      };
-    case "126":
-      return {
-        imapHost: "imap.126.com",
-        imapPort: 993,
-        imapSecure: true,
-        smtpHost: "smtp.126.com",
-        smtpPort: 465,
-        smtpSecure: true
-      };
-    default:
-      return null;
+  const guide = resolveConnectProviderGuide(providerPreset);
+  if (!guide?.preset) {
+    return null;
   }
+
+  return {
+    imapHost: guide.preset.imapHost,
+    imapPort: guide.preset.imapPort,
+    imapSecure: guide.preset.imapSecure,
+    imapMailbox: guide.preset.imapMailbox,
+    smtpHost: guide.preset.smtpHost,
+    smtpPort: guide.preset.smtpPort,
+    smtpSecure: guide.preset.smtpSecure,
+    credentialLabel: guide.login?.credentialLabel,
+    credentialHint: guide.login?.credentialHint,
+    setupUrl: guide.login?.setupUrl,
+    loginUrl: guide.web?.loginUrl,
+    steps: guide.login?.steps,
+    warning: guide.login?.credentialHint
+  };
 }
 
 function detectMailboxProfile(emailAddress: string, providerPreset?: string): MailboxProfile | null {
@@ -259,31 +207,28 @@ function detectMailboxProfile(emailAddress: string, providerPreset?: string): Ma
     return preset;
   }
 
-  const domain = emailAddress.split("@")[1]?.toLowerCase() ?? "";
-  switch (domain) {
-    case "gmail.com":
-    case "googlemail.com":
-      return resolveMailboxProfilePreset("gmail");
-    case "qq.com":
-      return resolveMailboxProfilePreset("qq");
-    case "outlook.com":
-    case "hotmail.com":
-    case "live.com":
-    case "msn.com":
-      return resolveMailboxProfilePreset("outlook");
-    case "icloud.com":
-    case "me.com":
-    case "mac.com":
-      return resolveMailboxProfilePreset("icloud");
-    case "yahoo.com":
-      return resolveMailboxProfilePreset("yahoo");
-    case "163.com":
-      return resolveMailboxProfilePreset("163");
-    case "126.com":
-      return resolveMailboxProfilePreset("126");
-    default:
-      return null;
+  return resolveMailboxProfilePreset(resolveConnectProviderByEmailAddress(emailAddress)?.id);
+}
+
+function buildMailboxLoginWarnings(profile: MailboxProfile | null) {
+  if (!profile) {
+    return [];
   }
+
+  const warnings: string[] = [];
+  if (profile.warning) {
+    warnings.push(profile.warning);
+  }
+  if (profile.loginUrl) {
+    warnings.push(`Provider login page: ${profile.loginUrl}`);
+  }
+  if (profile.setupUrl) {
+    warnings.push(`Credential setup page: ${profile.setupUrl}`);
+  }
+  if (profile.steps && profile.steps.length > 0) {
+    warnings.push(...profile.steps.map((step, index) => `Login step ${index + 1}: ${step}`));
+  }
+  return warnings;
 }
 
 async function askRequired(

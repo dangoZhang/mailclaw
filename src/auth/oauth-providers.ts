@@ -15,6 +15,22 @@ export interface ConnectProviderGuide {
   accountProvider: "gmail" | "imap" | "forward";
   mailboxDomains: string[];
   setupKind: "browser_oauth" | "app_password" | "forward_ingest";
+  preset?: {
+    imapHost: string;
+    imapPort: number;
+    imapSecure: boolean;
+    imapMailbox?: string;
+    smtpHost: string;
+    smtpPort: number;
+    smtpSecure: boolean;
+  };
+  login?: {
+    emailFirst: boolean;
+    credentialLabel: string;
+    credentialHint: string;
+    setupUrl?: string;
+    steps: string[];
+  };
   web?: {
     loginUrl?: string;
     signupUrl?: string;
@@ -109,6 +125,25 @@ const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
     accountProvider: "imap",
     mailboxDomains: ["gmail.com", "googlemail.com"],
     setupKind: "app_password",
+    preset: {
+      imapHost: "imap.gmail.com",
+      imapPort: 993,
+      imapSecure: true,
+      imapMailbox: "INBOX",
+      smtpHost: "smtp.gmail.com",
+      smtpPort: 465,
+      smtpSecure: true
+    },
+    login: {
+      emailFirst: true,
+      credentialLabel: "App password",
+      credentialHint: "Use a Google app password when the normal mailbox password is rejected.",
+      steps: [
+        "Open the Google account page and sign in.",
+        "Enable 2-Step Verification if the account does not already use it.",
+        "Generate an app password for Mail / IMAP, then paste that credential into MailClaws."
+      ]
+    },
     web: {
       loginUrl: "https://accounts.google.com/",
       signupUrl: "https://accounts.google.com/signup",
@@ -133,6 +168,25 @@ const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
     accountProvider: "imap",
     mailboxDomains: ["outlook.com", "hotmail.com", "live.com", "msn.com", "office365.com"],
     setupKind: "app_password",
+    preset: {
+      imapHost: "outlook.office365.com",
+      imapPort: 993,
+      imapSecure: true,
+      imapMailbox: "INBOX",
+      smtpHost: "smtp.office365.com",
+      smtpPort: 587,
+      smtpSecure: false
+    },
+    login: {
+      emailFirst: true,
+      credentialLabel: "Mailbox password or app password",
+      credentialHint: "Try the normal mailbox password first. If Microsoft rejects it, use the provider-issued app password or mailbox authorization credential.",
+      steps: [
+        "Open Outlook on the web or the Microsoft account page.",
+        "Confirm the mailbox can sign in on the web first.",
+        "Use the mailbox password in MailClaws, or switch to the provider-issued app password if IMAP/SMTP rejects the normal password."
+      ]
+    },
     web: {
       loginUrl: "https://outlook.office.com/mail/",
       signupUrl: "https://signup.live.com/",
@@ -156,6 +210,25 @@ const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
     accountProvider: "imap",
     mailboxDomains: ["qq.com", "foxmail.com"],
     setupKind: "app_password",
+    preset: {
+      imapHost: "imap.qq.com",
+      imapPort: 993,
+      imapSecure: true,
+      imapMailbox: "INBOX",
+      smtpHost: "smtp.qq.com",
+      smtpPort: 465,
+      smtpSecure: true
+    },
+    login: {
+      emailFirst: true,
+      credentialLabel: "Authorization code",
+      credentialHint: "QQ Mail usually rejects the web password for IMAP/SMTP. Use the mailbox authorization code instead.",
+      steps: [
+        "Open QQ Mail on the web.",
+        "Generate the mailbox authorization code from the account settings.",
+        "Paste that authorization code into MailClaws."
+      ]
+    },
     web: {
       loginUrl: "https://mail.qq.com/",
       signupUrl: "https://zc.qq.com/",
@@ -179,6 +252,25 @@ const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
     accountProvider: "imap",
     mailboxDomains: ["icloud.com", "me.com", "mac.com"],
     setupKind: "app_password",
+    preset: {
+      imapHost: "imap.mail.me.com",
+      imapPort: 993,
+      imapSecure: true,
+      imapMailbox: "INBOX",
+      smtpHost: "smtp.mail.me.com",
+      smtpPort: 587,
+      smtpSecure: false
+    },
+    login: {
+      emailFirst: true,
+      credentialLabel: "App-specific password",
+      credentialHint: "iCloud Mail usually needs an Apple app-specific password for IMAP/SMTP access.",
+      steps: [
+        "Open the Apple account page and confirm the mailbox works on the web.",
+        "Generate an app-specific password for Mail.",
+        "Paste that app-specific password into MailClaws."
+      ]
+    },
     web: {
       loginUrl: "https://www.icloud.com/mail/",
       signupUrl: "https://account.apple.com/account",
@@ -202,6 +294,25 @@ const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
     accountProvider: "imap",
     mailboxDomains: ["yahoo.com", "yahoo.co.jp", "yahoo.co.uk", "ymail.com", "rocketmail.com"],
     setupKind: "app_password",
+    preset: {
+      imapHost: "imap.mail.yahoo.com",
+      imapPort: 993,
+      imapSecure: true,
+      imapMailbox: "INBOX",
+      smtpHost: "smtp.mail.yahoo.com",
+      smtpPort: 465,
+      smtpSecure: true
+    },
+    login: {
+      emailFirst: true,
+      credentialLabel: "Mailbox password or app password",
+      credentialHint: "Yahoo Mail often uses app passwords for IMAP/SMTP access.",
+      steps: [
+        "Open Yahoo Mail on the web.",
+        "Confirm the mailbox can sign in on the web first.",
+        "Use the mailbox password or the Yahoo app password if IMAP/SMTP rejects the normal password."
+      ]
+    },
     web: {
       loginUrl: "https://mail.yahoo.com/",
       signupUrl: "https://login.yahoo.com/account/create",
@@ -222,6 +333,25 @@ const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
     accountProvider: "imap",
     mailboxDomains: ["163.com"],
     setupKind: "app_password",
+    preset: {
+      imapHost: "imap.163.com",
+      imapPort: 993,
+      imapSecure: true,
+      imapMailbox: "INBOX",
+      smtpHost: "smtp.163.com",
+      smtpPort: 465,
+      smtpSecure: true
+    },
+    login: {
+      emailFirst: true,
+      credentialLabel: "Authorization code",
+      credentialHint: "163 Mail usually needs the provider authorization code instead of the normal mailbox password.",
+      steps: [
+        "Open 163 Mail on the web.",
+        "Generate or retrieve the mailbox authorization code from settings.",
+        "Paste that authorization code into MailClaws."
+      ]
+    },
     web: {
       loginUrl: "https://mail.163.com/",
       signupUrl: "https://zc.reg.163.com/",
@@ -242,6 +372,25 @@ const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
     accountProvider: "imap",
     mailboxDomains: ["126.com"],
     setupKind: "app_password",
+    preset: {
+      imapHost: "imap.126.com",
+      imapPort: 993,
+      imapSecure: true,
+      imapMailbox: "INBOX",
+      smtpHost: "smtp.126.com",
+      smtpPort: 465,
+      smtpSecure: true
+    },
+    login: {
+      emailFirst: true,
+      credentialLabel: "Authorization code",
+      credentialHint: "126 Mail usually needs the provider authorization code instead of the normal mailbox password.",
+      steps: [
+        "Open 126 Mail on the web.",
+        "Generate or retrieve the mailbox authorization code from settings.",
+        "Paste that authorization code into MailClaws."
+      ]
+    },
     web: {
       loginUrl: "https://mail.126.com/",
       signupUrl: "https://zc.reg.163.com/",
@@ -262,6 +411,16 @@ const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
     accountProvider: "imap",
     mailboxDomains: [],
     setupKind: "app_password",
+    login: {
+      emailFirst: true,
+      credentialLabel: "Mailbox password / app password / authorization code",
+      credentialHint: "Start with the mailbox password. If the provider rejects it, return with the app password or mailbox authorization code.",
+      steps: [
+        "Enter the mailbox address first so MailClaws can suggest common host defaults.",
+        "If the provider is not preconfigured, fill in the IMAP/SMTP hosts manually.",
+        "Use the mailbox password first, then switch to the provider-specific app password or authorization code if needed."
+      ]
+    },
     recommendedCommand: "mailclaws login [imap|password]",
     commands: ["mailclaws login", "mailclaws login imap", "mailclaws login password"],
     inboundModes: ["imap_watch"],
@@ -416,6 +575,21 @@ const OAUTH_PROVIDERS: OAuthProviderMetadata[] = [
 export function listConnectProviderGuides() {
   return CONNECT_PROVIDER_GUIDES.map((guide) => ({
     ...guide,
+    ...(guide.preset
+      ? {
+          preset: {
+            ...guide.preset
+          }
+        }
+      : {}),
+    ...(guide.login
+      ? {
+          login: {
+            ...guide.login,
+            steps: [...guide.login.steps]
+          }
+        }
+      : {}),
     ...(guide.authApi
       ? {
           authApi: {
@@ -453,6 +627,21 @@ export function resolveConnectProviderGuide(provider: string | undefined) {
   return guide
       ? {
         ...guide,
+        ...(guide.preset
+          ? {
+              preset: {
+                ...guide.preset
+              }
+            }
+          : {}),
+        ...(guide.login
+          ? {
+              login: {
+                ...guide.login,
+                steps: [...guide.login.steps]
+              }
+            }
+          : {}),
         ...(guide.authApi
           ? {
               authApi: {
