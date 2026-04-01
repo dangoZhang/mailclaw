@@ -1476,18 +1476,6 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         }) || null;
       }
 
-      function buildMailClawsConnectHref(provider, emailAddress) {
-        const normalizedEmail = String(emailAddress || "").trim().toLowerCase();
-        if (!provider || provider.setupKind !== "browser_oauth" || normalizedEmail.indexOf("@") === -1) {
-          return null;
-        }
-        const params = new URLSearchParams();
-        params.set("accountId", createSuggestedAccountIdClient(normalizedEmail));
-        params.set("displayName", inferSuggestedDisplayNameClient(normalizedEmail) || normalizedEmail);
-        params.set("loginHint", normalizedEmail);
-        return (config.apiBasePath || "/api") + "/auth/" + encodeURIComponent(provider.id) + "/start?" + params.toString();
-      }
-
       function hrefForRoute(route) {
         const routeBase = routeBasePath();
         let pathname = routeBase;
@@ -1814,7 +1802,6 @@ export function renderOpenClawWorkbenchShellHtml(input: {
 
       function renderConnectProviderCard(provider, emailAddress, detectedProviderId) {
         const normalizedEmail = String(emailAddress || "").trim().toLowerCase();
-        const mailClawsConnectHref = buildMailClawsConnectHref(provider, normalizedEmail);
         const recommendedCommand = normalizedEmail.indexOf("@") !== -1
           ? "mailclaws login " + normalizedEmail
           : (provider.recommendedCommand || "mailclaws login");
@@ -1823,18 +1810,18 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         if (provider.web && provider.web.loginUrl) {
           actions.push('<a class="btn primary" href="' + escapeHtmlClient(provider.web.loginUrl) + '" target="_blank" rel="noreferrer">Open Login Page</a>');
         }
-        if (mailClawsConnectHref) {
-          actions.push('<a class="btn" href="' + escapeHtmlClient(mailClawsConnectHref) + '">Connect In MailClaws</a>');
-        }
         if (provider.web && provider.web.signupUrl) {
           actions.push('<a class="btn" href="' + escapeHtmlClient(provider.web.signupUrl) + '" target="_blank" rel="noreferrer">Register Mailbox</a>');
+        }
+        if (provider.web && provider.web.settingsUrl) {
+          actions.push('<a class="btn" href="' + escapeHtmlClient(provider.web.settingsUrl) + '" target="_blank" rel="noreferrer">Open Mailbox Home</a>');
         }
 
         return (
           '<div class="provider-card' + (provider.id === detectedProviderId ? " provider-card--active" : "") + '">' +
           '<div class="card-top">' +
           '<div><div class="card-title">' + escapeHtmlClient(provider.displayName || provider.id) + '</div><div class="card-subtitle code">' + escapeHtmlClient(provider.id || "provider") + "</div></div>" +
-          renderPill(provider.setupKind === "browser_oauth" ? "browser oauth" : provider.setupKind === "app_password" ? "password / app password" : "forward", provider.id === detectedProviderId ? "pill--ok" : "") +
+          renderPill(provider.setupKind === "app_password" ? "password / app password" : "forward", provider.id === detectedProviderId ? "pill--ok" : "") +
           "</div>" +
           '<div class="detail">' + escapeHtmlClient(provider.summary || "") + "</div>" +
           '<div class="chips">' +
@@ -1842,6 +1829,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           (provider.mailboxDomains && provider.mailboxDomains.length > 0 ? renderPill(provider.mailboxDomains.join(", "), "") : renderPill("generic", "")) +
           "</div>" +
           '<div class="mono-block">' + escapeHtmlClient(recommendedCommand) + "</div>" +
+          '<div class="detail">MailClaws connects this mailbox through IMAP/SMTP. Use the provider login page first if you need to generate an app password or mailbox authorization code.</div>' +
           (actions.length > 0
             ? '<div class="provider-card__actions">' + actions.join("") + "</div>"
             : '<div class="detail">No direct provider web login link is known here. Use the CLI path and enter the IMAP/SMTP details manually.</div>') +

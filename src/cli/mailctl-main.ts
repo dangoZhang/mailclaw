@@ -1,15 +1,10 @@
 #!/usr/bin/env node
-
-import { spawn } from "node:child_process";
-import { once } from "node:events";
 import fs from "node:fs";
-import http from "node:http";
 import process from "node:process";
 
 import { loadConfig } from "../config.js";
 import { type GmailOAuthClientLike } from "../auth/gmail-oauth.js";
 import { type MicrosoftOAuthClientLike } from "../auth/microsoft-oauth.js";
-import { renderOAuthCallbackHtml } from "../auth/oauth-core.js";
 import {
   buildConnectOnboardingPlan,
   createSuggestedAccountId,
@@ -19,8 +14,7 @@ import {
   resolveConnectProviderGuide,
   resolveConnectProviderByEmailAddress,
   getPasswordPresetProvider,
-  getUnsupportedOAuthProviderMessage,
-  resolveOAuthProvider
+  getUnsupportedOAuthProviderMessage
 } from "../auth/oauth-providers.js";
 import {
   createTerminalPrompter,
@@ -1482,7 +1476,7 @@ async function handleLogin(
   const parsed = parseLoginArgs(args);
   if (!parsed) {
     stderr.write(
-      "usage: mailctl connect login [emailAddress] | [imap|password|qq|icloud|yahoo|163|126] | <gmail|outlook> <accountId> [displayName] [--client-id <id>] [--client-secret <secret>] [--login-hint <email>] [--tenant <tenant>] [--topic-name <topic>] [--user-id <userId>] [--label-ids <csv>] [--scopes <csv>] [--no-browser] [--timeout-seconds <seconds>] | oauth <gmail|outlook> <accountId> [displayName] [--client-id <id>] [--client-secret <secret>] [--login-hint <email>] [--tenant <tenant>] [--topic-name <topic>] [--user-id <userId>] [--label-ids <csv>] [--scopes <csv>] [--no-browser] [--timeout-seconds <seconds>]>\n"
+      "usage: mailctl connect login [emailAddress] | [imap|password|gmail|outlook|qq|icloud|yahoo|163|126] | <gmail|outlook|qq|icloud|yahoo|163|126> <accountId> [displayName]>\n"
     );
     return 1;
   }
@@ -1507,7 +1501,11 @@ async function handleLogin(
   let emailAddress = parsed.emailAddress;
   let accountId = parsed.accountId;
   let displayName = parsed.displayName;
-  let loginHint = parsed.loginHint;
+
+  if (parsed.oauthRequested) {
+    stderr.write(`${getUnsupportedOAuthProviderMessage(provider)}\n`);
+    return 1;
+  }
 
   if (!provider) {
     const prompter = getPrompter();
@@ -1519,25 +1517,26 @@ async function handleLogin(
       return 1;
     }
     provider = detectedProvider.id;
-    loginHint = loginHint ?? emailAddress;
     accountId = accountId ?? createSuggestedAccountId(emailAddress);
     displayName = displayName ?? inferSuggestedDisplayName(emailAddress);
     stderr.write(`Detected ${detectedProvider.displayName} for ${emailAddress}\n`);
-    if (detectedProvider.setupKind === "browser_oauth") {
-      stderr.write(`${detectedProvider.displayName} uses browser OAuth here; MailClaws will open the provider login page instead of collecting the web password in the terminal.\n`);
-      if (detectedProvider.web?.loginUrl) {
-        stderr.write(`Provider login: ${detectedProvider.web.loginUrl}\n`);
-      }
-      if (detectedProvider.web?.signupUrl) {
-        stderr.write(`Need a new mailbox? Register here: ${detectedProvider.web.signupUrl}\n`);
-      }
-    } else if (detectedWebProvider && detectedWebProvider.id !== detectedProvider.id) {
+    if (detectedWebProvider && detectedWebProvider.id !== detectedProvider.id) {
       stderr.write(`Known webmail site: ${detectedWebProvider.displayName}\n`);
       stderr.write(`Provider login: ${detectedWebProvider.web.loginUrl}\n`);
       if (detectedWebProvider.web.signupUrl) {
         stderr.write(`Need a new mailbox? Register here: ${detectedWebProvider.web.signupUrl}\n`);
       }
       stderr.write("MailClaws will continue with the generic IMAP/SMTP login path for this mailbox.\n");
+    } else {
+      if (detectedProvider.web?.loginUrl) {
+        stderr.write(`Provider login: ${detectedProvider.web.loginUrl}\n`);
+      }
+      if (detectedProvider.web?.signupUrl) {
+        stderr.write(`Need a new mailbox? Register here: ${detectedProvider.web.signupUrl}\n`);
+      }
+      if (detectedProvider.setupKind === "app_password") {
+        stderr.write("MailClaws will continue with the IMAP/SMTP login path for this mailbox.\n");
+      }
     }
   }
 
@@ -1565,128 +1564,9 @@ async function handleLogin(
     }
   }
 
-  const oauthProvider = resolveOAuthProvider(provider);
-  if (!oauthProvider) {
-    stderr.write(`${getUnsupportedOAuthProviderMessage(provider)}\n`);
-    return 1;
-  }
-
-  if (!accountId) {
-    stderr.write(
-      `usage: mailctl connect login ${oauthProvider.id} <accountId> [displayName] [--client-id <id>] [--client-secret <secret>] [--login-hint <email>] [--tenant <tenant>] [--topic-name <topic>] [--user-id <userId>] [--label-ids <csv>] [--scopes <csv>] [--no-browser] [--timeout-seconds <seconds>]\n`
-    );
-    return 1;
-  }
-
-  const callbackServer = http.createServer((request, response) => {
-    void (async () => {
-      try {
-        const requestUrl = new URL(request.url ?? "/", "http://127.0.0.1");
-        if (request.method !== "GET" || requestUrl.pathname !== "/callback") {
-          response.writeHead(404, {
-            "content-type": "text/plain; charset=utf-8"
-          });
-          response.end("not found");
-          return;
-        }
-
-        const completed = await runtime.completeOAuthLogin({
-          state: requestUrl.searchParams.get("state") ?? "",
-          code: requestUrl.searchParams.get("code") ?? undefined,
-          error: requestUrl.searchParams.get("error") ?? undefined,
-          errorDescription: requestUrl.searchParams.get("error_description") ?? undefined
-        });
-
-        response.writeHead(200, {
-          "content-type": "text/html; charset=utf-8"
-        });
-        response.end(
-          renderOAuthCallbackHtml({
-            providerName: oauthProvider.displayName,
-            success: true,
-            title: `${oauthProvider.displayName} mailbox connected`,
-            message:
-              oauthProvider.id === "gmail"
-                ? completed.watchReady
-                  ? "MailClaws can now ingest and send mail through this Gmail account."
-                  : "The mailbox is connected. Add a Gmail Pub/Sub topic if you want watch/recovery to be active."
-                : "The mailbox is connected. MailClaws will use IMAP/SMTP with OAuth for this account.",
-            accountId: completed.account?.accountId,
-            emailAddress: completed.account?.emailAddress
-          })
-        );
-      } catch (error) {
-        response.writeHead(error instanceof Error ? 400 : 500, {
-          "content-type": "text/html; charset=utf-8"
-        });
-        response.end(
-          renderOAuthCallbackHtml({
-            providerName: oauthProvider.displayName,
-            success: false,
-            title: `${oauthProvider.displayName} mailbox connection failed`,
-            message: error instanceof Error ? error.message : String(error)
-          })
-        );
-      }
-    })();
-  });
-
-  callbackServer.listen(0, "127.0.0.1");
-  await once(callbackServer, "listening");
-
-  try {
-    const address = callbackServer.address();
-    if (address === null || typeof address === "string") {
-      throw new Error("failed to allocate oauth callback port");
-    }
-
-    const redirectUri = `http://127.0.0.1:${address.port}/callback`;
-    const started = runtime.startOAuthLogin({
-      provider: oauthProvider.id,
-      accountId,
-      displayName,
-      loginHint,
-      redirectUri,
-      clientId: parsed.clientId,
-      clientSecret: parsed.clientSecret,
-      tenant: parsed.tenant,
-      topicName: parsed.topicName,
-      userId: parsed.userId,
-      labelIds: parsed.labelIds,
-      scopes: parsed.scopes
-    });
-    if (!started?.sessionId) {
-      throw new Error(`${oauthProvider.displayName.toLowerCase()} oauth start did not return a session id`);
-    }
-
-    if (emailAddress && !parsed.noBrowser) {
-      stderr.write(`Connecting ${emailAddress} via ${oauthProvider.displayName}\n`);
-    }
-    stderr.write(`Open this URL if the browser does not launch:\n${started.authorizeUrl}\n`);
-    if (!parsed.noBrowser) {
-      try {
-        await (deps?.openExternal ?? openExternalUrl)(started.authorizeUrl);
-      } catch (error) {
-        stderr.write(`failed to open browser automatically: ${error instanceof Error ? error.message : String(error)}\n`);
-      }
-    }
-
-    const result = await waitForOAuthCompletion(
-      runtime,
-      started.sessionId,
-      deps?.callbackTimeoutMs ?? parsed.timeoutSeconds * 1000
-    );
-    writePayload(
-      stdout,
-      mode,
-      result,
-      `Connected ${result.account.emailAddress} via ${oauthProvider.displayName}; inbound ${result.providerState.ingress.mode}, outbound ${result.providerState.outbound.mode}`
-    );
-    return 0;
-  } finally {
-    closeOwnedPrompter();
-    callbackServer.close();
-  }
+  stderr.write(`${getUnsupportedOAuthProviderMessage(provider)}\n`);
+  closeOwnedPrompter();
+  return 1;
 }
 
 function renderConsoleRooms(rooms: ReturnType<MailRuntime["listConsoleRooms"]>) {
@@ -2107,9 +1987,8 @@ function writeUsage(stream: Pick<NodeJS.WriteStream, "write">) {
       "  connect start [emailAddress] [provider]",
       "  connect login                         # ask for mailbox address first, then detect provider",
       "  connect login [emailAddress]",
-      "  connect login [imap|password|qq|icloud|yahoo|163|126]",
-      "  connect login <gmail|outlook> <accountId> [displayName]",
-      "  connect login oauth <gmail|outlook> <accountId> [displayName]",
+      "  connect login [imap|password|gmail|outlook|qq|icloud|yahoo|163|126]",
+      "  connect login <gmail|outlook|qq|icloud|yahoo|163|126> <accountId> [displayName]",
       "  connect accounts [show <accountId>]",
       "",
       "benchmark:",
@@ -2239,6 +2118,7 @@ function parseLoginArgs(args: string[]) {
   const values = [...args];
   if (values.length === 0) {
     return {
+      oauthRequested: false,
       provider: undefined,
       emailAddress: undefined,
       accountId: undefined,
@@ -2258,7 +2138,9 @@ function parseLoginArgs(args: string[]) {
 
   let provider: string | undefined;
   let emailAddress: string | undefined;
+  let oauthRequested = false;
   if (values[0] === "oauth") {
+    oauthRequested = true;
     provider = values[1];
     values.splice(0, 2);
   } else if ((values[0] ?? "").includes("@")) {
@@ -2269,6 +2151,7 @@ function parseLoginArgs(args: string[]) {
 
   if (!provider && !emailAddress) {
     return {
+      oauthRequested,
       provider: undefined,
       emailAddress: undefined,
       accountId: undefined,
@@ -2299,6 +2182,7 @@ function parseLoginArgs(args: string[]) {
       return null;
     }
     return {
+      oauthRequested,
       provider,
       emailAddress: undefined,
       accountId,
@@ -2381,6 +2265,7 @@ function parseLoginArgs(args: string[]) {
     }
 
     return {
+      oauthRequested,
       provider: undefined,
       emailAddress,
       accountId,
@@ -2463,6 +2348,7 @@ function parseLoginArgs(args: string[]) {
   }
 
   return {
+    oauthRequested,
     provider,
     emailAddress,
     accountId,
@@ -2490,65 +2376,6 @@ function parseDelimitedStrings(value: string | undefined) {
     .map((entry) => entry.trim())
     .filter(Boolean);
   return parsed.length > 0 ? parsed : undefined;
-}
-
-async function waitForOAuthCompletion(
-  runtime: ReturnType<typeof createMailSidecarRuntime>,
-  sessionId: string,
-  timeoutMs: number
-) {
-  const startedAt = Date.now();
-  while (Date.now() - startedAt < timeoutMs) {
-    const session = runtime.getOAuthLoginSession(sessionId);
-    if (session?.status === "completed") {
-      const completed = runtime.getOAuthLoginSession(sessionId);
-      const accountState = runtime.getPublicAccountProviderState(completed?.accountId ?? "");
-      return {
-        session: completed,
-        account: accountState.account,
-        providerState: accountState.summary
-      };
-    }
-
-    if (session?.status === "failed" || session?.status === "expired") {
-      throw new Error(session.errorText ?? `oauth login session ${session.status}`);
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-
-  throw new Error(`timed out waiting for oauth callback after ${Math.ceil(timeoutMs / 1000)}s`);
-}
-
-async function openExternalUrl(url: string) {
-  const platform = process.platform;
-  if (platform === "darwin") {
-    await spawnAndWait("open", [url]);
-    return;
-  }
-
-  if (platform === "win32") {
-    await spawnAndWait("cmd", ["/c", "start", "", url]);
-    return;
-  }
-
-  await spawnAndWait("xdg-open", [url]);
-}
-
-function spawnAndWait(command: string, args: string[]) {
-  return new Promise<void>((resolve, reject) => {
-    const child = spawn(command, args, {
-      stdio: "ignore"
-    });
-    child.once("error", reject);
-    child.once("exit", (code) => {
-      if (code === 0) {
-        resolve();
-      } else {
-        reject(new Error(`${command} exited with code ${code ?? "unknown"}`));
-      }
-    });
-  });
 }
 
 if (import.meta.url === new URL(process.argv[1] ?? "", "file://").href) {

@@ -144,17 +144,16 @@
 - [x] T99 SOUL/agent workspace 绑定正确。
 - [x] T100 durable agent mailbox 与 public mailbox 映射正确。
 
-## 11. 真实 provider smoke（当前先测 Gmail OAuth 101-108）
+## 11. 真实 provider smoke（2026-04-01 起切换为 IMAP/SMTP-only 登录，原 Gmail OAuth 组待重写）
 
-- [x] T101 为 `endermanzhang@gmail.com` 准备 Gmail OAuth 前置配置，并通过 `mailctl login gmail` 的前置校验。（PASS：已实跑 `pnpm mailctl connect login gmail endermanzhang@gmail.com --no-browser --timeout-seconds 5`，命中预期错误 `missing Gmail OAuth client id`）
-- [x] T102 `mailctl login gmail` 能启动本地 OAuth 登录流程并打开 Google 授权页。（PASS：已实跑 `pnpm mailctl connect login gmail endermanzhang@gmail.com --client-id dummy-client-id.apps.googleusercontent.com --no-browser --timeout-seconds 5`，成功产出 Google authorize URL；未回调时 5 秒超时符合预期）
-- [ ] T103 使用 `endermanzhang@gmail.com` 完成 Gmail OAuth 授权，并返回成功回调页。（SKIP：缺少可用的真实 `MAILCLAW_GMAIL_OAUTH_CLIENT_ID`/Google OAuth App 配置，无法完成真实授权）
--  2026-04-01 补充阻塞：浏览器打开 `https://console.cloud.google.com/apis/credentials` 时当前账号被重定向到 `https://console.cloud.google.com/enable-mfa?...`，说明在创建 Gmail OAuth client 前还需要先完成 Google Cloud 侧的 MFA 要求。
-- [ ] T104 OAuth 登录完成后 account 记录持久化正确，provider/status/emailAddress 正确。（SKIP：依赖 T103 成功回调）
-- [ ] T105 OAuth 登录完成后 Gmail watch/topic/userId/labelIds 配置持久化正确。（SKIP：依赖 T103 且需要可用的 Gmail Pub/Sub topic）
-- [ ] T106 基于 OAuth 登录后的 Gmail 账号执行 recovery，能拉到真实历史邮件并产出可用 checkpoint。（SKIP：当前无可用 `MAILCLAW_LIVE_GMAIL_ACCESS_TOKEN` / `MAILCLAW_LIVE_GMAIL_TOPIC_NAME`）
-- [ ] T107 基于恢复出的真实线程发送 Gmail reply，threading 正确续接到原会话。（SKIP：依赖 T106）
-- [ ] T108 Gmail OAuth/live smoke 的失败路径、预检查输出和 runbook 与真实链路一致。（部分完成：失败路径与预检查输出已实跑；成功链路一致性需待 T103-T107 完成后最终验收）
+- [ ] T101 旧 Gmail OAuth 前置校验项已冻结，待替换为 Gmail IMAP/SMTP app password 登录 smoke。
+- [ ] T102 旧 Gmail OAuth 浏览器启动项已冻结，待替换为 Gmail IMAP/SMTP 登录向导 smoke。
+- [ ] T103 待新增：使用 `endermanzhang@gmail.com` 通过 Gmail app password 完成 IMAP/SMTP 登录，并确认 account 记录落库。
+- [ ] T104 待新增：Gmail IMAP/SMTP 登录完成后 account 记录持久化正确，provider/status/emailAddress 正确。
+- [ ] T105 待新增：登录完成后 Gmail 入站 polling / mailbox 映射状态正确。
+- [ ] T106 待新增：基于 IMAP/SMTP 登录后的 Gmail 账号执行 recovery，能拉到真实历史邮件并产出可用 checkpoint。
+- [ ] T107 待新增：基于恢复出的真实线程发送 Gmail reply，threading 正确续接到原会话。
+- [ ] T108 待新增：IMAP/SMTP 登录失败路径、预检查输出和 runbook 与真实链路一致。
 
 ## 12. 回归与边界
 
@@ -189,16 +188,11 @@
 结果：
 
 - 本地可执行项均已通过。
-- `T101/T102` 已完成并打勾；`T103-T107` 仍为真实阻塞状态，未打勾。
-- 当前已确认阻塞：缺少可用 Gmail OAuth App（`MAILCLAW_GMAIL_OAUTH_CLIENT_ID`）与 live Gmail 凭据（`MAILCLAW_LIVE_GMAIL_ACCESS_TOKEN`、`MAILCLAW_LIVE_GMAIL_TOPIC_NAME` 等）。
-- 当前已确认阻塞还包括：Google Cloud 控制台要求当前账号先完成 MFA，未完成前无法进入 OAuth client 创建页。
-- 2026-04-01 实测命令：`pnpm mailctl connect login gmail endermanzhang@gmail.com --no-browser --timeout-seconds 5`
-- 2026-04-01 实测结果：`missing Gmail OAuth client id: set MAILCLAW_GMAIL_OAUTH_CLIENT_ID or pass clientId`
-- 2026-04-01 实测命令：`pnpm mailctl connect login gmail endermanzhang@gmail.com --client-id dummy-client-id.apps.googleusercontent.com --no-browser --timeout-seconds 5`
-- 2026-04-01 实测结果：成功产出 OAuth authorize URL；未回调超时报错 `timed out waiting for oauth callback after 5s`
+- 2026-04-01 策略调整：用户可见登录主路径切换为 IMAP/SMTP-only；旧 Gmail OAuth 101-108 记录不再作为当前完成状态。
+- 当前仍缺少真实 Gmail app password / live mailbox 凭据，因此新的 IMAP/SMTP smoke 尚未开始打勾。
 - 2026-04-01 实测命令：`pnpm test:live-providers`
 - 2026-04-01 实测结果：2 个 live smoke case 均 `skipped`；并输出缺失环境变量清单（IMAP/SMTP 与 Gmail）
 - 2026-04-01 实测结果：已补齐并校验常见邮箱网页登录/注册跳转元数据（Gmail / Outlook / QQ / iCloud / Yahoo / 163 / 126 / Proton / Zoho / AOL / GMX / mail.com / Yandex / Fastmail）；对应 CLI/API 回归通过。
-- 2026-04-01 实测结果：再次执行 `pnpm test` 与 `pnpm build`，本地测试 `389 passed, 2 skipped`，构建通过；仍跳过的仅为 live provider 外部凭据链路。
-- `docs/live-provider-smoke.md` 已更新为 Gmail OAuth 优先 runbook，并与 `T101-T108` 对齐。
+- 2026-04-01 实测结果：新增并回归验证 IMAP/SMTP-only 登录入口，覆盖 Gmail / Outlook / QQ / generic provider 预设；定向测试通过。
+- `docs/live-provider-smoke.md` 已改为说明 IMAP/SMTP-only 主路线，旧 Gmail OAuth runbook 仅保留历史说明。
 - 当前未再发现新的可复现 bug。

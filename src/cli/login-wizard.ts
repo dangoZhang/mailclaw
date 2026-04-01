@@ -181,8 +181,7 @@ export function resolveMailboxProfilePreset(providerPreset?: string): MailboxPro
         smtpHost: "smtp.gmail.com",
         smtpPort: 465,
         smtpSecure: true,
-        warning:
-          "Gmail password login usually needs an app password. If you want browser OAuth instead, use `mailclaws login gmail <accountId>`."
+        warning: "Gmail IMAP/SMTP usually needs an app password instead of the normal web password."
       };
     case "qq":
       return {
@@ -208,7 +207,7 @@ export function resolveMailboxProfilePreset(providerPreset?: string): MailboxPro
         smtpPort: 587,
         smtpSecure: false,
         warning:
-          "Outlook and Microsoft 365 support browser OAuth. If you want OAuth instead of IMAP/SMTP credentials, use `mailclaws login outlook <accountId>`."
+          "Outlook and Microsoft 365 use the IMAP/SMTP preset here. If the mailbox password is rejected, use an app password or provider-issued authorization credential."
       };
     case "icloud":
     case "me":

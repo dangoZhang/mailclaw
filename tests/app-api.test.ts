@@ -492,12 +492,9 @@ describe("app api", () => {
         oauthStartPathTemplate: "/api/auth/:provider/start",
         oauthCallbackPathTemplate: "/api/auth/:provider/callback"
       },
-      supportedOAuthProviders: expect.arrayContaining([
-        expect.objectContaining({ id: "gmail" }),
-        expect.objectContaining({ id: "outlook" })
-      ]),
+      supportedOAuthProviders: [],
       providers: expect.arrayContaining([
-        expect.objectContaining({ id: "gmail", setupKind: "browser_oauth" }),
+        expect.objectContaining({ id: "gmail", setupKind: "app_password" }),
         expect.objectContaining({ id: "forward", setupKind: "forward_ingest" })
       ])
     });
@@ -510,7 +507,7 @@ describe("app api", () => {
         expect.objectContaining({
           id: "gmail",
           displayName: "Gmail",
-          setupKind: "browser_oauth"
+          setupKind: "app_password"
         }),
         expect.objectContaining({
           id: "forward",
@@ -531,14 +528,9 @@ describe("app api", () => {
     expect(detailResponse.status).toBe(200);
     expect(detailJson).toMatchObject({
       id: "gmail",
-      accountProvider: "gmail",
-      authApi: expect.objectContaining({
-        startPath: "/api/auth/gmail/start",
-        callbackPath: "/api/auth/gmail/callback",
-        querySecretPolicy: "forbidden"
-      }),
-      inboundModes: expect.arrayContaining(["gmail_watch", "gmail_history_recovery"]),
-      requiredEnvVars: expect.arrayContaining(["MAILCLAW_GMAIL_OAUTH_CLIENT_ID"])
+      accountProvider: "imap",
+      inboundModes: expect.arrayContaining(["imap_watch"]),
+      requiredEnvVars: []
     });
 
     const onboardingResponse = await fetch(`${baseUrl}/api/connect/onboarding?emailAddress=person@gmail.com`);

@@ -302,7 +302,7 @@ describe("mailctl", () => {
     expect(listStdout.read()).toContain("Connect providers:");
     expect(listStdout.read()).toContain("API discovery: GET /api/connect and GET /api/connect/providers");
     expect(listStdout.read()).toContain(
-      "gmail | Gmail | browser OAuth | login mailclaws login gmail <accountId> [displayName]"
+      "gmail | Gmail | IMAP/SMTP app password | login mailclaws login gmail <accountId> [displayName]"
     );
     expect(listStdout.read()).toContain("forward | Forward / raw MIME fallback");
     expect(listStderr.read()).toBe("");
@@ -317,25 +317,18 @@ describe("mailctl", () => {
     expect(detailExitCode).toBe(0);
     expect(JSON.parse(detailStdout.read())).toMatchObject({
       id: "gmail",
-      accountProvider: "gmail",
+      accountProvider: "imap",
       mailboxDomains: expect.arrayContaining(["gmail.com"]),
-      setupKind: "browser_oauth",
+      setupKind: "app_password",
       web: {
         loginUrl: "https://accounts.google.com/",
         signupUrl: "https://accounts.google.com/signup",
         settingsUrl: "https://mail.google.com/"
       },
-      authApi: {
-        startPath: "/api/auth/gmail/start",
-        callbackPath: "/api/auth/gmail/callback",
-        browserRedirectMethod: "GET",
-        programmaticMethod: "POST",
-        querySecretPolicy: "forbidden"
-      },
       recommendedCommand: "mailclaws login gmail <accountId> [displayName]",
-      requiredEnvVars: expect.arrayContaining(["MAILCLAW_GMAIL_OAUTH_CLIENT_ID"]),
-      inboundModes: expect.arrayContaining(["gmail_watch", "gmail_history_recovery"]),
-      outboundModes: expect.arrayContaining(["gmail_api_send"])
+      requiredEnvVars: [],
+      inboundModes: expect.arrayContaining(["imap_watch"]),
+      outboundModes: expect.arrayContaining(["account_smtp"])
     });
 
     const outlookStdout = createWritableBuffer();
@@ -502,35 +495,41 @@ describe("mailctl", () => {
     fixture.handle.close();
   });
 
-  it("auto-detects Gmail and opens the OAuth browser flow", async () => {
+  it("auto-detects Gmail and continues with the IMAP/SMTP login wizard", async () => {
     const fixture = createFixture();
     const stdout = createWritableBuffer();
     const stderr = createWritableBuffer();
-    const openedUrls: string[] = [];
 
     const exitCode = await runMailctl(["connect", "login", "person@gmail.com"], {
       runtime: fixture.runtime,
       stdout: stdout.stream,
       stderr: stderr.stream,
-      callbackTimeoutMs: 1000,
-      openExternal: async (url) => {
-        openedUrls.push(url);
-        const authorizeUrl = new URL(url);
-        const redirectUri = authorizeUrl.searchParams.get("redirect_uri");
-        const state = authorizeUrl.searchParams.get("state");
-        if (!redirectUri || !state) {
-          throw new Error("oauth authorize url is missing redirect_uri or state");
-        }
-        await fetch(`${redirectUri}?state=${encodeURIComponent(state)}&error=access_denied&error_description=cancelled`);
-      }
+      prompter: createPrompter([
+        "gmail-app-password",
+        "acct-person-gmail-com",
+        "Gmail User",
+        "imap.gmail.com",
+        "993",
+        "yes",
+        "INBOX",
+        "smtp.gmail.com",
+        "465",
+        "yes",
+        "person@gmail.com"
+      ])
     });
 
-    expect(exitCode).toBe(1);
-    expect(openedUrls).toHaveLength(1);
-    expect(openedUrls[0]).toContain("accounts.google.com");
+    expect(exitCode).toBe(0);
     expect(stderr.read()).toContain("Detected Gmail for person@gmail.com");
     expect(stderr.read()).toContain("Provider login: https://accounts.google.com/");
-    expect(stderr.read()).toContain("cancelled");
+    expect(stderr.read()).toContain("MailClaws will continue with the IMAP/SMTP login path");
+    expect(stdout.read()).toContain("Connected mailbox person@gmail.com as acct-person-gmail-com");
+
+    expect(getMailAccount(fixture.handle.db, "acct-person-gmail-com")).toMatchObject({
+      accountId: "acct-person-gmail-com",
+      emailAddress: "person@gmail.com",
+      provider: "imap"
+    });
 
     fixture.handle.close();
   });
@@ -1343,7 +1342,7 @@ describe("mailctl", () => {
     });
 
     expect(exitCode).toBe(0);
-    expect(stderr.read()).toContain("Gmail password login usually needs an app password");
+    expect(stderr.read()).toContain("Gmail IMAP/SMTP usually needs an app password");
     expect(JSON.parse(stdout.read())).toMatchObject({
       accountId: "acct-user-gmail",
       provider: "imap",
@@ -1544,7 +1543,7 @@ describe("mailctl", () => {
     }
   });
 
-  it("completes a gmail oauth login flow through the CLI loopback callback", async () => {
+  it("rejects the legacy gmail oauth login command", async () => {
     const fixture = createFixture({
       gmailOAuthClient: {
         async exchangeAuthorizationCode(input) {
@@ -1572,186 +1571,81 @@ describe("mailctl", () => {
     const stdout = createWritableBuffer();
     const stderr = createWritableBuffer();
 
-    const exitCode = await runJsonMailctl(
-      [
-        "login",
-        "gmail",
-        "acct-gmail",
-        "Support",
-        "--topic-name",
-        "projects/example/topics/mailclaw",
-        "--label-ids",
-        "INBOX,IMPORTANT"
-      ],
-      {
-        runtime: fixture.runtime,
-        stdout: stdout.stream,
-        stderr: stderr.stream,
-        openExternal: async (url) => {
-          const authorizeUrl = new URL(url);
-          const state = authorizeUrl.searchParams.get("state");
-          const redirectUri = authorizeUrl.searchParams.get("redirect_uri");
-          if (!state || !redirectUri) {
-            throw new Error("expected state and redirect_uri in authorize url");
-          }
-
-          await fetch(`${redirectUri}?state=${encodeURIComponent(state)}&code=oauth-code-1`);
-        },
-        callbackTimeoutMs: 2_000
-      }
-    );
-
-    expect(exitCode).toBe(0);
-    expect(stderr.read()).toContain("Open this URL if the browser does not launch:");
-    const json = JSON.parse(stdout.read()) as {
-      account: {
-        accountId: string;
-        emailAddress: string;
-        provider: string;
-        settings: {
-          gmail: {
-            oauthClientConfigured: boolean;
-            topicName: string;
-            labelIds: string[];
-          };
-        };
-      };
-      providerState: {
-        ingress: {
-          mode: string;
-        };
-      };
-    };
-
-    expect(json.account).toMatchObject({
-      accountId: "acct-gmail",
-      emailAddress: "user@gmail.com",
-      provider: "gmail",
-      settings: {
-        gmail: {
-          oauthClientConfigured: true,
-          topicName: "projects/example/topics/mailclaw",
-          labelIds: ["INBOX", "IMPORTANT"]
-        }
-      }
+    const exitCode = await runJsonMailctl(["login", "oauth", "gmail", "acct-gmail", "Support"], {
+      runtime: fixture.runtime,
+      stdout: stdout.stream,
+      stderr: stderr.stream
     });
-    expect(json.providerState.ingress.mode).toBe("gmail_watch");
-    expect(getMailAccount(fixture.handle.db, "acct-gmail")).toMatchObject({
-      accountId: "acct-gmail",
-      emailAddress: "user@gmail.com",
-      provider: "gmail"
-    });
+
+    expect(exitCode).toBe(1);
+    expect(stdout.read()).toBe("");
+    expect(stderr.read()).toContain("Browser OAuth login is disabled for Gmail");
 
     fixture.handle.close();
   });
 
-  it("completes an outlook oauth login flow through the CLI loopback callback", async () => {
-    const fixture = createFixture({
-      microsoftOAuthClient: {
-        async exchangeAuthorizationCode(input) {
-          expect(input.code).toBe("oauth-code-2");
-          expect(input.tenant).toBe("common");
-          return {
-            accessToken: "outlook-access-token-1",
-            refreshToken: "outlook-refresh-token-1",
-            expiresAt: "2026-03-26T12:00:00.000Z",
-            scope: "openid profile email offline_access https://outlook.office.com/IMAP.AccessAsUser.All https://outlook.office.com/SMTP.Send",
-            tokenType: "Bearer",
-            idToken: "header.payload.signature"
-          };
-        },
-        async refreshAccessToken() {
-          throw new Error("not used in this test");
-        },
-        async getProfile() {
-          return {
-            emailAddress: "user@outlook.com",
-            displayName: "Outlook User",
-            tenantId: "tenant-1"
-          };
-        }
-      }
-    });
+  it("connects Outlook through the IMAP/SMTP preset path", async () => {
+    const fixture = createFixture();
     const stdout = createWritableBuffer();
     const stderr = createWritableBuffer();
 
-    const exitCode = await runJsonMailctl(
-      ["login", "outlook", "acct-outlook", "Support"],
-      {
-        runtime: fixture.runtime,
-        stdout: stdout.stream,
-        stderr: stderr.stream,
-        openExternal: async (url) => {
-          const authorizeUrl = new URL(url);
-          const state = authorizeUrl.searchParams.get("state");
-          const redirectUri = authorizeUrl.searchParams.get("redirect_uri");
-          if (!state || !redirectUri) {
-            throw new Error("expected state and redirect_uri in authorize url");
-          }
-
-          await fetch(`${redirectUri}?state=${encodeURIComponent(state)}&code=oauth-code-2`);
-        },
-        callbackTimeoutMs: 2_000
-      }
-    );
+    const exitCode = await runJsonMailctl(["login", "outlook", "acct-outlook", "Support"], {
+      runtime: fixture.runtime,
+      stdout: stdout.stream,
+      stderr: stderr.stream,
+      prompter: createPrompter([
+        "user@outlook.com",
+        "outlook-app-password",
+        "acct-outlook",
+        "Support",
+        "outlook.office365.com",
+        "993",
+        "yes",
+        "INBOX",
+        "smtp.office365.com",
+        "587",
+        "no",
+        "user@outlook.com"
+      ])
+    });
 
     expect(exitCode).toBe(0);
-    expect(stderr.read()).toContain("Open this URL if the browser does not launch:");
     const json = JSON.parse(stdout.read()) as {
-      account: {
-        accountId: string;
-        emailAddress: string;
-        provider: string;
-        settings: {
-          imap: {
-            host: string;
-            oauth: {
-              clientConfigured: boolean;
-              tokenEndpoint: string;
-            };
-          };
-          smtp: {
-            host: string;
-            oauth: {
-              clientConfigured: boolean;
-              tokenEndpoint: string;
-            };
-          };
+      accountId: string;
+      emailAddress: string;
+      provider: string;
+      settings: {
+        imap: {
+          host: string;
+          port: number;
+          secure: boolean;
         };
-      };
-      providerState: {
-        ingress: {
-          mode: string;
-        };
-        outbound: {
-          mode: string;
+        smtp: {
+          host: string;
+          port: number;
+          secure: boolean;
         };
       };
     };
 
-    expect(json.account).toMatchObject({
+    expect(json).toMatchObject({
       accountId: "acct-outlook",
       emailAddress: "user@outlook.com",
       provider: "imap",
       settings: {
         imap: {
           host: "outlook.office365.com",
-          oauth: {
-            clientConfigured: true,
-            tokenEndpoint: "https://login.microsoftonline.com/common/oauth2/v2.0/token"
-          }
+          port: 993,
+          secure: true
         },
         smtp: {
           host: "smtp.office365.com",
-          oauth: {
-            clientConfigured: true,
-            tokenEndpoint: "https://login.microsoftonline.com/common/oauth2/v2.0/token"
-          }
+          port: 587,
+          secure: false
         }
       }
     });
-    expect(json.providerState.ingress.mode).toBe("imap_watch");
-    expect(json.providerState.outbound.mode).toBe("account_smtp");
+    expect(stderr.read()).toContain("Outlook and Microsoft 365 use the IMAP/SMTP preset here");
     expect(getMailAccount(fixture.handle.db, "acct-outlook")).toMatchObject({
       accountId: "acct-outlook",
       emailAddress: "user@outlook.com",

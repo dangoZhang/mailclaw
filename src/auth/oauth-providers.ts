@@ -106,40 +106,24 @@ const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
     id: "gmail",
     displayName: "Gmail",
     aliases: ["gmail", "google", "googlemail"],
-    accountProvider: "gmail",
+    accountProvider: "imap",
     mailboxDomains: ["gmail.com", "googlemail.com"],
-    setupKind: "browser_oauth",
+    setupKind: "app_password",
     web: {
       loginUrl: "https://accounts.google.com/",
       signupUrl: "https://accounts.google.com/signup",
       settingsUrl: "https://mail.google.com/"
     },
-    authApi: {
-      startPath: "/api/auth/gmail/start",
-      callbackPath: "/api/auth/gmail/callback",
-      browserRedirectMethod: "GET",
-      programmaticMethod: "POST",
-      querySecretPolicy: "forbidden"
-    },
     recommendedCommand: "mailclaws login gmail <accountId> [displayName]",
-    commands: [
-      "mailclaws login gmail <accountId> [displayName]",
-      "mailclaws login oauth gmail <accountId> [displayName] --topic-name <projects/.../topics/...>"
-    ],
-    inboundModes: ["gmail_watch", "gmail_history_recovery"],
-    outboundModes: ["gmail_api_send"],
-    requiredEnvVars: ["MAILCLAW_GMAIL_OAUTH_CLIENT_ID"],
-    optionalEnvVars: [
-      "MAILCLAW_GMAIL_OAUTH_CLIENT_SECRET",
-      "MAILCLAW_GMAIL_OAUTH_TOPIC_NAME",
-      "MAILCLAW_GMAIL_OAUTH_USER_ID",
-      "MAILCLAW_GMAIL_OAUTH_LABEL_IDS",
-      "MAILCLAW_GMAIL_OAUTH_SCOPES"
-    ],
+    commands: ["mailclaws login gmail <accountId> [displayName]"],
+    inboundModes: ["imap_watch"],
+    outboundModes: ["account_smtp"],
+    requiredEnvVars: [],
+    optionalEnvVars: [],
     notes: [
-      "Browser redirects can use GET /api/auth/gmail/start, but pass client secrets only through POST or env-backed CLI login.",
-      "Add a Pub/Sub topic to make Gmail watch/history recovery ready immediately after login.",
-      "Use Gmail browser OAuth for the best MailClaws fit; it preserves Gmail watch/history semantics instead of falling back to generic IMAP."
+      "Gmail usually needs an app password instead of the normal web password when IMAP/SMTP is enabled.",
+      "Use this preset if you want MailClaws to read and send mail through Gmail strictly over IMAP/SMTP.",
+      "If Google rejects the mailbox password, generate an app password from the Google Account security settings."
     ]
   },
   {
@@ -148,31 +132,21 @@ const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
     aliases: ["outlook", "microsoft", "office365", "hotmail", "live", "msn"],
     accountProvider: "imap",
     mailboxDomains: ["outlook.com", "hotmail.com", "live.com", "msn.com", "office365.com"],
-    setupKind: "browser_oauth",
+    setupKind: "app_password",
     web: {
       loginUrl: "https://outlook.office.com/mail/",
       signupUrl: "https://signup.live.com/",
       settingsUrl: "https://outlook.office.com/mail/"
     },
-    authApi: {
-      startPath: "/api/auth/outlook/start",
-      callbackPath: "/api/auth/outlook/callback",
-      browserRedirectMethod: "GET",
-      programmaticMethod: "POST",
-      querySecretPolicy: "forbidden"
-    },
     recommendedCommand: "mailclaws login outlook <accountId> [displayName]",
-    commands: [
-      "mailclaws login outlook <accountId> [displayName]",
-      "mailclaws login oauth outlook <accountId> [displayName] --tenant <tenant>"
-    ],
+    commands: ["mailclaws login outlook <accountId> [displayName]"],
     inboundModes: ["imap_watch"],
     outboundModes: ["account_smtp"],
-    requiredEnvVars: ["MAILCLAW_MICROSOFT_OAUTH_CLIENT_ID"],
-    optionalEnvVars: ["MAILCLAW_MICROSOFT_OAUTH_CLIENT_SECRET", "MAILCLAW_MICROSOFT_OAUTH_TENANT"],
+    requiredEnvVars: [],
+    optionalEnvVars: [],
     notes: [
-      "Outlook and Microsoft 365 currently land in MailClaws as IMAP/SMTP accounts with OAuth-backed credentials.",
-      "If tenant-specific consent is needed, pass --tenant or configure MAILCLAW_MICROSOFT_OAUTH_TENANT."
+      "Outlook and Microsoft 365 connect here through IMAP/SMTP only.",
+      "If the normal mailbox password is rejected, use a provider-issued app password or mailbox-specific authorization credential."
     ]
   },
   {
@@ -424,17 +398,20 @@ const EXTRA_KNOWN_MAILBOX_WEB_PROVIDERS: KnownMailboxWebProvider[] = [
   }
 ];
 
-const OAUTH_PROVIDERS: OAuthProviderMetadata[] = CONNECT_PROVIDER_GUIDES.filter(
-  (entry): entry is ConnectProviderGuide & { id: OAuthProviderId; accountProvider: "gmail" | "imap" } =>
-    entry.setupKind === "browser_oauth" && (entry.id === "gmail" || entry.id === "outlook")
-).map((entry) => ({
-  id: entry.id,
-  displayName: entry.displayName,
-  aliases: entry.aliases,
-  accountProvider: entry.accountProvider
-}));
-
-const PASSWORD_PRESET_PROVIDERS = new Set(["imap", "password", "qq", "icloud", "yahoo", "163", "126"]);
+const OAUTH_PROVIDERS: OAuthProviderMetadata[] = [
+  {
+    id: "gmail",
+    displayName: "Gmail",
+    aliases: ["gmail", "google", "googlemail"],
+    accountProvider: "gmail"
+  },
+  {
+    id: "outlook",
+    displayName: "Outlook",
+    aliases: ["outlook", "microsoft", "office365", "hotmail", "live", "msn"],
+    accountProvider: "imap"
+  }
+];
 
 export function listConnectProviderGuides() {
   return CONNECT_PROVIDER_GUIDES.map((guide) => ({
@@ -512,13 +489,15 @@ export function resolveOAuthProvider(provider: string | undefined) {
 }
 
 export function isPasswordPresetProvider(provider: string | undefined) {
-  const normalized = provider?.trim().toLowerCase();
-  return normalized ? PASSWORD_PRESET_PROVIDERS.has(normalized) : false;
+  return Boolean(getPasswordPresetProvider(provider));
 }
 
 export function getPasswordPresetProvider(provider: string | undefined) {
-  const normalized = provider?.trim().toLowerCase();
-  return normalized && PASSWORD_PRESET_PROVIDERS.has(normalized) ? normalized : undefined;
+  const guide = resolveConnectProviderGuide(provider);
+  if (!guide || guide.setupKind !== "app_password") {
+    return undefined;
+  }
+  return guide.id;
 }
 
 export function getConnectDiscovery(): ConnectDiscovery {
@@ -530,10 +509,7 @@ export function getConnectDiscovery(): ConnectDiscovery {
       oauthStartPathTemplate: "/api/auth/:provider/start",
       oauthCallbackPathTemplate: "/api/auth/:provider/callback"
     },
-    supportedOAuthProviders: OAUTH_PROVIDERS.map((provider) => ({
-      ...provider,
-      aliases: [...provider.aliases]
-    })),
+    supportedOAuthProviders: [],
     providerCount: CONNECT_PROVIDER_GUIDES.length
   };
 }
@@ -597,15 +573,13 @@ export function resolveConnectProviderByEmailAddress(emailAddress: string | unde
 export function getUnsupportedOAuthProviderMessage(provider: string | undefined) {
   const normalized = provider?.trim().toLowerCase();
   if (!normalized) {
-    return "oauth login provider is required; see `mailclaws connect providers` for supported setup paths";
+    return "browser OAuth login is disabled in this build; use `mailclaws login` for the IMAP/SMTP path";
   }
-  if (normalized === "qq") {
-    return "QQ Mail does not expose a supported browser OAuth flow here; use `mailclaws login qq` and enter the QQ authorization code/app password.";
+  const guide = resolveConnectProviderGuide(normalized);
+  if (guide) {
+    return `Browser OAuth login is disabled for ${guide.displayName}; use \`mailclaws login ${guide.id}\` or \`mailclaws login you@example.com\` for the IMAP/SMTP path.`;
   }
-  if (["icloud", "me", "mac", "yahoo", "163", "126"].includes(normalized)) {
-    return `OAuth login is not wired for ${normalized} here; use \`mailclaws login ${normalized}\` or \`mailclaws connect providers ${normalized}\` for the IMAP/app-password path.`;
-  }
-  return `unsupported oauth login provider: ${provider}; see \`mailclaws connect providers\``;
+  return "Browser OAuth login is disabled here; use `mailclaws login` or inspect `mailclaws connect providers` for IMAP/SMTP setup guidance.";
 }
 
 export function buildConnectOnboardingPlan(input: {
@@ -765,9 +739,6 @@ function renderOnboardingLoginCommand(
   }
 ) {
   const displayNamePart = input.displayNameSuggestion ? ` "${input.displayNameSuggestion}"` : " [displayName]";
-  if (provider.setupKind === "browser_oauth") {
-    return `${MAILCTL_CMD} login ${provider.id} ${input.accountIdSuggestion}${displayNamePart}`;
-  }
   if (provider.id === "imap") {
     return `${MAILCTL_CMD} login`;
   }
@@ -793,14 +764,6 @@ function buildOnboardingChecklist(
     `Inspect the room and internal agent mail with \`${MAILCTL_CMD} observe workbench ${input.accountIdSuggestion}\` or the browser console.`,
     "Approve or reject any pending outbound draft through the outbox/approval flow instead of expecting direct send from workers."
   ];
-
-  if (provider.id === "gmail") {
-    steps.splice(
-      2,
-      0,
-      "If you want Gmail watch/history recovery immediately, add the Pub/Sub topic during login or configure it right after OAuth completes."
-    );
-  }
 
   if (provider.id === "forward") {
     steps[1] =
