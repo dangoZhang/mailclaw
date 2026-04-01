@@ -149,6 +149,8 @@ describe("mail orchestration", () => {
     expect(requests[0]?.sessionKey).toContain(":front:mailclaw%40example.com:thread:");
     expect(requests[0]?.inputText).toContain("Default mail skills for front-orchestrator:");
     expect(requests[0]?.inputText).toContain("Execution mode for front-orchestrator: ReAct-Pre.");
+    expect(requests[0]?.inputText).toContain("Collaboration protocol for front-orchestrator:");
+    expect(requests[0]?.inputText).toContain("shared room discussion");
     expect(requests[0]?.inputText).toContain("do not expand the full transcript by default");
     expect(requests[0]?.inputText).toContain("Mail Read:");
     expect(requests[0]?.inputText).toContain("Mail Write:");
@@ -397,6 +399,8 @@ describe("mail orchestration", () => {
     expect(calls.spawns).toHaveLength(1);
     expect(calls.spawns[0]?.targetAgentId).toBe("research-agent");
     expect(orchestratorRequests).toHaveLength(1);
+    expect(orchestratorRequests[0]).toContain("Collaboration protocol for front-orchestrator:");
+    expect(orchestratorRequests[0]).toContain("The room pre snapshot is the durable discussion state.");
     expect(orchestratorRequests[0]).toContain(
       "mail-researcher: Research found the relevant supporting evidence."
     );
@@ -1672,6 +1676,7 @@ describe("mail orchestration", () => {
     expect(requests).toHaveLength(2);
     expect(requests[1]).toContain("Latest room pre snapshot:");
     expect(requests[1]).toContain("Default mail skills for front-orchestrator:");
+    expect(requests[1]).toContain("Collaboration protocol for front-orchestrator:");
     expect(requests[1]).toContain("Summary: Initial room summary.");
     expect(requests[1]).toContain("Can you refine the last answer with the new detail?");
 
@@ -2241,6 +2246,16 @@ describe("mail orchestration", () => {
         expect.stringContaining(":agent:mail-guard")
       ])
     );
+    expect(
+      calls
+        .filter((call) => call.sessionKey.includes(":agent:"))
+        .every((call) => call.inputText.includes("Collaboration protocol for"))
+    ).toBe(true);
+    expect(
+      calls
+        .filter((call) => call.sessionKey.includes(":agent:"))
+        .every((call) => call.inputText.includes("The room pre snapshot is the durable discussion state."))
+    ).toBe(true);
     expect(
       calls
         .filter((call) => call.sessionKey.includes(":agent:"))

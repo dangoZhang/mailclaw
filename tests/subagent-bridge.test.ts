@@ -181,6 +181,9 @@ describe("subagent bridge", () => {
     expect(calls.spawnInput?.targetAgentId).toBe("research-agent");
     expect(calls.spawnInput?.parentSessionKey).toBe(fixture.roomKey);
     expect(calls.spawnInput?.inputText).toContain("Execution mode: ReAct-Pre.");
+    expect(calls.spawnInput?.inputText).toContain(
+      "Collaboration protocol: mail is the coordination primitive and the parent room is a shared discussion."
+    );
     expect(calls.spawnInput?.inputText).toContain("Never send external email");
     expect(calls.spawnInput?.inputText).toContain("single-run compute worker");
     expect(calls.spawnInput?.inputText).toContain("do not expand the full transcript by default");

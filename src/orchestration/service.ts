@@ -1829,6 +1829,7 @@ function buildOpenClawInput(
       "front-orchestrator",
       "Produce ACK/progress/final direction from compact durable state. Carry forward only concise conclusions, decisions, commitments, open questions, and draft reply text."
     ),
+    formatMailCollaborationProtocol("front-orchestrator"),
     `From: ${message.from ?? "unknown"}`,
     `Subject: ${message.rawSubject ?? message.normalizedSubject}`,
     attachmentBlock.trimEnd(),
@@ -3184,6 +3185,7 @@ function buildAttachmentWorkerInput(
       "attachment-reader",
       "Return compact structured output that can be merged into the room pre. Keep conclusions, evidence refs, and open questions concise."
     ),
+    formatMailCollaborationProtocol("attachment-reader"),
     "Role: mail-attachment-reader",
     `Subject: ${message.rawSubject ?? message.normalizedSubject}`,
     "",
@@ -3209,6 +3211,7 @@ function buildResearchWorkerInput(
       "researcher",
       "Return compact structured output that can be merged into the room pre. Prefer evidence-backed facts, missing facts, and next actions over transcript retelling."
     ),
+    formatMailCollaborationProtocol("researcher"),
     "Role: mail-researcher",
     `Subject: ${message.rawSubject ?? message.normalizedSubject}`,
     "",
@@ -3243,6 +3246,7 @@ function buildSubAgentDelegationInput(input: {
       `subagent:${input.targetId}`,
       "Return compact internal analysis that can be merged into the room pre. Do not expand the full transcript unless a cited ref requires it."
     ),
+    formatMailCollaborationProtocol(`subagent:${input.targetId}`),
     `Role: subagent:${input.targetId}`,
     `Subject: ${input.message.rawSubject ?? input.message.normalizedSubject}`,
     "",
@@ -3276,6 +3280,7 @@ function buildDrafterWorkerInput(
       "drafter",
       "Return compact structured output that can be merged into the room pre, including draft reply text when useful."
     ),
+    formatMailCollaborationProtocol("drafter"),
     "Role: mail-drafter",
     `Subject: ${message.rawSubject ?? message.normalizedSubject}`,
     "",
@@ -3308,6 +3313,7 @@ function buildReviewerWorkerInput(
       "reviewer",
       "Return compact governance findings that can be merged into the room pre. Focus on factual risk, policy risk, and approval state."
     ),
+    formatMailCollaborationProtocol("reviewer"),
     "Role: mail-reviewer",
     `Subject: ${message.rawSubject ?? message.normalizedSubject}`,
     "",
@@ -3333,6 +3339,7 @@ function buildGuardWorkerInput(
       "guard",
       "Return compact sendability decisions that can be merged into the room pre. State approval or blocking conditions without transcript retelling."
     ),
+    formatMailCollaborationProtocol("guard"),
     "Role: mail-guard",
     `Subject: ${message.rawSubject ?? message.normalizedSubject}`,
     "",
@@ -3361,6 +3368,16 @@ function formatReactPreExecutionMode(actorLabel: string, completionInstruction: 
     "- Treat the latest room pre snapshot, shared facts, routing context, retrieved refs, and cited artifacts as the durable working state.",
     "- Pull older transcript only when a cited ref or unresolved gap requires it; do not expand the full transcript by default.",
     `- ${completionInstruction}`
+  ].join("\n");
+}
+
+function formatMailCollaborationProtocol(actorLabel: string) {
+  return [
+    `Collaboration protocol for ${actorLabel}:`,
+    "- Mail is the coordination primitive. Treat inbound mail, internal replies, worker summaries, and subagent results as messages in a shared room discussion.",
+    "- The room pre snapshot is the durable discussion state. Contribute only concise facts, open questions, decisions, commitments, and draft text that later turns can reuse.",
+    "- When collaborators or workers are available, divide work narrowly, cite returned evidence, and merge it before any external reply.",
+    "- If agents disagree, preserve the conflict explicitly in shared facts or open questions instead of silently overwriting another agent's claim."
   ].join("\n");
 }
 
