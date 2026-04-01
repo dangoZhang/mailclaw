@@ -337,6 +337,38 @@ describe("mailctl", () => {
       inboundModes: expect.arrayContaining(["gmail_watch", "gmail_history_recovery"]),
       outboundModes: expect.arrayContaining(["gmail_api_send"])
     });
+
+    const outlookStdout = createWritableBuffer();
+    const outlookExitCode = await runMailctl(["--json", "connect", "providers", "outlook"], {
+      stdout: outlookStdout.stream,
+      stderr: detailStderr.stream
+    });
+    expect(outlookExitCode).toBe(0);
+    expect(JSON.parse(outlookStdout.read())).toMatchObject({
+      id: "outlook",
+      mailboxDomains: expect.arrayContaining(["outlook.com", "office365.com"]),
+      web: {
+        loginUrl: "https://outlook.office.com/mail/",
+        signupUrl: "https://signup.live.com/",
+        settingsUrl: "https://outlook.office.com/mail/"
+      }
+    });
+
+    const qqStdout = createWritableBuffer();
+    const qqExitCode = await runMailctl(["--json", "connect", "providers", "qq"], {
+      stdout: qqStdout.stream,
+      stderr: detailStderr.stream
+    });
+    expect(qqExitCode).toBe(0);
+    expect(JSON.parse(qqStdout.read())).toMatchObject({
+      id: "qq",
+      mailboxDomains: expect.arrayContaining(["qq.com", "foxmail.com"]),
+      web: {
+        loginUrl: "https://mail.qq.com/",
+        signupUrl: "https://zc.qq.com/",
+        settingsUrl: "https://mail.qq.com/"
+      }
+    });
     expect(detailStderr.read()).toBe("");
   });
 

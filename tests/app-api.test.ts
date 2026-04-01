@@ -1487,6 +1487,14 @@ describe("app api", () => {
             })
           }),
           expect.objectContaining({
+            id: "outlook",
+            mailboxDomains: expect.arrayContaining(["outlook.com", "office365.com"]),
+            web: expect.objectContaining({
+              loginUrl: "https://outlook.office.com/mail/",
+              signupUrl: "https://signup.live.com/"
+            })
+          }),
+          expect.objectContaining({
             id: "imap",
             mailboxDomains: []
           })

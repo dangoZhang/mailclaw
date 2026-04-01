@@ -137,9 +137,9 @@ const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
     mailboxDomains: ["outlook.com", "hotmail.com", "live.com", "msn.com", "office365.com"],
     setupKind: "browser_oauth",
     web: {
-      loginUrl: "https://outlook.live.com/mail/",
+      loginUrl: "https://outlook.office.com/mail/",
       signupUrl: "https://signup.live.com/",
-      settingsUrl: "https://outlook.live.com/mail/"
+      settingsUrl: "https://outlook.office.com/mail/"
     },
     authApi: {
       startPath: "/api/auth/outlook/start",
@@ -167,11 +167,11 @@ const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
     displayName: "QQ Mail",
     aliases: ["qq"],
     accountProvider: "imap",
-    mailboxDomains: ["qq.com"],
+    mailboxDomains: ["qq.com", "foxmail.com"],
     setupKind: "app_password",
     web: {
       loginUrl: "https://mail.qq.com/",
-      signupUrl: "https://ssl.zc.qq.com/",
+      signupUrl: "https://zc.qq.com/",
       settingsUrl: "https://mail.qq.com/"
     },
     recommendedCommand: "mailclaws login qq [accountId] [displayName]",
@@ -194,6 +194,7 @@ const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
     setupKind: "app_password",
     web: {
       loginUrl: "https://www.icloud.com/mail/",
+      signupUrl: "https://account.apple.com/account",
       settingsUrl: "https://www.icloud.com/mail/"
     },
     recommendedCommand: "mailclaws login icloud [accountId] [displayName]",
@@ -212,7 +213,7 @@ const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
     displayName: "Yahoo Mail",
     aliases: ["yahoo"],
     accountProvider: "imap",
-    mailboxDomains: ["yahoo.com"],
+    mailboxDomains: ["yahoo.com", "yahoo.co.jp", "yahoo.co.uk", "ymail.com", "rocketmail.com"],
     setupKind: "app_password",
     web: {
       loginUrl: "https://mail.yahoo.com/",
@@ -236,6 +237,7 @@ const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
     setupKind: "app_password",
     web: {
       loginUrl: "https://mail.163.com/",
+      signupUrl: "https://zc.reg.163.com/",
       settingsUrl: "https://mail.163.com/"
     },
     recommendedCommand: "mailclaws login 163 [accountId] [displayName]",
@@ -255,6 +257,7 @@ const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
     setupKind: "app_password",
     web: {
       loginUrl: "https://mail.126.com/",
+      signupUrl: "https://zc.reg.163.com/",
       settingsUrl: "https://mail.126.com/"
     },
     recommendedCommand: "mailclaws login 126 [accountId] [displayName]",
@@ -570,31 +573,14 @@ function resolveOnboardingRecommendation(input: {
 }
 
 function resolveConnectProviderByDomain(domain: string) {
-  switch (domain) {
-    case "gmail.com":
-    case "googlemail.com":
-      return "gmail";
-    case "outlook.com":
-    case "hotmail.com":
-    case "live.com":
-    case "msn.com":
-    case "office365.com":
-      return "outlook";
-    case "qq.com":
-      return "qq";
-    case "icloud.com":
-    case "me.com":
-    case "mac.com":
-      return "icloud";
-    case "yahoo.com":
-      return "yahoo";
-    case "163.com":
-      return "163";
-    case "126.com":
-      return "126";
-    default:
-      return "imap";
+  const normalizedDomain = domain.trim().toLowerCase();
+  const matched = CONNECT_PROVIDER_GUIDES.find(
+    (guide) => guide.id !== "imap" && guide.id !== "forward" && guide.mailboxDomains.includes(normalizedDomain)
+  );
+  if (matched) {
+    return matched.id;
   }
+  return "imap";
 }
 
 function listAlternativeProviders(providerId: ConnectProviderId) {
