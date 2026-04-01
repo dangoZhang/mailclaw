@@ -8,12 +8,13 @@ import type {
   MailTaskStage,
   GatewayProjectionTrace,
   MailboxDeliveryStatus,
+  PublicAgentInbox,
   RoomPreSnapshot,
   TaskStatus,
   ThreadRoom,
   VirtualMessageOriginKind
 } from "../core/types.js";
-import { listMailAccounts } from "../storage/repositories/mail-accounts.js";
+import { getMailAccount, listMailAccounts } from "../storage/repositories/mail-accounts.js";
 import {
   type ApprovalRequestRecord,
   type OutboxIntentRecord
@@ -53,8 +54,11 @@ export interface ConsoleRoomSummary {
   attention: "stable" | "watch" | "critical";
   revision: number;
   frontAgentAddress: string | null;
+  frontAgentId: string | null;
   publicAgentAddresses: string[];
+  publicAgentIds: string[];
   collaboratorAgentAddresses: string[];
+  collaboratorAgentIds: string[];
   summonedRoles: string[];
   mailboxIds: string[];
   mailboxCount: number;
@@ -358,6 +362,49 @@ export function listConsoleApprovals(
   return typeof input.limit === "number" ? filtered.slice(0, Math.max(0, input.limit)) : filtered;
 }
 
+function selectPrimaryPublicAgentInbox(input: {
+  settings?: Record<string, unknown>;
+  rooms?: Array<Pick<ConsoleRoomSummary, "frontAgentAddress" | "frontAgentId">>;
+  inboxes: PublicAgentInbox[];
+}) {
+  if (input.inboxes.length === 0) {
+    return null;
+  }
+
+  const preferredAgentIds = [
+    readDefaultFrontAgentId(input.settings),
+    ...(input.rooms ?? []).flatMap((room) => [room.frontAgentId, room.frontAgentAddress])
+  ]
+    .map(normalizeInboxAgentId)
+    .filter((value) => value.length > 0);
+
+  for (const preferredAgentId of preferredAgentIds) {
+    const matchingInbox = input.inboxes.find((inbox) => normalizeInboxAgentId(inbox.agentId) === preferredAgentId);
+    if (matchingInbox) {
+      return matchingInbox;
+    }
+  }
+
+  return [...input.inboxes].sort(
+    (left, right) =>
+      compareDescending(left.updatedAt, right.updatedAt) ||
+      compareDescending(left.createdAt, right.createdAt) ||
+      left.agentId.localeCompare(right.agentId)
+  )[0] ?? null;
+}
+
+function readDefaultFrontAgentId(settings?: Record<string, unknown>) {
+  const routing =
+    settings && typeof settings.agentRouting === "object" && settings.agentRouting !== null
+      ? (settings.agentRouting as Record<string, unknown>)
+      : null;
+  return typeof routing?.defaultFrontAgentId === "string" ? routing.defaultFrontAgentId : "";
+}
+
+function normalizeInboxAgentId(value?: string | null) {
+  return value?.trim().toLowerCase() ?? "";
+}
+
 export function listConsoleAccounts(
   db: DatabaseSync,
   input: {
@@ -368,6 +415,12 @@ export function listConsoleAccounts(
     .map((account) => {
       const rooms = listConsoleRooms(db, {
         accountId: account.accountId
+      });
+      const inboxes = listPublicAgentInboxesForAccount(db, account.accountId);
+      const primaryInbox = selectPrimaryPublicAgentInbox({
+        settings: account.settings,
+        rooms,
+        inboxes
       });
       const providerState = summarizeAccountProviderState(
         account,
@@ -395,7 +448,7 @@ export function listConsoleAccounts(
         activeRoomCount: rooms.filter((room) => !["done", "failed"].includes(room.state)).length,
         pendingApprovalCount,
         mailboxCount: listVirtualMailboxesForAccount(db, account.accountId).length,
-        inboxCount: listPublicAgentInboxesForAccount(db, account.accountId).length,
+        inboxCount: primaryInbox ? 1 : 0,
         latestActivityAt: latestTimestamp(rooms.map((room) => room.latestActivityAt))
       } satisfies ConsoleAccountSummary;
     })
@@ -419,22 +472,30 @@ export function getConsoleAccount(
   if (!account) {
     return null;
   }
+  const persistedAccount = getMailAccount(db, accountId);
+
+  const rooms = listConsoleRooms(db, {
+    accountId
+  });
+  const primaryInbox = selectPrimaryPublicAgentInbox({
+    settings: persistedAccount?.settings,
+    rooms,
+    inboxes: listPublicAgentInboxesForAccount(db, accountId)
+  });
 
   return {
     terminology: consoleTerminology,
     boundaries: consoleBoundaries,
     account,
-    rooms: listConsoleRooms(db, {
-      accountId
-    }),
+    rooms,
     mailboxes: buildAccountMailboxSummaries(db, accountId),
-    inboxes: listPublicAgentInboxesForAccount(db, accountId).map((inbox) => ({
-      inboxId: inbox.inboxId,
-      agentId: inbox.agentId,
-      activeRoomLimit: inbox.activeRoomLimit,
-      ackSlaSeconds: inbox.ackSlaSeconds,
-      burstCoalesceSeconds: inbox.burstCoalesceSeconds
-    }))
+    inboxes: primaryInbox ? [{
+      inboxId: primaryInbox.inboxId,
+      agentId: primaryInbox.agentId,
+      activeRoomLimit: primaryInbox.activeRoomLimit,
+      ackSlaSeconds: primaryInbox.ackSlaSeconds,
+      burstCoalesceSeconds: primaryInbox.burstCoalesceSeconds
+    }] : []
   };
 }
 
@@ -473,8 +534,11 @@ function buildConsoleRoomSummary(snapshot: ReturnType<typeof replayRoom>): Conso
     }),
     revision: room.revision,
     frontAgentAddress: room.frontAgentAddress ?? null,
+    frontAgentId: room.frontAgentId ?? null,
     publicAgentAddresses: [...(room.publicAgentAddresses ?? [])],
+    publicAgentIds: [...(room.publicAgentIds ?? [])],
     collaboratorAgentAddresses: [...(room.collaboratorAgentAddresses ?? [])],
+    collaboratorAgentIds: [...(room.collaboratorAgentIds ?? [])],
     summonedRoles: [...(room.summonedRoles ?? [])],
     mailboxIds: uniqueStrings(snapshot.mailboxDeliveries.map((delivery) => delivery.mailboxId)),
     mailboxCount: uniqueStrings(snapshot.mailboxDeliveries.map((delivery) => delivery.mailboxId)).length,

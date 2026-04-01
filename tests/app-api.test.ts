@@ -1359,9 +1359,19 @@ describe("app api", () => {
     expect(emptyApprovalsResponse.status).toBe(200);
     expect(emptyApprovalsJson).toHaveLength(0);
 
+    fixture.runtime.ensurePublicAgentInbox({
+      accountId: "acct-1",
+      agentId: "research@ai.example.com",
+      activeRoomLimit: 2,
+      ackSlaSeconds: 45,
+      burstCoalesceSeconds: 90,
+      now: "2026-03-27T00:12:00.000Z"
+    });
+
     const accountsResponse = await fetch(`${baseUrl}/api/console/accounts`);
     const accountsJson = (await accountsResponse.json()) as Array<{
       accountId: string;
+      inboxCount: number;
       pendingApprovalCount: number;
       providerState: {
         lastEventType: string | null;
@@ -1375,6 +1385,7 @@ describe("app api", () => {
       expect.arrayContaining([
         expect.objectContaining({
           accountId: "acct-1",
+          inboxCount: 1,
           pendingApprovalCount: 2,
           providerState: expect.objectContaining({
             latestCursorAdvancedAt: "2026-03-27T00:11:00.000Z"
@@ -1405,11 +1416,11 @@ describe("app api", () => {
       ])
     );
     expect(accountJson.inboxes).toEqual(
-      expect.arrayContaining([
+      [
         expect.objectContaining({
           agentId: "mailclaw@example.com"
         })
-      ])
+      ]
     );
 
     const workbenchResponse = await fetch(

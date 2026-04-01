@@ -1599,6 +1599,37 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         return mailboxId.indexOf("@") !== -1 && mailboxId.indexOf("%40") === -1 ? mailboxId.replace(/@/g, "%40") : mailboxId;
       }
 
+      function normalizeInboxAgentValue(value) {
+        return typeof value === "string" ? value.trim().toLowerCase() : "";
+      }
+
+      function selectPrimaryInboxEntry(entries, primaryInbox) {
+        const list = Array.isArray(entries) ? entries.filter(Boolean) : [];
+        if (list.length === 0) {
+          return null;
+        }
+        const preferredAgentId = normalizeInboxAgentValue(primaryInbox && primaryInbox.agentId);
+        const preferredInboxId = primaryInbox && primaryInbox.inboxId ? String(primaryInbox.inboxId) : "";
+        if (preferredAgentId || preferredInboxId) {
+          const matched = list.find(function(entry) {
+            const inbox = entry && entry.inbox ? entry.inbox : {};
+            return (
+              (preferredAgentId && normalizeInboxAgentValue(inbox.agentId) === preferredAgentId) ||
+              (preferredInboxId && String(inbox.inboxId || "") === preferredInboxId)
+            );
+          });
+          if (matched) {
+            return matched;
+          }
+        }
+        return list[0];
+      }
+
+      function listPrimaryInboxEntries(entries, primaryInbox) {
+        const primaryEntry = selectPrimaryInboxEntry(entries, primaryInbox);
+        return primaryEntry ? [primaryEntry] : [];
+      }
+
       function parseRoute(pathname, search) {
         const parsed = {
           mode: null,
@@ -2021,7 +2052,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         return (
           '<button class="list-card' + (inbox.inboxId === state.route.inboxId ? " active" : "") + '" data-action="select-inbox" data-account-id="' + escapeHtmlClient(inbox.accountId || state.route.accountId || "") + '" data-inbox-id="' + escapeHtmlClient(inbox.inboxId || "") + '">' +
           '<div class="card-top">' +
-          '<div><div class="card-title code">' + escapeHtmlClient(inbox.inboxId || l("inbox", "收件箱")) + '</div><div class="card-subtitle">' + escapeHtmlClient(inbox.agentId || l("agent", "代理")) + " / " + escapeHtmlClient(l("public inbox", "公共收件箱")) + "</div></div>" +
+          '<div><div class="card-title code">' + escapeHtmlClient(inbox.agentId || inbox.inboxId || l("intake address", "接入地址")) + '</div><div class="card-subtitle">' + escapeHtmlClient(l("account intake address", "账号接入地址")) + "</div></div>" +
           renderPill(countText(items.length, "rooms", " 个房间"), items.length > 0 ? "pill--warn" : "") +
           "</div>" +
           '<div class="chips">' +
@@ -2357,7 +2388,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
 
       function renderAccountDetail() {
         if (!state.data || !state.data.accountDetail) {
-          return '<div class="empty">' + escapeHtmlClient(l("Select an account to inspect provider state, inboxes, rooms, and mailbox projections.", "选择一个账号以查看提供商状态、收件箱、房间和邮箱投影。")) + '</div>';
+          return '<div class="empty">' + escapeHtmlClient(l("Select an account to inspect provider state, the single intake address, rooms, and mailbox projections.", "选择一个账号以查看提供商状态、唯一接入地址、房间和邮箱投影。")) + '</div>';
         }
         const detail = state.data.accountDetail;
         const account = detail.account || {};
@@ -2371,13 +2402,16 @@ export function renderOpenClawWorkbenchShellHtml(input: {
               ? settings.senderPolicy
               : {};
         const allowEmails = Array.isArray(senderPolicy.allowEmails) ? senderPolicy.allowEmails.filter(Boolean) : [];
-        const localAddress = inboxes[0] && inboxes[0].inboxId ? inboxes[0].inboxId : account.accountId || l("Not available", "暂无");
+        const localAddress =
+          inboxes[0] && inboxes[0].agentId
+            ? inboxes[0].agentId
+            : account.accountId || l("Not available", "暂无");
         return (
           '<div class="mail-workbench-main">' +
           renderWorkspaceHero({
             eyebrow: l("Mailbox account", "邮箱账号"),
             title: account.displayName || account.emailAddress || account.accountId || l("Mailbox account", "邮箱账号"),
-            copy: l("Manage the local MailClaws address and inbound allowlist for this connected account.", "管理这个已连接账号在 MailClaws 中的本地地址和入站白名单。"),
+            copy: l("Manage the single MailClaws intake address and inbound allowlist for this connected account.", "管理这个已连接账号在 MailClaws 中唯一的接入地址和入站白名单。"),
             summaryItems: [
               { label: l("local address", "本地地址"), value: String(localAddress) },
               { label: l("allowlist", "白名单"), value: String(allowEmails.length) },
@@ -2387,7 +2421,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           }) +
           '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Local MailClaws Address", "本地 MailClaws 地址")) + '</h3><span class="muted code">' + escapeHtmlClient(account.accountId || state.route.accountId || "") + '</span></div><div class="panel-body">' +
           '<div class="mono-block">' + escapeHtmlClient(String(localAddress)) + '</div>' +
-          '<div class="detail">' + escapeHtmlClient(l("Use this local address inside MailClaws when routing work to the connected account.", "在 MailClaws 内部把工作路由给这个已连接账号时，使用这个本地地址。")) + '</div>' +
+          '<div class="detail">' + escapeHtmlClient(l("This is the only MailClaws intake address exposed for the connected account.", "这是这个已连接账号在 MailClaws 中唯一暴露的接入地址。")) + '</div>' +
           '</div></div>' +
           '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Inbound Allowlist", "入站白名单")) + '</h3><span class="muted">' + escapeHtmlClient(countText(allowEmails.length, "entries", " 条")) + '</span></div><div class="panel-body">' +
           (allowEmails.length > 0
@@ -2405,7 +2439,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
       function renderInboxDetail() {
         const mailboxConsole = state.data && state.data.mailboxConsole ? state.data.mailboxConsole : null;
         if (!mailboxConsole || !state.route.inboxId) {
-          return '<div class="empty">' + escapeHtmlClient(l("Select a public inbox to inspect room-level intake, ACK pressure, and work backlog.", "选择一个公共收件箱以查看房间级接入、ACK 压力和工作积压。")) + '</div>';
+          return '<div class="empty">' + escapeHtmlClient(l("Select the account intake address to inspect room-level intake, ACK pressure, and work backlog.", "选择账号接入地址以查看房间级接入、ACK 压力和工作积压。")) + '</div>';
         }
         const projection = (mailboxConsole.publicAgentInboxes || []).find(function(entry) {
           return entry.inbox && entry.inbox.inboxId === state.route.inboxId;
@@ -2418,9 +2452,9 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         return (
           '<div class="mail-workbench-main">' +
           renderWorkspaceHero({
-            eyebrow: l("Public inbox", "公共收件箱"),
-            title: inbox.inboxId || state.route.inboxId || l("Inbox", "收件箱"),
-            copy: l("Inbox items are room-granularity workload, not raw-message tasks. That keeps ACK pressure, backlog, and delegation aligned with the room kernel.", "收件箱项目以房间粒度组织，而不是原始消息任务。这让 ACK 压力、积压和委派都与房间内核保持一致。"),
+            eyebrow: l("Account intake", "账号接入"),
+            title: inbox.agentId || inbox.inboxId || state.route.inboxId || l("Inbox", "收件箱"),
+            copy: l("This intake address is the single account-level entry into MailClaws. Inbox items stay room-granular so ACK pressure, backlog, and delegation remain aligned with the room kernel.", "这个接入地址是账号级进入 MailClaws 的唯一入口。收件箱项目仍然按房间粒度组织，这样 ACK 压力、积压和委派都与房间内核保持一致。"),
             summaryItems: [
               { label: l("rooms", "房间"), value: String(items.length) },
               { label: l("ack sla", "ACK SLA"), value: String(inbox.ackSlaSeconds || 0) + "s" },
@@ -2428,10 +2462,10 @@ export function renderOpenClawWorkbenchShellHtml(input: {
               { label: l("burst", "合并窗口"), value: String(inbox.burstCoalesceSeconds || 0) + "s" }
             ]
           }) +
-          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Inbox Summary", "收件箱摘要")) + '</h3><span class="muted code">' + escapeHtmlClient(inbox.inboxId || state.route.inboxId) + '</span></div><div class="panel-body">' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Intake Address", "接入地址")) + '</h3><span class="muted code">' + escapeHtmlClient(inbox.accountId || state.route.accountId || "") + '</span></div><div class="panel-body">' +
           '<div class="chips">' +
           renderPill(inbox.agentId || l("agent", "代理"), "") +
-          renderPill(prefixedText("account ", "账号 ", inbox.accountId || state.route.accountId || ""), "") +
+          renderPill(prefixedText("projection ", "投影 ", inbox.inboxId || state.route.inboxId || ""), "") +
           '</div>' +
           '<div class="detail">' + escapeHtmlClient(l("Select a room below to move from queue posture into full room inspection.", "从下面选择一个房间，即可从队列视角切换到完整房间检查。")) + '</div>' +
           '</div></div>' +
@@ -2459,26 +2493,30 @@ export function renderOpenClawWorkbenchShellHtml(input: {
       function renderMailboxWorkspaceHome() {
         const mailboxConsole = state.data && state.data.mailboxConsole ? state.data.mailboxConsole : null;
         if (!mailboxConsole) {
-          return '<div class="empty">' + escapeHtmlClient(l("Select an account to inspect mailboxes and public inboxes.", "选择一个账号以查看邮箱箱体和公共收件箱。")) + '</div>';
+          return '<div class="empty">' + escapeHtmlClient(l("Select an account to inspect mailboxes and the account intake address.", "选择一个账号以查看邮箱箱体和账号接入地址。")) + '</div>';
         }
+        const accountDetail = state.data && state.data.accountDetail ? state.data.accountDetail : null;
         const mailboxes = mailboxConsole.virtualMailboxes || [];
-        const inboxes = mailboxConsole.publicAgentInboxes || [];
+        const inboxes = listPrimaryInboxEntries(
+          mailboxConsole.publicAgentInboxes || [],
+          accountDetail && accountDetail.inboxes ? accountDetail.inboxes[0] : null
+        );
         return (
           '<div class="mail-workbench-main">' +
           renderWorkspaceHero({
             eyebrow: l("Mailbox workspace", "邮箱工作区"),
-            title: l("Mailboxes and intake routes", "邮箱箱体与接入路径"),
-            copy: l("Use this view when you want to scan internal role mailboxes, public inbox bindings, and the provider posture for one connected account.", "当你需要查看单个已连接账号的内部角色邮箱、公共收件箱绑定和提供商状态时，使用这个视图。"),
+            title: l("Mailboxes and intake", "邮箱箱体与接入"),
+            copy: l("Use this view when you want to scan internal role mailboxes, the single account intake address, and the provider posture for one connected account.", "当你需要查看单个已连接账号的内部角色邮箱、唯一账号接入地址和提供商状态时，使用这个视图。"),
             summaryItems: [
               { label: l("mailboxes", "邮箱箱体"), value: String(mailboxes.length) },
-              { label: l("inboxes", "收件箱"), value: String(inboxes.length) },
+              { label: l("intake", "接入地址"), value: String(inboxes.length) },
               { label: l("active", "活跃"), value: String(mailboxes.filter(function(entry) { return entry.active; }).length) },
               { label: l("rooms", "房间"), value: String((state.data && state.data.rooms ? state.data.rooms.length : 0)) }
             ]
           }) +
           renderProviderPanel() +
-          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Public Inboxes", "公共收件箱")) + '</h3><span class="muted">' + escapeHtmlClient(countText(inboxes.length, "projected", " 个投影")) + '</span></div><div class="panel-body">' +
-          (inboxes.length > 0 ? '<div class="list">' + inboxes.map(renderInboxCard).join("") + '</div>' : '<div class="empty">' + escapeHtmlClient(l("No public inbox projection exists for this account yet.", "这个账号还没有公共收件箱投影。")) + '</div>') +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Account Intake Address", "账号接入地址")) + '</h3><span class="muted">' + escapeHtmlClient(countText(inboxes.length, "configured", " 个已配置")) + '</span></div><div class="panel-body">' +
+          (inboxes.length > 0 ? '<div class="list">' + inboxes.map(renderInboxCard).join("") + '</div>' : '<div class="empty">' + escapeHtmlClient(l("No account intake address is available yet.", "这个账号暂时还没有可用的接入地址。")) + '</div>') +
           '</div></div>' +
           '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Virtual Mailboxes", "虚拟邮箱")) + '</h3><span class="muted">' + escapeHtmlClient(countText(mailboxes.length, "visible", " 个可见")) + '</span></div><div class="panel-body">' +
           (mailboxes.length > 0 ? '<div class="list">' + mailboxes.map(renderMailboxCard).join("") + '</div>' : '<div class="empty">' + escapeHtmlClient(l("No virtual mailbox is attached to this account yet.", "这个账号还没有挂接虚拟邮箱。")) + '</div>') +
@@ -2494,7 +2532,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           renderWorkspaceHero({
             eyebrow: l("Accounts", "账号"),
             title: l("Connected mailbox accounts", "已连接邮箱账号"),
-            copy: l("Select one connected mailbox account to inspect provider health, public inboxes, recent rooms, and mailbox-local collaboration state.", "选择一个已连接邮箱账号，以查看提供商健康状态、公共收件箱、最近房间和邮箱本地协作状态。"),
+            copy: l("Select one connected mailbox account to inspect provider health, the single intake address, recent rooms, and mailbox-local collaboration state.", "选择一个已连接邮箱账号，以查看提供商健康状态、唯一接入地址、最近房间和邮箱本地协作状态。"),
             summaryItems: [
               { label: l("accounts", "账号"), value: String(accounts.length) },
               { label: l("healthy", "健康"), value: String(accounts.filter(function(account) { return (account.health || "") === "healthy"; }).length) },
@@ -2750,8 +2788,14 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const rooms = state.data && state.data.rooms ? state.data.rooms : [];
         const approvals = state.data && state.data.approvals ? state.data.approvals : [];
         const mailboxConsole = state.data && state.data.mailboxConsole ? state.data.mailboxConsole : null;
+        const accountDetail = state.data && state.data.accountDetail ? state.data.accountDetail : null;
         const mailboxes = mailboxConsole ? mailboxConsole.virtualMailboxes || [] : [];
-        const inboxes = mailboxConsole ? mailboxConsole.publicAgentInboxes || [] : [];
+        const inboxes = mailboxConsole
+          ? listPrimaryInboxEntries(
+              mailboxConsole.publicAgentInboxes || [],
+              accountDetail && accountDetail.inboxes ? accountDetail.inboxes[0] : null
+            )
+          : [];
         return (
           '<div class="mail-workbench-side">' +
           '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Accounts", "账号")) + '</h3><span class="muted">' + escapeHtmlClient(accounts.length) + '</span></div><div class="panel-body">' +
@@ -2767,7 +2811,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
             ? '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Mailboxes", "邮箱箱体")) + '</h3><span class="muted">' + escapeHtmlClient(mailboxes.length) + '</span></div><div class="panel-body"><div class="list">' + mailboxes.slice(0, 8).map(renderMailboxCard).join("") + '</div></div></div>'
             : '') +
           (inboxes.length > 0
-            ? '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Public Inboxes", "公共收件箱")) + '</h3><span class="muted">' + escapeHtmlClient(inboxes.length) + '</span></div><div class="panel-body"><div class="list">' + inboxes.slice(0, 8).map(renderInboxCard).join("") + '</div></div></div>'
+            ? '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Intake Address", "接入地址")) + '</h3><span class="muted">' + escapeHtmlClient(inboxes.length) + '</span></div><div class="panel-body"><div class="list">' + inboxes.slice(0, 8).map(renderInboxCard).join("") + '</div></div></div>'
             : '') +
           '</div>'
         );
@@ -2907,7 +2951,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
               : state.route.mailboxId
                 ? l("Inspect one mailbox feed and the room-local projection visible inside it.", "查看单个邮箱中的消息流，以及其中可见的房间本地投影。")
                 : state.route.accountId
-                  ? l("Inspect provider state, public inboxes, rooms, and mailboxes for one connected account.", "查看单个已连接账号的提供商状态、公共收件箱、房间和虚拟邮箱。")
+                  ? l("Inspect provider state, the single intake address, rooms, and mailboxes for one connected account.", "查看单个已连接账号的提供商状态、唯一接入地址、房间和虚拟邮箱。")
                   : l("OpenClaw-style shell with MailClaws runtime data rendered directly in the workbench.", "OpenClaw 风格的壳层，MailClaws 运行态数据直接渲染在工作台中。");
         }
         if (breadcrumb) {
