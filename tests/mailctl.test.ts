@@ -535,6 +535,39 @@ describe("mailctl", () => {
     fixture.handle.close();
   });
 
+  it("shows known webmail hints for providers that fall back to generic imap", async () => {
+    const fixture = createFixture();
+    const stdout = createWritableBuffer();
+    const stderr = createWritableBuffer();
+
+    const loginExitCode = await runMailctl(["connect", "login", "person@proton.me"], {
+      runtime: fixture.runtime,
+      stdout: stdout.stream,
+      stderr: stderr.stream,
+      prompter: createPrompter([
+        "app-password-proton",
+        "acct-person-proton-me",
+        "Proton User",
+        "mail.protonmail.ch",
+        "993",
+        "yes",
+        "INBOX",
+        "smtp.protonmail.ch",
+        "465",
+        "yes",
+        "person@proton.me"
+      ])
+    });
+
+    expect(loginExitCode).toBe(0);
+    expect(stderr.read()).toContain("Known webmail site: Proton Mail");
+    expect(stderr.read()).toContain("Provider login: https://account.proton.me/");
+    expect(stderr.read()).toContain("MailClaws will continue with the generic IMAP/SMTP login path");
+    expect(stdout.read()).toContain("Connected mailbox person@proton.me as acct-person-proton-me");
+
+    fixture.handle.close();
+  });
+
   it("renders runtime boundary and embedded session inspection surfaces", async () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "mailclaw-mailctl-embedded-"));
     tempDirs.push(tempDir);

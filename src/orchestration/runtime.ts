@@ -93,6 +93,7 @@ import {
 import {
   buildConnectOnboardingPlan,
   listConnectProviderGuides,
+  listKnownMailboxWebProviders,
   resolveOAuthProvider
 } from "../auth/oauth-providers.js";
 import {
@@ -1621,7 +1622,17 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
               ? `${guide.displayName} browser login and MailClaws OAuth connect`
               : guide.setupKind === "app_password"
                 ? `${guide.displayName} IMAP/SMTP login with password or app password`
-                : "Forward raw RFC822 mail into MailClaws without direct mailbox credentials"
+              : "Forward raw RFC822 mail into MailClaws without direct mailbox credentials"
+        })),
+        knownWebProviders: listKnownMailboxWebProviders().map((provider) => ({
+          id: provider.id,
+          displayName: provider.displayName,
+          mailboxDomains: [...provider.mailboxDomains],
+          web: {
+            ...provider.web
+          },
+          connectProviderId: provider.connectProviderId ?? null,
+          notes: [...provider.notes]
         })),
         agentTemplates: listConfiguredAgentTemplates(),
         agentDirectory: listAgentDirectory({

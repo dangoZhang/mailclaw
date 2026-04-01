@@ -15,6 +15,7 @@ import {
   createSuggestedAccountId,
   inferSuggestedDisplayName,
   listConnectProviderGuides,
+  resolveKnownMailboxWebProviderByEmailAddress,
   resolveConnectProviderGuide,
   resolveConnectProviderByEmailAddress,
   getPasswordPresetProvider,
@@ -1512,6 +1513,7 @@ async function handleLogin(
     const prompter = getPrompter();
     emailAddress = emailAddress ?? (await prompter.ask("Email address")).trim();
     const detectedProvider = resolveConnectProviderByEmailAddress(emailAddress);
+    const detectedWebProvider = resolveKnownMailboxWebProviderByEmailAddress(emailAddress);
     if (!detectedProvider) {
       stderr.write(`could not detect a mailbox provider for ${emailAddress}\n`);
       return 1;
@@ -1529,6 +1531,13 @@ async function handleLogin(
       if (detectedProvider.web?.signupUrl) {
         stderr.write(`Need a new mailbox? Register here: ${detectedProvider.web.signupUrl}\n`);
       }
+    } else if (detectedWebProvider && detectedWebProvider.id !== detectedProvider.id) {
+      stderr.write(`Known webmail site: ${detectedWebProvider.displayName}\n`);
+      stderr.write(`Provider login: ${detectedWebProvider.web.loginUrl}\n`);
+      if (detectedWebProvider.web.signupUrl) {
+        stderr.write(`Need a new mailbox? Register here: ${detectedWebProvider.web.signupUrl}\n`);
+      }
+      stderr.write("MailClaws will continue with the generic IMAP/SMTP login path for this mailbox.\n");
     }
   }
 

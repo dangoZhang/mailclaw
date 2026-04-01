@@ -86,6 +86,19 @@ export interface ConnectOnboardingPlan {
   notes: string[];
 }
 
+export interface KnownMailboxWebProvider {
+  id: string;
+  displayName: string;
+  mailboxDomains: string[];
+  web: {
+    loginUrl: string;
+    signupUrl?: string;
+    settingsUrl?: string;
+  };
+  connectProviderId?: ConnectProviderId;
+  notes: string[];
+}
+
 const MAILCTL_CMD = "mailclaws";
 
 const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
@@ -310,6 +323,107 @@ const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
   }
 ];
 
+const EXTRA_KNOWN_MAILBOX_WEB_PROVIDERS: KnownMailboxWebProvider[] = [
+  {
+    id: "proton",
+    displayName: "Proton Mail",
+    mailboxDomains: ["proton.me", "protonmail.com", "pm.me"],
+    web: {
+      loginUrl: "https://account.proton.me/",
+      signupUrl: "https://account.proton.me/signup",
+      settingsUrl: "https://mail.proton.me/"
+    },
+    notes: [
+      "Proton Mail web sign-in is handled through Proton Account.",
+      "If you want to connect Proton Mail to MailClaws, use the generic IMAP path and the provider-generated mailbox password/app password."
+    ]
+  },
+  {
+    id: "zoho",
+    displayName: "Zoho Mail",
+    mailboxDomains: ["zohomail.com", "zoho.com"],
+    web: {
+      loginUrl: "https://www.zoho.com/mail/signin.html",
+      signupUrl: "https://www.zoho.com/mail/zohomail-pricing.html",
+      settingsUrl: "https://mail.zoho.com/"
+    },
+    notes: [
+      "Zoho Mail sign-in uses the Zoho account login page.",
+      "MailClaws currently falls back to the generic IMAP path for Zoho Mail."
+    ]
+  },
+  {
+    id: "aol",
+    displayName: "AOL Mail",
+    mailboxDomains: ["aol.com"],
+    web: {
+      loginUrl: "https://mail.aol.com/",
+      signupUrl: "https://mail.aol.com/",
+      settingsUrl: "https://mail.aol.com/"
+    },
+    notes: [
+      "AOL Mail exposes a webmail login flow from the official AOL Mail homepage.",
+      "MailClaws currently falls back to the generic IMAP path for AOL Mail."
+    ]
+  },
+  {
+    id: "gmx",
+    displayName: "GMX Mail",
+    mailboxDomains: ["gmx.com", "gmx.us", "gmx.de", "gmx.net", "gmx.co.uk"],
+    web: {
+      loginUrl: "https://www.gmx.com/",
+      signupUrl: "https://www.gmx.com/mail/",
+      settingsUrl: "https://www.gmx.com/"
+    },
+    notes: [
+      "GMX webmail is exposed from the official GMX homepage.",
+      "MailClaws currently falls back to the generic IMAP path for GMX Mail."
+    ]
+  },
+  {
+    id: "mail-com",
+    displayName: "mail.com",
+    mailboxDomains: ["mail.com"],
+    web: {
+      loginUrl: "https://www.mail.com/",
+      signupUrl: "https://support.mail.com/account/login-details/register.html",
+      settingsUrl: "https://www.mail.com/"
+    },
+    notes: [
+      "mail.com account registration is documented on the official help site.",
+      "MailClaws currently falls back to the generic IMAP path for mail.com."
+    ]
+  },
+  {
+    id: "yandex",
+    displayName: "Yandex Mail",
+    mailboxDomains: ["yandex.com", "yandex.ru", "ya.ru"],
+    web: {
+      loginUrl: "https://mail.yandex.com/",
+      signupUrl: "https://yandex.com/support/yandex-360/customers/mail/en/reg",
+      settingsUrl: "https://mail.yandex.com/"
+    },
+    notes: [
+      "Yandex support recommends `mail.yandex.com` for mailbox login.",
+      "MailClaws currently falls back to the generic IMAP path for Yandex Mail."
+    ]
+  },
+  {
+    id: "fastmail",
+    displayName: "Fastmail",
+    mailboxDomains: ["fastmail.com", "fastmail.fm"],
+    web: {
+      loginUrl: "https://app.fastmail.com/",
+      signupUrl: "https://www.fastmail.com/signup/",
+      settingsUrl: "https://app.fastmail.com/"
+    },
+    notes: [
+      "Fastmail webmail is available from the official Fastmail app URL.",
+      "MailClaws currently falls back to the generic IMAP path for Fastmail."
+    ]
+  }
+];
+
 const OAUTH_PROVIDERS: OAuthProviderMetadata[] = CONNECT_PROVIDER_GUIDES.filter(
   (entry): entry is ConnectProviderGuide & { id: OAuthProviderId; accountProvider: "gmail" | "imap" } =>
     entry.setupKind === "browser_oauth" && (entry.id === "gmail" || entry.id === "outlook")
@@ -422,6 +536,53 @@ export function getConnectDiscovery(): ConnectDiscovery {
     })),
     providerCount: CONNECT_PROVIDER_GUIDES.length
   };
+}
+
+export function listKnownMailboxWebProviders() {
+  const merged = [
+    ...CONNECT_PROVIDER_GUIDES.flatMap((guide) =>
+      guide.web?.loginUrl && guide.mailboxDomains.length > 0
+        ? [
+            {
+              id: guide.id,
+              displayName: guide.displayName,
+              mailboxDomains: [...guide.mailboxDomains],
+              web: {
+                loginUrl: guide.web.loginUrl,
+                ...(guide.web.signupUrl ? { signupUrl: guide.web.signupUrl } : {}),
+                ...(guide.web.settingsUrl ? { settingsUrl: guide.web.settingsUrl } : {})
+              },
+              connectProviderId: guide.id,
+              notes: [...guide.notes]
+            } satisfies KnownMailboxWebProvider
+          ]
+        : []
+    ),
+    ...EXTRA_KNOWN_MAILBOX_WEB_PROVIDERS.map((provider) => ({
+      ...provider,
+      mailboxDomains: [...provider.mailboxDomains],
+      web: {
+        ...provider.web
+      },
+      notes: [...provider.notes]
+    }))
+  ];
+
+  return merged.filter(
+    (provider, index, array) => array.findIndex((candidate) => candidate.id === provider.id) === index
+  );
+}
+
+export function resolveKnownMailboxWebProviderByEmailAddress(emailAddress: string | undefined) {
+  const normalizedEmailAddress = emailAddress?.trim().toLowerCase();
+  const domain = normalizedEmailAddress?.split("@")[1]?.trim().toLowerCase();
+  if (!domain) {
+    return null;
+  }
+
+  return (
+    listKnownMailboxWebProviders().find((provider) => provider.mailboxDomains.includes(domain)) ?? null
+  );
 }
 
 export function resolveConnectProviderByEmailAddress(emailAddress: string | undefined) {

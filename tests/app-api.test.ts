@@ -1430,6 +1430,16 @@ describe("app api", () => {
               signupUrl?: string;
             };
           }>;
+          knownWebProviders: Array<{
+            id: string;
+            displayName: string;
+            mailboxDomains: string[];
+            connectProviderId: string | null;
+            web: {
+              loginUrl: string;
+              signupUrl?: string;
+            };
+          }>;
         };
       };
       selection: { accountId: string | null; roomKey: string | null; mailboxId: string | null };
@@ -1497,6 +1507,22 @@ describe("app api", () => {
           expect.objectContaining({
             id: "imap",
             mailboxDomains: []
+          })
+        ]),
+        knownWebProviders: expect.arrayContaining([
+          expect.objectContaining({
+            id: "gmail",
+            connectProviderId: "gmail",
+            mailboxDomains: expect.arrayContaining(["gmail.com"])
+          }),
+          expect.objectContaining({
+            id: "proton",
+            connectProviderId: null,
+            mailboxDomains: expect.arrayContaining(["proton.me"]),
+            web: expect.objectContaining({
+              loginUrl: "https://account.proton.me/",
+              signupUrl: "https://account.proton.me/signup"
+            })
           })
         ])
       },

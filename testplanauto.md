@@ -198,5 +198,7 @@
 - 2026-04-01 实测结果：成功产出 OAuth authorize URL；未回调超时报错 `timed out waiting for oauth callback after 5s`
 - 2026-04-01 实测命令：`pnpm test:live-providers`
 - 2026-04-01 实测结果：2 个 live smoke case 均 `skipped`；并输出缺失环境变量清单（IMAP/SMTP 与 Gmail）
+- 2026-04-01 实测结果：已补齐并校验常见邮箱网页登录/注册跳转元数据（Gmail / Outlook / QQ / iCloud / Yahoo / 163 / 126 / Proton / Zoho / AOL / GMX / mail.com / Yandex / Fastmail）；对应 CLI/API 回归通过。
+- 2026-04-01 实测结果：再次执行 `pnpm test` 与 `pnpm build`，本地测试 `389 passed, 2 skipped`，构建通过；仍跳过的仅为 live provider 外部凭据链路。
 - `docs/live-provider-smoke.md` 已更新为 Gmail OAuth 优先 runbook，并与 `T101-T108` 对齐。
 - 当前未再发现新的可复现 bug。

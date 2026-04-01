@@ -1465,6 +1465,17 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         }) || null;
       }
 
+      function resolveKnownWebProviderForMailbox(emailAddress, providers) {
+        const normalizedEmail = String(emailAddress || "").trim().toLowerCase();
+        const domain = normalizedEmail.split("@")[1] || "";
+        if (!domain) {
+          return null;
+        }
+        return (providers || []).find(function(provider) {
+          return Array.isArray(provider.mailboxDomains) && provider.mailboxDomains.includes(domain);
+        }) || null;
+      }
+
       function buildMailClawsConnectHref(provider, emailAddress) {
         const normalizedEmail = String(emailAddress || "").trim().toLowerCase();
         if (!provider || provider.setupKind !== "browser_oauth" || normalizedEmail.indexOf("@") === -1) {
@@ -1848,7 +1859,9 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const loginCommand = (connect && connect.recommendedLoginCommand) || "mailclaws login";
         const connectEmailAddress = state.connectEmailAddress || "";
         const providerOptions = connect && Array.isArray(connect.providerOptions) ? connect.providerOptions : [];
+        const knownWebProviders = connect && Array.isArray(connect.knownWebProviders) ? connect.knownWebProviders : [];
         const detectedProvider = resolveProviderForMailbox(connectEmailAddress, providerOptions);
+        const detectedWebProvider = resolveKnownWebProviderForMailbox(connectEmailAddress, knownWebProviders);
         const templates = connect && Array.isArray(connect.agentTemplates) ? connect.agentTemplates : [];
         const directory = connect && Array.isArray(connect.agentDirectory) ? connect.agentDirectory : [];
         const headcount = connect && Array.isArray(connect.headcountRecommendations) ? connect.headcountRecommendations : [];
@@ -1874,12 +1887,25 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           '<div class="detail">The workbench keeps the setup path narrow on purpose: connect, verify, send one real test email, then switch to room and mailbox inspection.</div>' +
           '<label><div class="section-label">Mailbox address</div><input class="console-input" id="connect-email-input" type="email" placeholder="you@example.com" value="' + escapeHtmlClient(connectEmailAddress) + '" /></label>' +
           '<div class="detail">' + escapeHtmlClient(
-            detectedProvider
-              ? "Detected provider: " + detectedProvider.displayName + ". Use the card below to open the provider login page, register a new mailbox, or jump into MailClaws connect."
+            (detectedWebProvider || detectedProvider)
+              ? "Detected mailbox provider: " + ((detectedWebProvider && detectedWebProvider.displayName) || detectedProvider.displayName) + ". Use the card below to open the provider login page, register a new mailbox, or jump into MailClaws connect."
               : "Enter a mailbox address to detect the provider and reveal the matching web login and mailbox registration paths."
           ) + '</div>' +
           '<div class="mono-block">' + escapeHtmlClient((connect && connect.recommendedStartCommand) || "mailclaws dashboard") + "</div>" +
           '<div class="mono-block">' + escapeHtmlClient(loginCommand) + "</div>" +
+          (detectedWebProvider && !providerOptions.some(function(provider) { return provider.id === detectedWebProvider.id; })
+            ? '<div class="provider-grid">' + renderConnectProviderCard({
+                id: detectedWebProvider.id,
+                displayName: detectedWebProvider.displayName,
+                accountProvider: "imap",
+                setupKind: detectedWebProvider.connectProviderId ? "app_password" : "app_password",
+                mailboxDomains: detectedWebProvider.mailboxDomains,
+                recommendedCommand: "mailclaws login " + escapeHtmlClient(connectEmailAddress || "you@example.com"),
+                web: detectedWebProvider.web,
+                summary: "Open the official mailbox site first, then return to MailClaws and use the generic IMAP/SMTP login path.",
+                connectProviderId: detectedWebProvider.connectProviderId
+              }, connectEmailAddress, detectedWebProvider.id) + "</div>"
+            : "") +
           (providerOptions.length > 0
             ? '<div class="provider-grid">' + providerOptions.map(function(provider) {
                 return renderConnectProviderCard(provider, connectEmailAddress, detectedProvider && detectedProvider.id);
