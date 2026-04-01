@@ -2300,6 +2300,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           '<summary class="panel-header"><h3>' + escapeHtmlClient(l("Advanced options", "高级选项")) + '</h3><span class="muted">' + escapeHtmlClient(l("manual IMAP / SMTP fallback", "手工 IMAP / SMTP 兜底")) + '</span></summary>' +
           '<div class="panel-body">' +
           '<div class="detail-grid">' +
+          '<label><div class="section-label">' + escapeHtmlClient(l("Protocol", "协议")) + '</div><select class="console-input" disabled><option value="imap" selected>IMAP / SMTP</option></select></label>' +
           '<label><div class="section-label">' + escapeHtmlClient((selectedLogin && selectedLogin.credentialLabel) || l("Mailbox password / app password / authorization code", "邮箱密码 / 应用专用密码 / 授权码")) + '</div><input class="console-input" data-connect-field="credential" type="password" autocomplete="current-password" placeholder="' + escapeHtmlClient(l("credential", "凭证")) + '" value="' + escapeHtmlClient(credentialValue) + '" /></label>' +
           '<label><div class="section-label">' + escapeHtmlClient(l("Account ID", "账号 ID")) + '</div><input class="console-input" data-connect-field="accountId" placeholder="acct-you-example-com" value="' + escapeHtmlClient(accountIdValue) + '" /></label>' +
           '<label><div class="section-label">' + escapeHtmlClient(l("Display name", "显示名称")) + '</div><input class="console-input" data-connect-field="displayName" placeholder="you" value="' + escapeHtmlClient(displayNameValue) + '" /></label>' +
@@ -2328,11 +2329,6 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           '<button class="btn" data-action="validate-mailbox">' + escapeHtmlClient(l("Validate Mailbox", "校验邮箱")) + '</button>' +
           '<button class="btn primary" data-action="connect-mailbox"' + (validationReady ? "" : " disabled") + '>' + escapeHtmlClient(l("Connect Mailbox", "连接邮箱")) + '</button>' +
           '</div>' +
-          (providerOptions.length > 0
-            ? '<div class="provider-grid">' + providerOptions.map(function(provider) {
-                return renderConnectProviderCard(provider, connectEmailAddress, detectedProvider && detectedProvider.id);
-              }).join("") + "</div>"
-            : '<div class="empty">' + escapeHtmlClient(l("No provider metadata is available.", "没有可用的提供商元数据。")) + '</div>') +
           '</div>' +
           '</details>'
         );
