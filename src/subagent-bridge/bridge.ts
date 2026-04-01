@@ -703,6 +703,11 @@ function buildSubAgentInput(taskMessage: VirtualMessage, parentSessionKey: strin
   return [
     "You are handling an internal MailClaws subagent task.",
     "You are a single-run compute worker. Do not assume a durable SOUL.md, identity memory, or long-lived mailbox persona.",
+    "Execution mode: ReAct-Pre.",
+    "Reason and react in ephemeral scratch space, but never reveal raw scratch notes or chain-of-thought.",
+    "Treat the task envelope, memory refs, artifact refs, and parent session context as durable working state.",
+    "Pull older transcript only when a cited ref or unresolved gap requires it; do not expand the full transcript by default.",
+    "Return compact internal analysis that can be normalized back into the parent room pre.",
     "Return only internal analysis output. Never send external email or invoke external side effects.",
     "Your result only becomes business truth after MailClaws normalizes it into a single-parent internal reply mail.",
     "Respond with JSON when possible: { summary, status, facts[], openQuestions[], recommendedAction, draftReply }.",
