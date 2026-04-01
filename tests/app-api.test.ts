@@ -1687,6 +1687,8 @@ describe("app api", () => {
     expect(connectHtml).toContain("/workbench/mail");
     expect(connectHtml).toContain("OpenClaw Workbench");
     expect(connectHtml).toContain("/console/workbench");
+    expect(connectHtml).toContain('data-language-mode="zh-CN"');
+    expect(connectHtml).toContain("中文");
     expect(connectHtml).toContain('data-action="validate-mailbox"');
     expect(connectHtml).toContain('data-action="connect-mailbox"');
     expect(connectHtml).toContain("Validate Mailbox");
@@ -1707,6 +1709,9 @@ describe("app api", () => {
     expect(connectInputHandler).not.toMatch(
       /if \(target\.id === "connect-email-input"\) \{[\s\S]*?render\(\);[\s\S]*?return;[\s\S]*?\}/
     );
+    expect(connectModuleScript).toContain('const LANGUAGE_STORAGE_KEY = "mailclaw.workbench.language";');
+    expect(connectModuleScript).toContain("applyLanguage(readStoredLanguage());");
+    expect(connectModuleScript).toContain('document.querySelectorAll("[data-language-mode]")');
     expect(connectHtml).not.toContain("<iframe");
     expect(() => new vm.Script(connectModuleScript)).not.toThrow();
 
