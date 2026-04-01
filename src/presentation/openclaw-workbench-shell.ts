@@ -1728,6 +1728,10 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         if (segments[0] === "connect") {
           parsed.mode = "connect";
         }
+        if (segments[0] === "mail" && segments[1]) {
+          parsed.roomKey = decodeURIComponent(segments[1]);
+          parsed.mode = "mail";
+        }
         if (segments[0] === "accounts" && segments[1]) {
           parsed.accountId = decodeURIComponent(segments[1]);
           parsed.mode = "accounts";
@@ -1763,7 +1767,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         parsed.originKind = params.get("originKind") || "";
         parsed.approvalStatus = params.get("approvalStatus") || "";
         if (!parsed.mode) {
-          parsed.mode = "connect";
+          parsed.mode = "mail";
         }
         return parsed;
       }
@@ -1968,6 +1972,8 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           pathname = routeBase + "/inboxes/" + encodeURIComponent(route.accountId) + "/" + encodeURIComponent(route.inboxId);
         } else if (route.mailboxId && route.accountId) {
           pathname = routeBase + "/mailboxes/" + encodeURIComponent(route.accountId) + "/" + encodeURIComponent(route.mailboxId);
+        } else if (route.roomKey && route.mode === "mail") {
+          pathname = routeBase + "/mail/" + encodeURIComponent(route.roomKey);
         } else if (route.roomKey) {
           pathname = routeBase + "/rooms/" + encodeURIComponent(route.roomKey);
         } else if (route.accountId && (!route.mode || route.mode === "accounts")) {
@@ -2102,6 +2108,28 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         );
       }
 
+      function renderMailSessionCard(session, participantRole) {
+        const active = state.route.mode === "mail" && session.primaryRoomKey === state.route.roomKey;
+        return (
+          '<button class="list-card' + (active ? " active" : "") + '" data-action="select-mail" data-room-key="' + escapeHtmlClient(session.primaryRoomKey || "") + '" data-account-id="' + escapeHtmlClient(session.accountId || "") + '">' +
+          '<div class="card-top">' +
+          '<div>' +
+          '<div class="card-title">' + escapeHtmlClient(session.latestSubject || session.sessionId || session.primaryRoomKey || l("Mail session", "邮件会话")) + '</div>' +
+          '<div class="card-subtitle code">' + escapeHtmlClient(session.sessionId || session.primaryRoomKey || "session") + '</div>' +
+          '</div>' +
+          renderPill(session.state || "open", "") +
+          '</div>' +
+          '<div class="chips">' +
+          renderPill(prefixedText("owner ", "归属 ", session.frontAgentId || session.frontAgentAddress || l("n/a", "无")), "") +
+          renderPill(countText(session.roomCount || 0, "rooms", " 个房间"), "") +
+          renderPill(countText(session.pendingApprovalCount || 0, "approvals", " 个审批"), Number(session.pendingApprovalCount || 0) > 0 ? "pill--warn" : "") +
+          (participantRole ? renderPill(participantRole === "front" ? l("front address", "前台地址") : l("collaborator", "协作者"), "pill--ok") : "") +
+          '</div>' +
+          '<div class="detail">' + escapeHtmlClient(prefixedText("Updated ", "更新于 ", formatTime(session.latestActivityAt))) + '</div>' +
+          '</button>'
+        );
+      }
+
       function renderApprovalCard(approval) {
         return (
           '<button class="list-card" data-action="select-room" data-room-key="' + escapeHtmlClient(approval.roomKey) + '" data-account-id="' + escapeHtmlClient(approval.accountId || "") + '">' +
@@ -2150,6 +2178,25 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           "</div>" +
           '<div class="detail">' + escapeHtmlClient(items.slice(0, 2).map(function(item) { return item.roomKey; }).join(", ") || l("No projected rooms yet", "还没有投影出来的房间")) + "</div>" +
           "</button>"
+        );
+      }
+
+      function renderAgentMailCard(agentView) {
+        const mails = Array.isArray(agentView.mails) ? agentView.mails : [];
+        return (
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(agentView.displayName || agentView.agentId || "agent") + '</h3><span class="muted">' + escapeHtmlClient(countText(mails.length, "mails", " 个会话")) + '</span></div><div class="panel-body">' +
+          '<div class="chips">' +
+          renderPill(agentView.agentId || "agent", "") +
+          (agentView.routingAddress ? renderPill(agentView.routingAddress, "pill--ok") : "") +
+          (agentView.subjectRoutingHint ? renderPill(agentView.subjectRoutingHint, "") : "") +
+          renderPill(prefixedText("front ", "前台 ", agentView.frontRoomCount || 0), "") +
+          renderPill(prefixedText("collab ", "协作 ", agentView.collaboratorRoomCount || 0), "") +
+          '</div>' +
+          (agentView.purpose ? '<div class="detail">' + escapeHtmlClient(agentView.purpose) + '</div>' : '') +
+          (mails.length > 0
+            ? '<div class="list">' + mails.map(function(mail) { return renderMailSessionCard(mail, mail.participantRole); }).join("") + '</div>'
+            : '<div class="empty">' + escapeHtmlClient(l("No mail sessions are currently routed to this agent.", "当前还没有邮件会话路由到这个 Agent。")) + '</div>') +
+          '</div></div>'
         );
       }
 
@@ -2606,6 +2653,35 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         );
       }
 
+      function renderMailHome() {
+        const workspace = state.data && state.data.workspace ? state.data.workspace : null;
+        const connect = workspace && workspace.connect ? workspace.connect : null;
+        const sessions = connect && Array.isArray(connect.mailSessions) ? connect.mailSessions : [];
+        if (!state.data || !state.data.accounts || state.data.accounts.length === 0) {
+          return renderConnectHome();
+        }
+        return (
+          '<div class="mail-workbench-main">' +
+          renderWorkspaceHero({
+            eyebrow: l("Mail", "邮件"),
+            title: l("Mail sessions", "邮件会话"),
+            copy: l("Mail is the external conversation layer. Start here to scan thread sessions, see which address currently owns each session, and then decide whether you want the agent view or the room view.", "Mail 是外部对话层。先在这里浏览线程会话，确认当前由哪个地址接管，再决定切到按 Agent 还是按 Room 查看。"),
+            summaryItems: [
+              { label: l("sessions", "会话"), value: String(sessions.length) },
+              { label: l("active", "活跃"), value: String(sessions.filter(function(session) { return (session.state || "") !== "done"; }).length) },
+              { label: l("approvals", "审批"), value: String(sessions.reduce(function(total, session) { return total + Number(session.pendingApprovalCount || 0); }, 0)) },
+              { label: l("rooms", "房间"), value: String(sessions.reduce(function(total, session) { return total + Number(session.roomCount || 0); }, 0)) }
+            ]
+          }) +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Mail Sessions", "邮件会话")) + '</h3><span class="muted">' + escapeHtmlClient(countText(sessions.length, "visible", " 个可见")) + '</span></div><div class="panel-body">' +
+          (sessions.length > 0
+            ? '<div class="list">' + sessions.map(function(session) { return renderMailSessionCard(session, ""); }).join("") + '</div>'
+            : '<div class="empty">' + escapeHtmlClient(l("No mail sessions are visible for the current account yet.", "当前账号下还没有可见的邮件会话。")) + '</div>') +
+          '</div></div>' +
+          '</div>'
+        );
+      }
+
       function renderMailboxWorkspaceHome() {
         const mailboxConsole = state.data && state.data.mailboxConsole ? state.data.mailboxConsole : null;
         if (!mailboxConsole) {
@@ -2645,21 +2721,25 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const workspace = state.data && state.data.workspace ? state.data.workspace : null;
         const connect = workspace && workspace.connect ? workspace.connect : null;
         const agents = connect && Array.isArray(connect.agentDirectory) ? connect.agentDirectory : [];
+        const agentMailView = connect && Array.isArray(connect.agentMailView) ? connect.agentMailView : [];
         const skills = connect && Array.isArray(connect.skills) ? connect.skills : [];
         return (
           '<div class="mail-workbench-main">' +
           renderWorkspaceHero({
-            eyebrow: l("Agents", "Agent"),
-            title: l("Agent directory", "Agent 目录"),
-            copy: l("Agents are the primary working surface. Start here to inspect persistent workers, their public mailbox entrypoints, collaborator links, and installed skills.", "Agent 是主工作面。先从这里查看常驻 worker、它们的公共邮箱入口、协作者关系和已安装技能。"),
+            eyebrow: l("Agent Addresses", "Agent 地址"),
+            title: l("Agent mail view", "Agent 邮件视图"),
+            copy: l("Address is the single-agent todo layer. Use this view to see every mail session visible to each agent, then open the shared room only when multi-agent collaboration matters.", "Address 是单 Agent 待办层。这里按 Agent 查看它能看到的所有邮件会话，只有在需要多人协作时再打开共享 room。"),
             summaryItems: [
-              { label: l("agents", "Agent"), value: String(agents.length) },
-              { label: l("with mailboxes", "带邮箱"), value: String(agents.filter(function(agent) { return Array.isArray(agent.virtualMailboxes) && agent.virtualMailboxes.length > 0; }).length) },
+              { label: l("agents", "Agent"), value: String(agentMailView.length || agents.length) },
+              { label: l("mail sessions", "邮件会话"), value: String(agentMailView.reduce(function(total, entry) { return total + Number(entry.roomCount || 0); }, 0)) },
               { label: l("skills", "技能"), value: String(skills.reduce(function(total, entry) { return total + Number((entry.skills || []).length || 0); }, 0)) },
               { label: l("templates", "模板"), value: String(agents.filter(function(agent) { return Boolean(agent.templateId); }).length) }
             ]
           }) +
-          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Agents", "Agent")) + '</h3><span class="muted">' + escapeHtmlClient(countText(agents.length, "visible", " 个可见")) + '</span></div><div class="panel-body">' +
+          (agentMailView.length > 0
+            ? agentMailView.map(renderAgentMailCard).join("")
+            : '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Agents", "Agent")) + '</h3></div><div class="panel-body"><div class="empty">' + escapeHtmlClient(l("No agent mail view is available yet.", "当前还没有可见的 Agent 邮件视图。")) + '</div></div></div>') +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Directory", "目录")) + '</h3><span class="muted">' + escapeHtmlClient(countText(agents.length, "visible", " 个可见")) + '</span></div><div class="panel-body">' +
           (agents.length > 0 ? '<div class="timeline-list">' + agents.map(renderAgentDirectoryCard).join("") + '</div>' : '<div class="empty">' + escapeHtmlClient(l("No agents are attached to the current mailbox workspace yet.", "当前邮箱工作区还没有挂接任何 Agent。")) + '</div>') +
           '</div></div>' +
           '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Agent Skills", "Agent 技能")) + '</h3><span class="muted">' + escapeHtmlClient(countText(skills.length, "groups", " 组")) + '</span></div><div class="panel-body">' +
@@ -2675,8 +2755,8 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           '<div class="mail-workbench-main">' +
           renderWorkspaceHero({
             eyebrow: l("Rooms", "房间"),
-            title: l("Durable room timeline", "持久房间时间线"),
-            copy: l("Rooms are the truth boundary for external mail, internal collaboration, approvals, and gateway projection. Open one room to inspect the full timeline.", "房间是外部邮件、内部协作、审批和网关投影的真相边界。打开一个房间即可查看完整时间线。"),
+            title: l("Shared collaboration rooms", "共享协作房间"),
+            copy: l("Rooms are the multi-agent collaboration layer. Open this view when one mail session needs internal handoff, governed delivery, or replay-visible coordination across multiple agents.", "Room 是多 Agent 协作层。当一个邮件会话需要内部交接、受控交付或多 Agent 可回放协作时，再进入这里。"),
             summaryItems: [
               { label: l("rooms", "房间"), value: String(rooms.length) },
               { label: l("active", "活跃"), value: String(rooms.filter(function(room) { return (room.state || "") !== "closed"; }).length) },
@@ -2774,6 +2854,57 @@ export function renderOpenClawWorkbenchShellHtml(input: {
             : '') +
           '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Mailbox Feed", "邮箱消息流")) + '</h3><span class="muted">' + escapeHtmlClient(countText(feed.length, "items loaded", " 条已加载")) + '</span></div><div class="panel-body">' +
           (feed.length > 0 ? '<div class="mailbox-feed">' + feed.map(renderFeedEntry).join("") + '</div>' : '<div class="empty">' + escapeHtmlClient(l("No messages are currently projected into the selected mailbox.", "当前没有消息投影到所选邮箱中。")) + '</div>') +
+          '</div></div>' +
+          '</div>'
+        );
+      }
+
+      function renderMailSessionDetail() {
+        const roomDetail = state.data && state.data.roomDetail ? state.data.roomDetail : null;
+        if (!roomDetail || !roomDetail.room) {
+          return '<div class="empty">' + escapeHtmlClient(l("Select a mail session to inspect the external thread, address ownership, and linked collaboration room.", "选择一个邮件会话以查看外部线程、地址归属和关联的协作 room。")) + '</div>';
+        }
+        const room = roomDetail.room;
+        const virtualMessages = roomDetail.virtualMessages || [];
+        const approvals = roomDetail.approvals || [];
+        const outboxIntents = roomDetail.outboxIntents || [];
+        return (
+          '<div class="mail-workbench-main">' +
+          renderWorkspaceHero({
+            eyebrow: l("Mail Session", "邮件会话"),
+            title: room.latestSubject || room.stableThreadId || room.roomKey,
+            copy: l("This is the external conversation view: thread identity, current address owner, and the linked room that coordinates internal work for this mail.", "这是外部对话视图：线程身份、当前地址归属，以及为这封邮件协调内部工作的关联 room。"),
+            summaryItems: [
+              { label: l("session", "会话"), value: String(room.stableThreadId || room.roomKey) },
+              { label: l("owner", "归属"), value: String(room.frontAgentId || room.frontAgentAddress || l("n/a", "无")) },
+              { label: l("messages", "消息"), value: String(roomDetail.counts && roomDetail.counts.virtualMessages ? roomDetail.counts.virtualMessages : 0) },
+              { label: l("approvals", "审批"), value: String(room.pendingApprovalCount || 0) }
+            ]
+          }) +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Session Summary", "会话摘要")) + '</h3><span class="muted code">' + escapeHtmlClient(room.stableThreadId || room.roomKey) + '</span></div><div class="panel-body">' +
+          '<div class="chips">' +
+          renderPill(room.state || "open", "") +
+          renderPill(prefixedText("room ", "room ", room.roomKey || ""), "") +
+          (room.frontAgentId ? renderPill("address " + room.frontAgentId, "pill--ok") : "") +
+          ((room.collaboratorAgentIds || []).map(function(agentId) { return renderPill("collab " + agentId, ""); }).join("")) +
+          '</div>' +
+          '<div class="detail">' + escapeHtmlClient(prefixedText("Latest activity ", "最近活动 ", formatTime(room.latestActivityAt))) + '</div>' +
+          '<div class="detail">' + escapeHtmlClient(prefixedText("Linked room ", "关联 room ", room.roomKey || l("n/a", "无"))) + '</div>' +
+          '<div class="actions-inline"><button class="btn" data-action="select-room" data-room-key="' + escapeHtmlClient(room.roomKey || "") + '" data-account-id="' + escapeHtmlClient(room.accountId || "") + '">' + escapeHtmlClient(l("Open Room View", "打开 Room 视图")) + '</button></div>' +
+          '</div></div>' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Mail Timeline", "邮件时间线")) + '</h3><span class="muted">' + escapeHtmlClient(countText(virtualMessages.length, "messages", " 条消息")) + '</span></div><div class="panel-body">' +
+          (virtualMessages.length > 0
+            ? '<div class="timeline-list">' + virtualMessages.slice(0, 24).map(renderVirtualMessageEntry).join("") + '</div>'
+            : '<div class="empty">' + escapeHtmlClient(l("No mail-visible timeline entries are available yet.", "当前还没有可见的邮件时间线条目。")) + '</div>') +
+          '</div></div>' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Governed Delivery", "受控交付")) + '</h3><span class="muted">' + escapeHtmlClient(countText(outboxIntents.length, "intents", " 条意图")) + '</span></div><div class="panel-body">' +
+          '<div class="chips">' +
+          renderPill(countText(approvals.length, "approvals", " 个审批"), approvals.length > 0 ? "pill--warn" : "") +
+          renderPill(countText(outboxIntents.length, "outbox", " 条出站"), "") +
+          '</div>' +
+          (outboxIntents.length > 0
+            ? '<div class="timeline-list">' + outboxIntents.map(renderOutboxEntry).join("") + '</div>'
+            : '<div class="detail">' + escapeHtmlClient(l("No governed outbound delivery is linked to this mail session yet.", "这个邮件会话还没有关联受控出站交付。")) + '</div>') +
           '</div></div>' +
           '</div>'
         );
@@ -2912,6 +3043,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const workspace = state.data && state.data.workspace ? state.data.workspace : null;
         const connect = workspace && workspace.connect ? workspace.connect : null;
         const agents = connect && Array.isArray(connect.agentDirectory) ? connect.agentDirectory : [];
+        const mailSessions = connect && Array.isArray(connect.mailSessions) ? connect.mailSessions : [];
         const mailboxConsole = state.data && state.data.mailboxConsole ? state.data.mailboxConsole : null;
         const accountDetail = state.data && state.data.accountDetail ? state.data.accountDetail : null;
         const mailboxes = mailboxConsole ? mailboxConsole.virtualMailboxes || [] : [];
@@ -2923,6 +3055,9 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           : [];
         return (
           '<div class="mail-workbench-side">' +
+          (mailSessions.length > 0
+            ? '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Mail", "邮件")) + '</h3><span class="muted">' + escapeHtmlClient(mailSessions.length) + '</span></div><div class="panel-body"><div class="list">' + mailSessions.slice(0, 6).map(function(session) { return renderMailSessionCard(session, ""); }).join("") + '</div></div></div>'
+            : '') +
           (agents.length > 0
             ? '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Agents", "Agent")) + '</h3><span class="muted">' + escapeHtmlClient(agents.length) + '</span></div><div class="panel-body"><div class="timeline-list">' + agents.slice(0, 6).map(renderAgentDirectoryCard).join("") + '</div></div></div>'
             : '') +
@@ -2955,19 +3090,23 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         if (!state.data) {
           return '<div class="empty">' + escapeHtmlClient(l("No workbench payload was returned.", "没有返回工作台数据。")) + '</div>';
         }
-        let primary = renderConnectHome();
+        let primary = renderMailHome();
         if (state.route.mailboxId) {
           primary = renderMailboxDetail();
         } else if (state.route.inboxId) {
           primary = renderInboxDetail();
         } else if (state.route.mode === "mailboxes") {
           primary = renderMailboxWorkspaceHome();
+        } else if (state.route.mode === "mail" && state.route.roomKey) {
+          primary = renderMailSessionDetail();
         } else if (state.route.mode === "agents") {
           primary = renderAgentsHome();
         } else if (state.route.mode === "accounts" && state.route.accountId && !state.route.roomKey) {
           primary = renderAccountDetail();
         } else if (state.route.roomKey) {
           primary = renderRoomDetail();
+        } else if (state.route.mode === "mail" || state.route.mode === "connect") {
+          primary = renderMailHome();
         } else if (state.route.mode === "rooms") {
           primary = renderRoomsHome();
         } else if (state.route.mode === "approvals") {
@@ -2975,7 +3114,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         } else if (state.route.accountId) {
           primary = renderAccountDetail();
         }
-        if (state.route.mode === "connect" && !state.route.accountId && !state.route.roomKey && !state.route.mailboxId && !state.route.inboxId) {
+        if ((state.route.mode === "connect" || state.route.mode === "mail") && !state.route.accountId && !state.route.roomKey && !state.route.mailboxId && !state.route.inboxId) {
           return primary;
         }
         return '<div class="mail-workbench-grid">' + primary + renderSidePanels() + '</div>';
@@ -3034,7 +3173,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         if (tabId === "agents") return l("Agents", "Agent");
         if (tabId === "accounts") return l("Accounts", "账号");
         if (tabId === "rooms") return l("Rooms", "房间");
-        if (tabId === "mailboxes") return l("Mailboxes", "邮箱箱体");
+        if (tabId === "mailboxes") return l("Addresses", "地址");
         if (tabId === "approvals") return l("Approvals", "审批");
         return fallbackLabel;
       }
@@ -3067,8 +3206,9 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const approvalsPill = document.getElementById("approvals-pill");
         if (pageTitle) {
           pageTitle.textContent =
+            activeTab === "mail" ? l("Mail Sessions", "邮件会话") :
             activeTab === "rooms" ? l("Room Workbench", "房间工作台") :
-            activeTab === "mailboxes" ? l("Mailbox Workbench", "邮箱工作台") :
+            activeTab === "mailboxes" ? l("Address Workbench", "地址工作台") :
             activeTab === "agents" ? l("Agent Workbench", "Agent 工作台") :
             activeTab === "accounts" ? l("Mailbox Settings", "邮箱设置") :
             activeTab === "approvals" ? l("Approvals", "审批") :
@@ -3076,10 +3216,14 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         }
         if (pageSub) {
           pageSub.textContent =
-            activeTab === "agents"
+            activeTab === "mail"
+              ? l("Browse external mail sessions first, then pivot into one agent address or one shared room when needed.", "先浏览外部邮件会话，再按需切到单个 Agent 地址视图或共享 room 视图。")
+              : activeTab === "agents"
               ? l("Inspect persistent agents, their mailbox entrypoints, collaborator links, and installed skills.", "查看常驻 Agent、它们的邮箱入口、协作者关系和已安装技能。")
+              : activeTab === "mailboxes"
+                ? l("Inspect address-local queueing, intake bindings, and internal mailbox projections.", "查看地址本地队列、接入绑定和内部邮箱投影。")
               : state.route.roomKey
-              ? l("Inspect one room, its mailbox participation, approvals, and gateway projection trace.", "查看单个房间的邮箱参与情况、审批状态和网关投影轨迹。")
+              ? l("Inspect one room, its mailbox participation, approvals, and gateway projection trace.", "查看单个 room 的邮箱参与情况、审批状态和网关投影轨迹。")
               : state.route.mailboxId
                 ? l("Inspect one mailbox feed and the room-local projection visible inside it.", "查看单个邮箱中的消息流，以及其中可见的房间本地投影。")
                 : state.route.accountId
@@ -3093,7 +3237,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         if (pageMeta) {
           const bits = [];
           if (state.route.accountId) bits.push(renderPill(prefixedText("account ", "账号 ", state.route.accountId), ""));
-          if (state.route.roomKey) bits.push(renderPill(prefixedText("room ", "房间 ", state.route.roomKey), ""));
+          if (state.route.roomKey) bits.push(renderPill(prefixedText(state.route.mode === "mail" ? "session " : "room ", state.route.mode === "mail" ? "会话 " : "房间 ", state.route.roomKey), ""));
           if (state.route.mailboxId) bits.push(renderPill(prefixedText("mailbox ", "邮箱 ", state.route.mailboxId), ""));
           if (state.route.inboxId) bits.push(renderPill(prefixedText("inbox ", "收件箱 ", state.route.inboxId), ""));
           if (workspace && workspace.hostIntegration && workspace.hostIntegration.capabilities && workspace.hostIntegration.capabilities.internalMail) {
@@ -3133,7 +3277,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         }
         notifyHost("mailclaw.workbench.route", {
           href: href,
-          routeMode: state.route.mode || "connect",
+          routeMode: state.route.mode || "mail",
           accountId: state.route.accountId,
           roomKey: state.route.roomKey,
           mailboxId: state.route.mailboxId
@@ -3171,7 +3315,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           }
           syncUrl(Boolean(replaceUrl));
           notifyHost("mailclaw.workbench.state", {
-            routeMode: state.route.mode || "connect",
+            routeMode: state.route.mode || "mail",
             accountCount: payload && payload.accounts ? payload.accounts.length : 0,
             roomCount: payload && payload.rooms ? payload.rooms.length : 0,
             approvalCount: payload && payload.approvals ? payload.approvals.length : 0,
@@ -3189,8 +3333,9 @@ export function renderOpenClawWorkbenchShellHtml(input: {
       }
 
       function navigate(nextRoute) {
+        const requestedMode = nextRoute.mode || state.route.mode || "mail";
         state.route = {
-          mode: nextRoute.mode || state.route.mode || "connect",
+          mode: requestedMode,
           accountId: nextRoute.accountId ?? null,
           inboxId: nextRoute.inboxId ?? null,
           roomKey: nextRoute.roomKey ?? null,
@@ -3199,12 +3344,14 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           originKind: state.route.originKind || "",
           approvalStatus: state.route.approvalStatus || ""
         };
-        if (state.route.mailboxId || state.route.inboxId) {
-          state.route.mode = "mailboxes";
-        } else if (state.route.roomKey) {
-          state.route.mode = "rooms";
-        } else if (state.route.accountId) {
-          state.route.mode = "accounts";
+        if (!nextRoute.mode) {
+          if (state.route.mailboxId || state.route.inboxId) {
+            state.route.mode = "mailboxes";
+          } else if (state.route.roomKey) {
+            state.route.mode = "rooms";
+          } else if (state.route.accountId) {
+            state.route.mode = "accounts";
+          }
         }
         void refresh(false);
       }
@@ -3457,6 +3604,16 @@ export function renderOpenClawWorkbenchShellHtml(input: {
             roomKey: target.getAttribute("data-room-key"),
             mailboxId: null,
             mode: "rooms"
+          });
+        }
+        if (action === "select-mail") {
+          event.preventDefault();
+          navigate({
+            accountId: target.getAttribute("data-account-id") || state.route.accountId,
+            inboxId: null,
+            roomKey: target.getAttribute("data-room-key"),
+            mailboxId: null,
+            mode: "mail"
           });
         }
         if (action === "select-mailbox") {

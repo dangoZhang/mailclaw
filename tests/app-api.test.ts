@@ -1483,6 +1483,8 @@ describe("app api", () => {
         activeTab: string;
         tabs: Array<{ id: string; href: string; active: boolean }>;
         connect: {
+          mailSessions: Array<{ sessionId: string; primaryRoomKey: string; frontAgentId: string | null }>;
+          agentMailView: Array<{ agentId: string; roomCount: number; mails: Array<{ primaryRoomKey: string }> }>;
           browserPath: string;
           onboardingApiPath: string;
           recommendedStartCommand: string;
@@ -1596,13 +1598,28 @@ describe("app api", () => {
       tabs: expect.arrayContaining([
         expect.objectContaining({
           id: "mail",
-          href: "/workbench/mail?mode=connect",
-          embeddedHref: "/workbench/mail/tab?mode=connect"
+          href: "/workbench/mail?mode=mail&accountId=acct-1&roomKey=" + encodeURIComponent(inboundJson.ingested.roomKey),
+          embeddedHref: "/workbench/mail/tab?mode=mail&accountId=acct-1&roomKey=" + encodeURIComponent(inboundJson.ingested.roomKey)
         }),
         expect.objectContaining({ id: "agents", embeddedHref: expect.stringContaining("/workbench/mail/tab") }),
         expect.objectContaining({ id: "rooms", active: true, embeddedHref: expect.stringContaining("/workbench/mail/tab") })
       ])
     });
+    expect(workbenchJson.workspace.connect.mailSessions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          primaryRoomKey: inboundJson.ingested.roomKey
+        })
+      ])
+    );
+    expect(workbenchJson.workspace.connect.agentMailView).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          agentId: expect.any(String),
+          mails: expect.arrayContaining([expect.objectContaining({ primaryRoomKey: inboundJson.ingested.roomKey })])
+        })
+      ])
+    );
     expect(workbenchJson.selection).toMatchObject({
       accountId: "acct-1",
       roomKey: inboundJson.ingested.roomKey,
@@ -1833,8 +1850,8 @@ describe("app api", () => {
       expect.arrayContaining([
         expect.objectContaining({
           id: "mail",
-          href: "/workbench/mail?mode=connect",
-          embeddedHref: "/workbench/mail/tab?mode=connect"
+          href: "/workbench/mail?mode=mail",
+          embeddedHref: "/workbench/mail/tab?mode=mail"
         }),
         expect.objectContaining({
           id: "agents",

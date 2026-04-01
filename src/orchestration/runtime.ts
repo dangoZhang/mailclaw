@@ -1530,8 +1530,117 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
       providerState: buildPublicAccountProviderState(accountId)
     };
   };
+  const buildMailSessionView = (rooms: ReturnType<typeof listConsoleRoomsView>) => {
+    const sessions = new Map<
+      string,
+      {
+        sessionId: string;
+        stableThreadId: string;
+        accountId: string;
+        primaryRoomKey: string;
+        roomKeys: string[];
+        roomCount: number;
+        latestSubject: string | null;
+        latestActivityAt: string | null;
+        latestInboundAt: string | null;
+        latestOutboundAt: string | null;
+        attention: string;
+        state: string;
+        frontAgentId: string | null;
+        frontAgentAddress: string | null;
+        publicAgentIds: string[];
+        publicAgentAddresses: string[];
+        collaboratorAgentIds: string[];
+        collaboratorAgentAddresses: string[];
+        pendingApprovalCount: number;
+        messageCount: number;
+        deliveryCount: number;
+      }
+    >();
+
+    for (const room of rooms) {
+      const sessionKey = `${room.accountId}:${room.stableThreadId}`;
+      const existing = sessions.get(sessionKey);
+      const latestKnownAt = existing?.latestActivityAt ?? "";
+      const roomKnownAt = room.latestActivityAt ?? "";
+      const useRoomAsPrimary =
+        !existing ||
+        (roomKnownAt && (!latestKnownAt || roomKnownAt.localeCompare(latestKnownAt) > 0));
+
+      sessions.set(sessionKey, {
+        sessionId: room.stableThreadId,
+        stableThreadId: room.stableThreadId,
+        accountId: room.accountId,
+        primaryRoomKey: useRoomAsPrimary ? room.roomKey : existing?.primaryRoomKey ?? room.roomKey,
+        roomKeys: Array.from(new Set([...(existing?.roomKeys ?? []), room.roomKey])),
+        roomCount: (existing?.roomCount ?? 0) + 1,
+        latestSubject: useRoomAsPrimary ? room.latestSubject ?? null : existing?.latestSubject ?? room.latestSubject ?? null,
+        latestActivityAt:
+          latestKnownAt && roomKnownAt
+            ? latestKnownAt.localeCompare(roomKnownAt) > 0
+              ? latestKnownAt
+              : roomKnownAt
+            : latestKnownAt || roomKnownAt || null,
+        latestInboundAt: latestTimestampValue(existing?.latestInboundAt ?? null, room.latestInboundAt ?? null),
+        latestOutboundAt: latestTimestampValue(existing?.latestOutboundAt ?? null, room.latestOutboundAt ?? null),
+        attention: useRoomAsPrimary ? room.attention : existing?.attention ?? room.attention,
+        state: useRoomAsPrimary ? room.state : existing?.state ?? room.state,
+        frontAgentId: useRoomAsPrimary ? room.frontAgentId ?? null : existing?.frontAgentId ?? room.frontAgentId ?? null,
+        frontAgentAddress:
+          useRoomAsPrimary ? room.frontAgentAddress ?? null : existing?.frontAgentAddress ?? room.frontAgentAddress ?? null,
+        publicAgentIds: mergeUniqueStrings(existing?.publicAgentIds ?? [], room.publicAgentIds ?? []),
+        publicAgentAddresses: mergeUniqueStrings(existing?.publicAgentAddresses ?? [], room.publicAgentAddresses ?? []),
+        collaboratorAgentIds: mergeUniqueStrings(existing?.collaboratorAgentIds ?? [], room.collaboratorAgentIds ?? []),
+        collaboratorAgentAddresses: mergeUniqueStrings(
+          existing?.collaboratorAgentAddresses ?? [],
+          room.collaboratorAgentAddresses ?? []
+        ),
+        pendingApprovalCount: (existing?.pendingApprovalCount ?? 0) + Number(room.pendingApprovalCount || 0),
+        messageCount: (existing?.messageCount ?? 0) + Number(room.messageCount || 0),
+        deliveryCount: (existing?.deliveryCount ?? 0) + Number(room.deliveryCount || 0)
+      });
+    }
+
+    return [...sessions.values()].sort((left, right) =>
+      String(right.latestActivityAt || "").localeCompare(String(left.latestActivityAt || ""))
+    );
+  };
+  const buildAgentMailView = (input: {
+    agentDirectory: ReturnType<typeof listAgentDirectory>;
+    mailSessions: ReturnType<typeof buildMailSessionView>;
+  }) => {
+    return input.agentDirectory
+      .map((agent) => {
+        const mails = input.mailSessions
+          .map((session) => {
+            const participantRole = resolveAgentMailParticipantRole(agent, session);
+            return participantRole ? { ...session, participantRole } : null;
+          })
+          .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+          .sort((left, right) =>
+            String(right.latestActivityAt || "").localeCompare(String(left.latestActivityAt || ""))
+          );
+
+        return {
+          agentId: agent.agentId,
+          displayName: agent.displayName,
+          purpose: agent.purpose,
+          routingAddress: agent.routingAddress ?? null,
+          subjectRoutingHint: agent.subjectRoutingHint ?? null,
+          publicMailboxId: agent.publicMailboxId,
+          roomCount: mails.length,
+          frontRoomCount: mails.filter((mail) => mail.participantRole === "front").length,
+          collaboratorRoomCount: mails.filter((mail) => mail.participantRole === "collaborator").length,
+          latestActivityAt: mails[0]?.latestActivityAt ?? null,
+          mails
+        };
+      })
+      .sort((left, right) =>
+        String(right.latestActivityAt || "").localeCompare(String(left.latestActivityAt || ""))
+      );
+  };
   const buildConsoleWorkbenchWorkspace = (input: {
-    mode?: "connect" | "agents" | "accounts" | "rooms" | "mailboxes" | "approvals";
+    mode?: "mail" | "connect" | "agents" | "accounts" | "rooms" | "mailboxes" | "approvals";
     selectedAccountId: string | null;
     selectedRoomKey: string | null;
     selectedMailboxId: string | null;
@@ -1551,9 +1660,7 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
           ? "rooms"
           : input.approvals.length > 0 && !input.selectedAccountId
             ? "approvals"
-            : input.accounts.length === 0
-              ? "mail"
-              : "agents");
+            : "mail");
     const connectPlan = buildConnectOnboardingPlan({
       emailAddress: selectedAccount?.emailAddress
     });
@@ -1566,6 +1673,11 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
     const agentSkills = listSkillsForAgents({
       tenantId: templateTenantId,
       accountId: templateAccountId ?? undefined
+    });
+    const mailSessions = buildMailSessionView(input.rooms);
+    const agentMailView = buildAgentMailView({
+      agentDirectory,
+      mailSessions
     });
     const standaloneBasePath = "/workbench/mail";
     const embeddedBasePath = "/workbench/mail/tab";
@@ -1625,10 +1737,16 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
         {
           id: "mail",
           label: "Mail",
-          href: buildTabHref(standaloneBasePath, "connect"),
-          embeddedHref: buildTabHref(embeddedBasePath, "connect"),
+          href: buildTabHref(standaloneBasePath, "mail", {
+            accountId: input.selectedAccountId,
+            roomKey: input.selectedRoomKey
+          }),
+          embeddedHref: buildTabHref(embeddedBasePath, "mail", {
+            accountId: input.selectedAccountId,
+            roomKey: input.selectedRoomKey
+          }),
           active: activeTab === "mail" || activeTab === "connect",
-          count: null
+          count: mailSessions.length
         },
         {
           id: "agents",
@@ -1640,21 +1758,7 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
             accountId: input.selectedAccountId
           }),
           active: activeTab === "agents",
-          count: agentDirectory.length
-        },
-        {
-          id: "mailboxes",
-          label: "Mailboxes",
-          href: buildTabHref(standaloneBasePath, "mailboxes", {
-            accountId: input.selectedAccountId,
-            mailboxId: input.selectedMailboxId
-          }),
-          embeddedHref: buildTabHref(embeddedBasePath, "mailboxes", {
-            accountId: input.selectedAccountId,
-            mailboxId: input.selectedMailboxId
-          }),
-          active: activeTab === "mailboxes",
-          count: input.mailboxConsole?.virtualMailboxes?.length ?? 0
+          count: agentMailView.length
         },
         {
           id: "rooms",
@@ -1737,6 +1841,8 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
         })),
         agentTemplates: listConfiguredAgentTemplates(),
         agentDirectory,
+        agentMailView,
+        mailSessions,
         skills: agentSkills,
         headcountRecommendations: listHeadcountRecommendations(templateAccountId ?? undefined)
       },
@@ -2421,7 +2527,7 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
       };
     },
     getConsoleWorkbench(input: {
-      mode?: "connect" | "agents" | "accounts" | "rooms" | "mailboxes" | "approvals";
+      mode?: "mail" | "connect" | "agents" | "accounts" | "rooms" | "mailboxes" | "approvals";
       accountId?: string;
       roomKey?: string;
       mailboxId?: string;
@@ -4417,6 +4523,77 @@ function createEmptyAccountAgentRouting() {
     durableAgentIds: [] as string[],
     collaboratorAgentIds: [] as string[]
   };
+}
+
+function mergeUniqueStrings(...groups: string[][]) {
+  return Array.from(
+    new Set(
+      groups.flatMap((group) => group).filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+    )
+  );
+}
+
+function latestTimestampValue(left: string | null, right: string | null) {
+  if (!left) {
+    return right;
+  }
+  if (!right) {
+    return left;
+  }
+  return left.localeCompare(right) > 0 ? left : right;
+}
+
+function normalizeWorkbenchIdentity(value?: string | null) {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+function resolveAgentMailParticipantRole(
+  agent: {
+    agentId: string;
+    routingAddress?: string | null;
+    publicMailboxId?: string | null;
+  },
+  session: {
+    frontAgentId: string | null;
+    frontAgentAddress: string | null;
+    publicAgentIds: string[];
+    publicAgentAddresses: string[];
+    collaboratorAgentIds: string[];
+    collaboratorAgentAddresses: string[];
+  }
+) {
+  const agentId = normalizeWorkbenchIdentity(agent.agentId);
+  const routingAddress = normalizeWorkbenchIdentity(agent.routingAddress);
+  const publicMailboxId = normalizeWorkbenchIdentity(agent.publicMailboxId);
+  const frontAgentId = normalizeWorkbenchIdentity(session.frontAgentId);
+  const frontAgentAddress = normalizeWorkbenchIdentity(session.frontAgentAddress);
+
+  if (
+    (agentId && frontAgentId === agentId) ||
+    (routingAddress && frontAgentAddress === routingAddress) ||
+    (publicMailboxId && frontAgentAddress === publicMailboxId)
+  ) {
+    return "front";
+  }
+
+  const collaboratorIds = new Set(
+    [...session.collaboratorAgentIds, ...session.publicAgentIds].map((value) => normalizeWorkbenchIdentity(value)).filter(Boolean)
+  );
+  const collaboratorAddresses = new Set(
+    [...session.collaboratorAgentAddresses, ...session.publicAgentAddresses]
+      .map((value) => normalizeWorkbenchIdentity(value))
+      .filter(Boolean)
+  );
+
+  if (
+    (agentId && collaboratorIds.has(agentId)) ||
+    (routingAddress && collaboratorAddresses.has(routingAddress)) ||
+    (publicMailboxId && collaboratorAddresses.has(publicMailboxId))
+  ) {
+    return "collaborator";
+  }
+
+  return null;
 }
 
 function shouldExposeDurableAgentId(
