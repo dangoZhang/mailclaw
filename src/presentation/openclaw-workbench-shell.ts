@@ -2953,7 +2953,6 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         }
         if (target.id === "connect-email-input") {
           state.connectEmailAddress = String(target.value || "").trim();
-          render();
           return;
         }
         const field = target.getAttribute("data-connect-field");

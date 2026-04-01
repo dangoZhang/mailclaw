@@ -1685,8 +1685,21 @@ describe("app api", () => {
     expect(connectHtml).toContain('data-connect-field="credential"');
     expect(connectHtml).toContain('data-connect-field="allowSelfOnly"');
     expect(connectHtml).toContain("Allow only this mailbox address during first connect");
+    const connectModuleScript = extractModuleScript(connectHtml);
+    const connectInputHandler = connectModuleScript.match(
+      /document\.addEventListener\("input", function\(event\) \{[\s\S]*?\n\s*\}\);/
+    )?.[0];
+    expect(connectInputHandler).toBeTruthy();
+    expect(connectInputHandler).toContain("if (target.id === \"connect-email-input\") {");
+    expect(connectInputHandler).toContain("state.connectEmailAddress = String(target.value || \"\").trim();");
+    expect(connectInputHandler).toContain("if (!field || target instanceof HTMLSelectElement || target.type === \"checkbox\") {");
+    expect(connectInputHandler).toContain("state.connectDraft = {");
+    // Regression guard: email typing should not rerender the whole connect page on each keystroke.
+    expect(connectInputHandler).not.toMatch(
+      /if \(target\.id === "connect-email-input"\) \{[\s\S]*?render\(\);[\s\S]*?return;[\s\S]*?\}/
+    );
     expect(connectHtml).not.toContain("<iframe");
-    expect(() => new vm.Script(extractModuleScript(connectHtml))).not.toThrow();
+    expect(() => new vm.Script(connectModuleScript)).not.toThrow();
 
     const embeddedResponse = await fetch(`${baseUrl}/workbench/mail/tab`);
     const embeddedHtml = await embeddedResponse.text();
