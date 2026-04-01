@@ -1110,6 +1110,126 @@ select {
   gap: 8px;
 }
 
+.connect-landing {
+  position: relative;
+  overflow: hidden;
+  padding: 40px;
+  border-radius: 28px;
+  border: 1px solid color-mix(in srgb, var(--border-strong) 72%, transparent);
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--accent) 18%, transparent), transparent 34%),
+    radial-gradient(circle at bottom left, color-mix(in srgb, white 8%, transparent), transparent 28%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-elevated) 96%, transparent), color-mix(in srgb, var(--card) 96%, transparent));
+  box-shadow: var(--shadow-lg);
+}
+
+.connect-landing::before {
+  content: "";
+  position: absolute;
+  inset: auto -8% -18% auto;
+  width: 280px;
+  height: 280px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  filter: blur(44px);
+  pointer-events: none;
+}
+
+.connect-landing__inner {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 22px;
+  max-width: 760px;
+}
+
+.connect-landing__eyebrow {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.connect-landing__title {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: clamp(40px, 6vw, 72px);
+  line-height: 0.95;
+  letter-spacing: -0.06em;
+  font-weight: 760;
+  max-width: 10ch;
+}
+
+.connect-landing__copy {
+  max-width: 46ch;
+  color: color-mix(in srgb, var(--text) 84%, var(--muted) 16%);
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.connect-landing__form {
+  display: grid;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.connect-landing__label {
+  display: grid;
+  gap: 10px;
+}
+
+.connect-landing__label-text {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.connect-landing__input {
+  width: 100%;
+  min-height: 68px;
+  padding: 0 22px;
+  border: 1px solid color-mix(in srgb, var(--border-strong) 78%, transparent);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--bg) 48%, var(--bg-elevated) 52%);
+  color: var(--text-strong);
+  font-size: 22px;
+  letter-spacing: -0.03em;
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, white 6%, transparent),
+    0 18px 42px color-mix(in srgb, black 14%, transparent);
+}
+
+.connect-landing__input::placeholder {
+  color: color-mix(in srgb, var(--muted) 88%, transparent);
+}
+
+.connect-landing__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.connect-landing__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.connect-landing__status {
+  max-width: 52ch;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.connect-landing__footer {
+  display: grid;
+  gap: 14px;
+}
+
 @media (max-width: 1100px) {
   .shell,
   .shell--nav-collapsed {
@@ -1178,6 +1298,10 @@ select {
   .workspace-hero__grid {
     grid-template-columns: 1fr;
   }
+
+  .connect-landing {
+    padding: 28px 22px;
+  }
 }
 
 @media (max-width: 768px) {
@@ -1214,6 +1338,22 @@ select {
 
   .workspace-hero__copy {
     font-size: 13px;
+  }
+
+  .connect-landing {
+    padding: 22px 16px;
+    border-radius: 22px;
+  }
+
+  .connect-landing__title {
+    font-size: 38px;
+    max-width: 12ch;
+  }
+
+  .connect-landing__input {
+    min-height: 60px;
+    font-size: 18px;
+    padding: 0 16px;
   }
 
   .summary-strip {
@@ -2122,55 +2262,41 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           : l("Use the credential accepted by the provider's IMAP/SMTP service.", "请填写该提供商 IMAP/SMTP 接受的凭证。");
 
         return (
-          renderWorkspaceHero({
-            eyebrow: l("Mail setup", "邮件接入"),
-            title: l("Enter your email address first.", "先输入你的邮箱地址。"),
-            copy: l(
-              "Like Outlook or Apple Mail, the first step should be the mailbox address. MailClaws detects the provider, opens the correct login page, and keeps manual IMAP/SMTP as a fallback only.",
-              "和 Outlook、Apple Mail 一样，第一步应该只输入邮箱地址。MailClaws 会识别提供商、打开正确的登录页，手工 IMAP/SMTP 只作为兜底。"
-            ),
-            summaryItems: [
-              { label: l("providers", "提供商"), value: String(providerCount) },
-              { label: l("accounts", "账号"), value: String((state.data && state.data.accounts ? state.data.accounts.length : 0)) },
-              { label: l("rooms", "房间"), value: String((state.data && state.data.rooms ? state.data.rooms.length : 0)) },
-              { label: l("approvals", "审批"), value: String((state.data && state.data.approvals ? state.data.approvals.length : 0)) }
-            ]
-          }) +
-          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Add an account", "添加账号")) + '</h3><span class="muted">' + escapeHtmlClient(detectedProviderName) + '</span></div>' +
-          '<div class="panel-body">' +
-          '<div class="card-title">' + escapeHtmlClient(l("Start with your mailbox address. The provider and preset servers are inferred automatically.", "先输入邮箱地址。提供商和预设服务器参数会自动识别。")) + '</div>' +
-          '<div class="detail">' + escapeHtmlClient(l("Manual IMAP and SMTP fields are still available, but only under Advanced options.", "手工 IMAP 和 SMTP 字段仍然可用，但已收进“高级选项”。")) + '</div>' +
-          '<label><div class="section-label">' + escapeHtmlClient(l("Mailbox address", "邮箱地址")) + '</div><input class="console-input" id="connect-email-input" type="email" placeholder="you@example.com" value="' + escapeHtmlClient(connectEmailAddress) + '" /></label>' +
-          '<div class="detail">' + escapeHtmlClient(
-            emailReady
-              ? l("Detected provider: ", "已识别提供商：") + detectedProviderName + l(". Continue to the mailbox login page first, then come back to finish connection.", "。先去该邮箱登录页完成登录或生成专用凭证，再回来完成连接。")
-              : l("Enter a mailbox address to detect the provider and jump to the correct mailbox login page.", "输入邮箱地址后，系统会识别提供商并跳到正确的邮箱登录页。")
+          '<section class="connect-landing"><div class="connect-landing__inner">' +
+          '<div class="connect-landing__eyebrow">' + escapeHtmlClient(l("Mailbox Sign In", "邮箱登录")) + '</div>' +
+          '<h1 class="connect-landing__title">' + escapeHtmlClient(l("Input your email address.", "输入你的邮箱地址。")) + '</h1>' +
+          '<div class="connect-landing__copy">' + escapeHtmlClient(
+            l(
+              "MailClaws detects the provider and takes you to the right mailbox login page. Manual server setup stays hidden unless you need it.",
+              "MailClaws 会识别提供商并带你去正确的邮箱登录页。只有在确实需要时，才会展开手工服务器配置。"
+            )
           ) + '</div>' +
-          '<div class="chips">' +
+          '<div class="connect-landing__form">' +
+          '<label class="connect-landing__label"><span class="connect-landing__label-text">' + escapeHtmlClient(l("Email address", "邮箱地址")) + '</span><input class="connect-landing__input" id="connect-email-input" type="email" placeholder="you@example.com" value="' + escapeHtmlClient(connectEmailAddress) + '" /></label>' +
+          '<div class="connect-landing__actions">' +
+          (selectedWebLoginUrl
+            ? '<a class="btn primary" href="' + escapeHtmlClient(selectedWebLoginUrl) + '" target="_blank" rel="noreferrer">' + escapeHtmlClient(l("Continue to " + detectedProviderName, "继续前往 " + detectedProviderName)) + '</a>'
+            : '<button class="btn primary" disabled>' + escapeHtmlClient(l("Continue", "继续")) + '</button>') +
+          '</div>' +
+          '<div class="connect-landing__footer">' +
+          '<div class="connect-landing__status">' + escapeHtmlClient(
+            emailReady
+              ? l("Detected provider: ", "已识别提供商：") + detectedProviderName + l(". Start there first.", "。请先从这里开始。")
+              : l("Type one email address to detect the provider and open the correct sign-in page.", "输入一个邮箱地址后，系统会识别提供商并打开正确的登录页。")
+          ) + '</div>' +
+          '<div class="connect-landing__meta">' +
           (emailReady ? renderPill(detectedProviderName, "pill--ok") : "") +
           (selectedPreset && selectedPreset.imapHost ? renderPill("IMAP " + selectedPreset.imapHost, "") : "") +
           (selectedPreset && selectedPreset.smtpHost ? renderPill("SMTP " + selectedPreset.smtpHost, "") : "") +
           '</div>' +
-          '<div class="detail-grid">' +
-          '<label><div class="section-label">' + escapeHtmlClient((selectedLogin && selectedLogin.credentialLabel) || l("Mailbox password / app password / authorization code", "邮箱密码 / 应用专用密码 / 授权码")) + '</div><input class="console-input" data-connect-field="credential" type="password" autocomplete="current-password" placeholder="' + escapeHtmlClient(l("credential", "凭证")) + '" value="' + escapeHtmlClient(credentialValue) + '" /></label>' +
           '</div>' +
-          '<div class="detail">' + escapeHtmlClient(loginHint) + '</div>' +
-          (validation.status === "success"
-            ? '<div class="detail">' + escapeHtmlClient(l("Validation passed: IMAP ", "校验通过：IMAP ")) + escapeHtmlClient((validation.result && validation.result.imap && validation.result.imap.host) || "ok") + ' / SMTP ' + escapeHtmlClient((validation.result && validation.result.smtp && validation.result.smtp.host) || "ok") + '.</div>'
-            : validation.status === "failed"
-              ? '<div class="error-banner">' + escapeHtmlClient(validation.error || l("Mailbox validation failed.", "邮箱校验失败。")) + '</div>'
-              : '<div class="detail">' + escapeHtmlClient(l("Open the provider login first, then validate the mailbox before creating the account.", "先打开提供商登录页，再校验邮箱，最后创建账号。")) + '</div>') +
-          '<div class="actions-inline">' +
-          (selectedWebLoginUrl
-            ? '<a class="btn primary" href="' + escapeHtmlClient(selectedWebLoginUrl) + '" target="_blank" rel="noreferrer">' + escapeHtmlClient(l("Continue to " + detectedProviderName, "继续前往 " + detectedProviderName)) + '</a>'
-            : '') +
-          '<button class="btn" data-action="validate-mailbox">' + escapeHtmlClient(l("Validate Mailbox", "校验邮箱")) + '</button>' +
-          '<button class="btn primary" data-action="connect-mailbox"' + (validationReady ? "" : " disabled") + '>' + escapeHtmlClient(l("Connect Mailbox", "连接邮箱")) + '</button>' +
           '</div>' +
+          '</div></section>' +
           '<details class="panel">' +
           '<summary class="panel-header"><h3>' + escapeHtmlClient(l("Advanced options", "高级选项")) + '</h3><span class="muted">' + escapeHtmlClient(l("manual IMAP / SMTP fallback", "手工 IMAP / SMTP 兜底")) + '</span></summary>' +
           '<div class="panel-body">' +
           '<div class="detail-grid">' +
+          '<label><div class="section-label">' + escapeHtmlClient((selectedLogin && selectedLogin.credentialLabel) || l("Mailbox password / app password / authorization code", "邮箱密码 / 应用专用密码 / 授权码")) + '</div><input class="console-input" data-connect-field="credential" type="password" autocomplete="current-password" placeholder="' + escapeHtmlClient(l("credential", "凭证")) + '" value="' + escapeHtmlClient(credentialValue) + '" /></label>' +
           '<label><div class="section-label">' + escapeHtmlClient(l("Account ID", "账号 ID")) + '</div><input class="console-input" data-connect-field="accountId" placeholder="acct-you-example-com" value="' + escapeHtmlClient(accountIdValue) + '" /></label>' +
           '<label><div class="section-label">' + escapeHtmlClient(l("Display name", "显示名称")) + '</div><input class="console-input" data-connect-field="displayName" placeholder="you" value="' + escapeHtmlClient(displayNameValue) + '" /></label>' +
           '<label><div class="section-label">' + escapeHtmlClient(l("Inbound whitelist", "入站白名单")) + '</div><label class="detail"><input type="checkbox" data-connect-field="allowSelfOnly"' + (allowSelfOnly ? " checked" : "") + ' /> ' + escapeHtmlClient(l("Allow only this mailbox address during first connect", "首次连接时只允许该邮箱地址发来邮件")) + '</label></label>' +
@@ -2188,14 +2314,23 @@ export function renderOpenClawWorkbenchShellHtml(input: {
               ? l("Default safety policy is on: the first connected account only accepts inbound mail from its own address until you widen the whitelist later.", "默认安全策略已开启：首次接入的账号只接受来自其自身地址的来信，直到你后续放宽白名单。")
               : l("Inbound sender allowlist is open for this connect payload. Only turn this off when you are ready to accept mail from other senders.", "当前接入载荷对入站发件人白名单已放开。只有准备好接收其他发件人的邮件时才应这样做。")
           ) + '</div>' +
+          '<div class="detail">' + escapeHtmlClient(loginHint) + '</div>' +
+          (validation.status === "success"
+            ? '<div class="detail">' + escapeHtmlClient(l("Validation passed: IMAP ", "校验通过：IMAP ")) + escapeHtmlClient((validation.result && validation.result.imap && validation.result.imap.host) || "ok") + ' / SMTP ' + escapeHtmlClient((validation.result && validation.result.smtp && validation.result.smtp.host) || "ok") + '.</div>'
+            : validation.status === "failed"
+              ? '<div class="error-banner">' + escapeHtmlClient(validation.error || l("Mailbox validation failed.", "邮箱校验失败。")) + '</div>'
+              : '<div class="detail">' + escapeHtmlClient(l("Use this section only if the automatic sign-in path is not enough.", "只有自动登录路径不够用时，才使用这个区域。")) + '</div>') +
+          '<div class="actions-inline">' +
+          '<button class="btn" data-action="validate-mailbox">' + escapeHtmlClient(l("Validate Mailbox", "校验邮箱")) + '</button>' +
+          '<button class="btn primary" data-action="connect-mailbox"' + (validationReady ? "" : " disabled") + '>' + escapeHtmlClient(l("Connect Mailbox", "连接邮箱")) + '</button>' +
+          '</div>' +
           (providerOptions.length > 0
             ? '<div class="provider-grid">' + providerOptions.map(function(provider) {
                 return renderConnectProviderCard(provider, connectEmailAddress, detectedProvider && detectedProvider.id);
               }).join("") + "</div>"
             : '<div class="empty">' + escapeHtmlClient(l("No provider metadata is available.", "没有可用的提供商元数据。")) + '</div>') +
           '</div>' +
-          '</details>' +
-          '</div></div>'
+          '</details>'
         );
       }
 
@@ -2668,6 +2803,9 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           primary = renderApprovalsHome();
         } else if (state.route.accountId) {
           primary = renderAccountDetail();
+        }
+        if (state.route.mode === "connect" && !state.route.accountId && !state.route.roomKey && !state.route.mailboxId && !state.route.inboxId) {
+          return primary;
         }
         return '<div class="mail-workbench-grid">' + primary + renderSidePanels() + '</div>';
       }
