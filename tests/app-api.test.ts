@@ -14,7 +14,7 @@ import type { SmtpSender } from "../src/providers/smtp.js";
 import { createMailSidecarRuntime } from "../src/orchestration/runtime.js";
 import { enqueueRoomJob, failRoomJob, leaseNextRoomJob } from "../src/queue/thread-queue.js";
 import { initializeDatabase } from "../src/storage/db.js";
-import { upsertMailAccount } from "../src/storage/repositories/mail-accounts.js";
+import { getMailAccount, upsertMailAccount } from "../src/storage/repositories/mail-accounts.js";
 import { upsertProviderCursor } from "../src/storage/repositories/provider-cursors.js";
 import { appendProviderEvent } from "../src/storage/repositories/provider-events.js";
 import { saveThreadRoom } from "../src/storage/repositories/thread-rooms.js";
@@ -1681,6 +1681,10 @@ describe("app api", () => {
     expect(connectHtml).toContain("/workbench/mail");
     expect(connectHtml).toContain("OpenClaw Workbench");
     expect(connectHtml).toContain("/console/workbench");
+    expect(connectHtml).toContain('data-action="connect-mailbox"');
+    expect(connectHtml).toContain('data-connect-field="credential"');
+    expect(connectHtml).toContain('data-connect-field="allowSelfOnly"');
+    expect(connectHtml).toContain("Allow only this mailbox address during first connect");
     expect(connectHtml).not.toContain("<iframe");
     expect(() => new vm.Script(extractModuleScript(connectHtml))).not.toThrow();
 
@@ -3447,6 +3451,176 @@ describe("app api", () => {
         latestCursorAdvancedAt: "2026-03-25T00:00:02.000Z"
       })
     });
+
+    fixture.handle.close();
+  });
+
+  it("defaults account sender allowlist to self when senderPolicy is not provided", async () => {
+    const fixture = createFixture();
+    const server = createAppServer({
+      config: fixture.config,
+      mailApi: fixture.runtime
+    });
+
+    servers.push(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+
+    const address = server.address();
+    if (address === null || typeof address === "string") {
+      throw new Error("Expected address info");
+    }
+
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+    const createResponse = await fetch(`${baseUrl}/api/accounts`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        accountId: "acct-self-default",
+        provider: "imap",
+        emailAddress: "MailClaw@example.com",
+        status: "active",
+        settings: {
+          imap: {
+            host: "imap.example.com",
+            port: 993,
+            secure: true
+          }
+        }
+      })
+    });
+    await createResponse.json();
+
+    expect(createResponse.status).toBe(200);
+
+    const persisted = getMailAccount(fixture.handle.db, "acct-self-default");
+    const securitySettings =
+      persisted?.settings && typeof persisted.settings.security === "object" && persisted.settings.security !== null
+        ? (persisted.settings.security as { senderPolicy?: { allowEmails?: string[] } })
+        : undefined;
+    expect(securitySettings?.senderPolicy?.allowEmails).toEqual(["mailclaw@example.com"]);
+
+    fixture.handle.close();
+  });
+
+  it("enforces account senderPolicy from account settings during ingest", async () => {
+    const fixture = createFixture();
+    const server = createAppServer({
+      config: fixture.config,
+      mailApi: fixture.runtime
+    });
+
+    servers.push(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+
+    const address = server.address();
+    if (address === null || typeof address === "string") {
+      throw new Error("Expected address info");
+    }
+
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+    const createResponse = await fetch(`${baseUrl}/api/accounts`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        accountId: "acct-policy",
+        provider: "imap",
+        emailAddress: "mailclaw@example.com",
+        status: "active",
+        settings: {
+          imap: {
+            host: "imap.example.com",
+            port: 993,
+            secure: true
+          }
+        }
+      })
+    });
+
+    expect(createResponse.status).toBe(200);
+
+    const blockedInboundResponse = await fetch(`${baseUrl}/api/inbound?processImmediately=false`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        accountId: "acct-policy",
+        mailboxAddress: "mailclaw@example.com",
+        envelope: {
+          providerMessageId: "provider-policy-blocked",
+          messageId: "<msg-policy-blocked@example.com>",
+          subject: "Blocked by sender policy",
+          from: {
+            email: "external@example.net"
+          },
+          to: [{ email: "mailclaw@example.com" }],
+          text: "Should be blocked.",
+          headers: [
+            {
+              name: "Message-ID",
+              value: "<msg-policy-blocked@example.com>"
+            }
+          ]
+        }
+      })
+    });
+    const blockedInboundJson = (await blockedInboundResponse.json()) as {
+      ingested: {
+        status: string;
+        reasons?: string[];
+      };
+      processed: unknown;
+    };
+
+    expect(blockedInboundResponse.status).toBe(200);
+    expect(blockedInboundJson.ingested.status).toBe("blocked");
+    expect(blockedInboundJson.ingested.reasons).toEqual(
+      expect.arrayContaining(["sender_policy:sender not present in allowlist"])
+    );
+    expect(blockedInboundJson.processed).toBeNull();
+
+    const allowedInboundResponse = await fetch(`${baseUrl}/api/inbound?processImmediately=false`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        accountId: "acct-policy",
+        mailboxAddress: "mailclaw@example.com",
+        envelope: {
+          providerMessageId: "provider-policy-allowed",
+          messageId: "<msg-policy-allowed@example.com>",
+          subject: "Allowed by sender policy",
+          from: {
+            email: "mailclaw@example.com"
+          },
+          to: [{ email: "mailclaw@example.com" }],
+          text: "Should be queued.",
+          headers: [
+            {
+              name: "Message-ID",
+              value: "<msg-policy-allowed@example.com>"
+            }
+          ]
+        }
+      })
+    });
+    const allowedInboundJson = (await allowedInboundResponse.json()) as {
+      ingested: {
+        status: string;
+      };
+      processed: unknown;
+    };
+
+    expect(allowedInboundResponse.status).toBe(200);
+    expect(allowedInboundJson.ingested.status).toBe("queued");
+    expect(allowedInboundJson.processed).toBeNull();
 
     fixture.handle.close();
   });

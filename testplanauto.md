@@ -168,6 +168,13 @@
 - [x] T117 关键命令的退出码正确。
 - [x] T118 任何修复都至少有一条回归测试。
 
+## 13. Workbench 手动连接链路
+
+- [x] T119 Workbench connect 页展示真实的 IMAP/SMTP 手动连接表单与 `Connect Mailbox` 提交入口。
+- [x] T120 Workbench connect 页默认勾选“仅允许当前邮箱地址来信”的入站白名单策略。
+- [x] T121 `POST /api/accounts` 在未显式提供 senderPolicy 时，默认把账户邮箱地址写入 `settings.security.senderPolicy.allowEmails`。
+- [x] T122 ingest 路径会读取账户 settings 中的 senderPolicy，非白名单发件人被阻断，账户自身地址可通过。
+
 ## 本轮执行摘要
 
 已完成并验证：
@@ -176,6 +183,7 @@
 - `pnpm vitest run tests/runtime-watchers.test.ts tests/orchestration.test.ts tests/gateway-projection.test.ts tests/mail-scheduling.test.ts`
 - `pnpm test`
 - `pnpm build`
+- `pnpm vitest run tests/app-api.test.ts`
 - 浏览器 smoke:
   - `workbench/mail?mode=connect`
   - `workbench/mail?mode=accounts`
@@ -195,5 +203,7 @@
 - 2026-04-01 实测结果：已补齐并校验常见邮箱网页登录/注册跳转元数据（Gmail / Outlook / QQ / iCloud / Yahoo / 163 / 126 / Proton / Zoho / AOL / GMX / mail.com / Yandex / Fastmail）；对应 CLI/API 回归通过。
 - 2026-04-01 实测结果：新增并回归验证 IMAP/SMTP-only 登录入口，覆盖 Gmail / Outlook / QQ / generic provider 预设；定向测试通过。
 - 2026-04-01 实测结果：新增邮箱地址优先登录组件元数据，覆盖 Gmail / Outlook / QQ / iCloud / Yahoo / 163 / 126 七个常见直连邮箱，以及 Proton / Zoho / AOL / GMX / mail.com / Yandex / Fastmail 七个常见网页登录 fallback；CLI/API/guide 回归通过。
+- 2026-04-01 实测结果：Workbench connect 页已补成真实手动连接表单，包含账户 ID、凭据、IMAP/SMTP 主机与端口、默认自白名单开关，以及 `Connect Mailbox` 提交动作；对应 HTML/API 回归通过。
+- 2026-04-01 实测结果：`POST /api/accounts` 默认自白名单落库生效；账户级 senderPolicy 已接入 ingest；`tests/app-api.test.ts` 本地实测 `51 passed`，`pnpm build` 通过。
 - `docs/live-provider-smoke.md` 已改为说明 IMAP/SMTP-only 主路线，旧 Gmail OAuth runbook 仅保留历史说明。
 - 当前未再发现新的可复现 bug。

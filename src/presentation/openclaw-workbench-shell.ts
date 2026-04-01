@@ -1324,6 +1324,9 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         error: null,
         data: null,
         connectEmailAddress: "",
+        connectDraft: {
+          allowSelfOnly: true
+        },
         navCollapsed: false,
         navDrawerOpen: false,
         route: null
@@ -1474,6 +1477,126 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         return (providers || []).find(function(provider) {
           return Array.isArray(provider.mailboxDomains) && provider.mailboxDomains.includes(domain);
         }) || null;
+      }
+
+      function resolveManualConnectProvider(connectEmailAddress, providerOptions) {
+        return resolveProviderForMailbox(connectEmailAddress, providerOptions) || (providerOptions || []).find(function(provider) {
+          return provider.id === "imap";
+        }) || null;
+      }
+
+      function readConnectDraftValue(field, fallbackValue) {
+        const draft = state.connectDraft || {};
+        const value = draft[field];
+        if (typeof value === "string") {
+          return value;
+        }
+        if (typeof value === "number") {
+          return String(value);
+        }
+        if (typeof fallbackValue === "number") {
+          return String(fallbackValue);
+        }
+        return typeof fallbackValue === "string" ? fallbackValue : "";
+      }
+
+      function readConnectDraftBoolean(field, fallbackValue) {
+        const draft = state.connectDraft || {};
+        const value = draft[field];
+        if (typeof value === "boolean") {
+          return value;
+        }
+        if (typeof value === "string") {
+          return value === "true";
+        }
+        return Boolean(fallbackValue);
+      }
+
+      function parsePositiveIntegerClient(value, fallbackValue) {
+        const parsed = Number.parseInt(String(value || ""), 10);
+        if (Number.isFinite(parsed) && parsed > 0) {
+          return parsed;
+        }
+        return fallbackValue;
+      }
+
+      function buildConnectMailboxPayload() {
+        const workspace = state.data && state.data.workspace ? state.data.workspace : null;
+        const connect = workspace && workspace.connect ? workspace.connect : null;
+        const providerOptions = connect && Array.isArray(connect.providerOptions) ? connect.providerOptions : [];
+        const selectedProvider = resolveManualConnectProvider(state.connectEmailAddress, providerOptions);
+        const preset = selectedProvider && selectedProvider.preset ? selectedProvider.preset : null;
+        const emailAddress = String(state.connectEmailAddress || "").trim().toLowerCase();
+        const accountId = readConnectDraftValue("accountId", createSuggestedAccountIdClient(emailAddress));
+        const displayName = readConnectDraftValue("displayName", inferSuggestedDisplayNameClient(emailAddress));
+        const credential = readConnectDraftValue("credential", "");
+        const imapHost = readConnectDraftValue("imapHost", preset && preset.imapHost ? preset.imapHost : "");
+        const imapPort = parsePositiveIntegerClient(
+          readConnectDraftValue("imapPort", preset && typeof preset.imapPort === "number" ? preset.imapPort : 993),
+          preset && typeof preset.imapPort === "number" ? preset.imapPort : 993
+        );
+        const imapSecure = readConnectDraftBoolean("imapSecure", preset ? preset.imapSecure !== false : true);
+        const imapMailbox = readConnectDraftValue("imapMailbox", preset && preset.imapMailbox ? preset.imapMailbox : "INBOX");
+        const smtpHost = readConnectDraftValue("smtpHost", preset && preset.smtpHost ? preset.smtpHost : "");
+        const smtpPort = parsePositiveIntegerClient(
+          readConnectDraftValue("smtpPort", preset && typeof preset.smtpPort === "number" ? preset.smtpPort : 587),
+          preset && typeof preset.smtpPort === "number" ? preset.smtpPort : 587
+        );
+        const smtpSecure = readConnectDraftBoolean("smtpSecure", preset ? preset.smtpSecure === true : false);
+        const smtpFrom = readConnectDraftValue("smtpFrom", emailAddress);
+        const allowSelfOnly = readConnectDraftBoolean("allowSelfOnly", true);
+
+        if (!emailAddress || emailAddress.indexOf("@") === -1) {
+          throw new Error("mailbox address is required");
+        }
+        if (!accountId) {
+          throw new Error("accountId is required");
+        }
+        if (!credential) {
+          throw new Error("mailbox credential is required");
+        }
+        if (!imapHost) {
+          throw new Error("IMAP host is required");
+        }
+        if (!smtpHost) {
+          throw new Error("SMTP host is required");
+        }
+
+        const settings = {
+          imap: {
+            host: imapHost,
+            port: imapPort,
+            secure: imapSecure,
+            username: emailAddress,
+            password: credential,
+            mailbox: imapMailbox || "INBOX"
+          },
+          smtp: {
+            host: smtpHost,
+            port: smtpPort,
+            secure: smtpSecure,
+            username: emailAddress,
+            password: credential,
+            from: smtpFrom || emailAddress
+          }
+        };
+
+        settings.security = {
+          senderPolicy: allowSelfOnly
+            ? {
+                allowEmails: [emailAddress]
+              }
+            : {}
+        };
+
+        return {
+          accountId: accountId,
+          provider: "imap",
+          emailAddress: emailAddress,
+          displayName: displayName || undefined,
+          status: "active",
+          settings: settings
+        };
       }
 
       function hrefForRoute(route) {
@@ -1859,7 +1982,25 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const providerOptions = connect && Array.isArray(connect.providerOptions) ? connect.providerOptions : [];
         const knownWebProviders = connect && Array.isArray(connect.knownWebProviders) ? connect.knownWebProviders : [];
         const detectedProvider = resolveProviderForMailbox(connectEmailAddress, providerOptions);
+        const selectedProvider = resolveManualConnectProvider(connectEmailAddress, providerOptions);
         const detectedWebProvider = resolveKnownWebProviderForMailbox(connectEmailAddress, knownWebProviders);
+        const selectedPreset = selectedProvider && selectedProvider.preset ? selectedProvider.preset : null;
+        const selectedLogin = selectedProvider && selectedProvider.login ? selectedProvider.login : null;
+        const accountIdValue = readConnectDraftValue("accountId", createSuggestedAccountIdClient(connectEmailAddress));
+        const displayNameValue = readConnectDraftValue("displayName", inferSuggestedDisplayNameClient(connectEmailAddress));
+        const credentialValue = readConnectDraftValue("credential", "");
+        const imapHostValue = readConnectDraftValue("imapHost", selectedPreset && selectedPreset.imapHost ? selectedPreset.imapHost : "");
+        const imapPortValue = readConnectDraftValue("imapPort", selectedPreset && typeof selectedPreset.imapPort === "number" ? selectedPreset.imapPort : 993);
+        const imapSecureValue = readConnectDraftBoolean("imapSecure", selectedPreset ? selectedPreset.imapSecure !== false : true);
+        const imapMailboxValue = readConnectDraftValue(
+          "imapMailbox",
+          selectedPreset && selectedPreset.imapMailbox ? selectedPreset.imapMailbox : "INBOX"
+        );
+        const smtpHostValue = readConnectDraftValue("smtpHost", selectedPreset && selectedPreset.smtpHost ? selectedPreset.smtpHost : "");
+        const smtpPortValue = readConnectDraftValue("smtpPort", selectedPreset && typeof selectedPreset.smtpPort === "number" ? selectedPreset.smtpPort : 587);
+        const smtpSecureValue = readConnectDraftBoolean("smtpSecure", selectedPreset ? selectedPreset.smtpSecure === true : false);
+        const smtpFromValue = readConnectDraftValue("smtpFrom", connectEmailAddress);
+        const allowSelfOnly = readConnectDraftBoolean("allowSelfOnly", true);
         const templates = connect && Array.isArray(connect.agentTemplates) ? connect.agentTemplates : [];
         const directory = connect && Array.isArray(connect.agentDirectory) ? connect.agentDirectory : [];
         const headcount = connect && Array.isArray(connect.headcountRecommendations) ? connect.headcountRecommendations : [];
@@ -1889,6 +2030,26 @@ export function renderOpenClawWorkbenchShellHtml(input: {
               ? "Detected mailbox provider: " + ((detectedWebProvider && detectedWebProvider.displayName) || detectedProvider.displayName) + ". Start with the provider web page, then return with the mailbox password, app password, or authorization code."
               : "Enter a mailbox address to detect the provider, reveal the matching web login path, and see the credential type MailClaws will need."
           ) + '</div>' +
+          '<div class="detail-grid">' +
+          '<label><div class="section-label">Account ID</div><input class="console-input" data-connect-field="accountId" placeholder="acct-you-example-com" value="' + escapeHtmlClient(accountIdValue) + '" /></label>' +
+          '<label><div class="section-label">Display name</div><input class="console-input" data-connect-field="displayName" placeholder="you" value="' + escapeHtmlClient(displayNameValue) + '" /></label>' +
+          '<label><div class="section-label">' + escapeHtmlClient((selectedLogin && selectedLogin.credentialLabel) || "Mailbox password / app password / authorization code") + '</div><input class="console-input" data-connect-field="credential" type="password" autocomplete="current-password" placeholder="credential" value="' + escapeHtmlClient(credentialValue) + '" /></label>' +
+          '<label><div class="section-label">Inbound whitelist</div><label class="detail"><input type="checkbox" data-connect-field="allowSelfOnly"' + (allowSelfOnly ? " checked" : "") + ' /> Allow only this mailbox address during first connect</label></label>' +
+          '<label><div class="section-label">IMAP host</div><input class="console-input" data-connect-field="imapHost" placeholder="imap.example.com" value="' + escapeHtmlClient(imapHostValue) + '" /></label>' +
+          '<label><div class="section-label">IMAP port</div><input class="console-input" data-connect-field="imapPort" inputmode="numeric" placeholder="993" value="' + escapeHtmlClient(imapPortValue) + '" /></label>' +
+          '<label><div class="section-label">IMAP security</div><select class="console-input" data-connect-field="imapSecure"><option value="true"' + (imapSecureValue ? " selected" : "") + '>TLS / SSL</option><option value="false"' + (!imapSecureValue ? " selected" : "") + '>Plain / STARTTLS</option></select></label>' +
+          '<label><div class="section-label">IMAP mailbox</div><input class="console-input" data-connect-field="imapMailbox" placeholder="INBOX" value="' + escapeHtmlClient(imapMailboxValue) + '" /></label>' +
+          '<label><div class="section-label">SMTP host</div><input class="console-input" data-connect-field="smtpHost" placeholder="smtp.example.com" value="' + escapeHtmlClient(smtpHostValue) + '" /></label>' +
+          '<label><div class="section-label">SMTP port</div><input class="console-input" data-connect-field="smtpPort" inputmode="numeric" placeholder="587" value="' + escapeHtmlClient(smtpPortValue) + '" /></label>' +
+          '<label><div class="section-label">SMTP security</div><select class="console-input" data-connect-field="smtpSecure"><option value="true"' + (smtpSecureValue ? " selected" : "") + '>TLS / SSL</option><option value="false"' + (!smtpSecureValue ? " selected" : "") + '>Plain / STARTTLS</option></select></label>' +
+          '<label><div class="section-label">SMTP from</div><input class="console-input" data-connect-field="smtpFrom" placeholder="you@example.com" value="' + escapeHtmlClient(smtpFromValue) + '" /></label>' +
+          '</div>' +
+          '<div class="detail">' + escapeHtmlClient(
+            allowSelfOnly
+              ? "Default safety policy is on: the first connected account only accepts inbound mail from its own address until you widen the whitelist later."
+              : "Inbound sender allowlist is open for this connect payload. Only turn this off when you are ready to accept mail from other senders."
+          ) + '</div>' +
+          '<div class="actions-inline"><button class="btn primary" data-action="connect-mailbox">Connect Mailbox</button></div>' +
           '<div class="mono-block">' + escapeHtmlClient((connect && connect.recommendedStartCommand) || "mailclaws dashboard") + "</div>" +
           '<div class="mono-block">' + escapeHtmlClient(loginCommand) + "</div>" +
           (detectedWebProvider && !providerOptions.some(function(provider) { return provider.id === detectedWebProvider.id; })
@@ -2629,6 +2790,45 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const target = event.target instanceof Element ? event.target.closest("[data-action]") : null;
         if (!target) return;
         const action = target.getAttribute("data-action");
+        if (action === "connect-mailbox") {
+          event.preventDefault();
+          let payload;
+          try {
+            payload = buildConnectMailboxPayload();
+          } catch (error) {
+            state.error = error instanceof Error ? error.message : String(error);
+            render();
+            return;
+          }
+          state.loading = true;
+          state.error = "";
+          render();
+          void requestJson((config.apiBasePath || "/api") + "/accounts", {
+            method: "POST",
+            headers: {
+              "content-type": "application/json"
+            },
+            body: JSON.stringify(payload)
+          })
+            .then(function(account) {
+              state.connectEmailAddress = payload.emailAddress;
+              navigate({
+                accountId: account && account.accountId ? account.accountId : payload.accountId,
+                inboxId: null,
+                roomKey: null,
+                mailboxId: null,
+                mode: "accounts"
+              });
+            })
+            .catch(function(error) {
+              state.error = error instanceof Error ? error.message : String(error);
+            })
+            .finally(function() {
+              state.loading = false;
+              render();
+            });
+          return;
+        }
         if (action === "apply-agent-template") {
           event.preventDefault();
           const templateId = target.getAttribute("data-template-id");
@@ -2746,13 +2946,49 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         }
       });
 
-      document.addEventListener("change", function(event) {
-        const target = event.target instanceof HTMLInputElement ? event.target : null;
-        if (!target || target.id !== "connect-email-input") {
+      document.addEventListener("input", function(event) {
+        const target = event.target;
+        if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement)) {
           return;
         }
-        state.connectEmailAddress = String(target.value || "").trim();
-        render();
+        if (target.id === "connect-email-input") {
+          state.connectEmailAddress = String(target.value || "").trim();
+          render();
+          return;
+        }
+        const field = target.getAttribute("data-connect-field");
+        if (!field || target instanceof HTMLSelectElement || target.type === "checkbox") {
+          return;
+        }
+        state.connectDraft = {
+          ...(state.connectDraft || {}),
+          [field]: String(target.value || "")
+        };
+      });
+
+      document.addEventListener("change", function(event) {
+        const target = event.target;
+        if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement)) {
+          return;
+        }
+        if (target.id === "connect-email-input") {
+          state.connectEmailAddress = String(target.value || "").trim();
+          render();
+          return;
+        }
+        const field = target.getAttribute("data-connect-field");
+        if (!field) {
+          return;
+        }
+        state.connectDraft = {
+          ...(state.connectDraft || {}),
+          [field]: target instanceof HTMLInputElement && target.type === "checkbox"
+            ? target.checked
+            : String(target.value || "")
+        };
+        if (target instanceof HTMLSelectElement || (target instanceof HTMLInputElement && target.type === "checkbox")) {
+          render();
+        }
       });
 
       document.addEventListener("click", function(event) {

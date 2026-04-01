@@ -1035,7 +1035,9 @@ async function handleRequest(options: {
     }
 
     if (mailApi && request.method === "POST" && requestUrl.pathname === "/api/accounts") {
-      const body = (await readJsonBody(request)) as Parameters<typeof mailApi.upsertAccount>[0];
+      const body = applyDefaultAccountSenderPolicy(
+        (await readJsonBody(request)) as Parameters<typeof mailApi.upsertAccount>[0]
+      );
       mailApi.upsertAccount(body);
       writeJson(
         response,
@@ -1253,6 +1255,35 @@ function parseOptionalBodyStringList(value: string[] | string | undefined) {
   return parsed.length > 0 ? parsed : undefined;
 }
 
+function applyDefaultAccountSenderPolicy<T extends { emailAddress?: unknown; settings?: unknown }>(body: T): T {
+  const emailAddress = typeof body.emailAddress === "string" ? body.emailAddress.trim().toLowerCase() : "";
+  if (!emailAddress || !emailAddress.includes("@")) {
+    return body;
+  }
+
+  const currentSettings = isRecord(body.settings) ? body.settings : {};
+  const hasTopLevelSenderPolicy = Object.hasOwn(currentSettings, "senderPolicy");
+  const securitySettings = isRecord(currentSettings.security) ? currentSettings.security : null;
+  const hasSecuritySenderPolicy = securitySettings ? Object.hasOwn(securitySettings, "senderPolicy") : false;
+
+  if (hasTopLevelSenderPolicy || hasSecuritySenderPolicy) {
+    return body;
+  }
+
+  return {
+    ...body,
+    settings: {
+      ...currentSettings,
+      security: {
+        ...(securitySettings ?? {}),
+        senderPolicy: {
+          allowEmails: [emailAddress]
+        }
+      }
+    }
+  };
+}
+
 function parseRequiredBodyStringList(value: string[] | string | undefined, key: string) {
   const parsed = parseOptionalBodyStringList(value);
   if (!parsed || parsed.length === 0) {
@@ -1277,6 +1308,10 @@ function requireStringBody(value: unknown, key: string) {
   }
 
   return value.trim();
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 
 function parseGatewayEvent(event: unknown) {

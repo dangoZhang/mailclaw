@@ -7,6 +7,7 @@ import type { AppConfig } from "../config.js";
 import { recoverRoomQueue } from "../core/recovery.js";
 import { replayRoom } from "../core/replay.js";
 import { redactSensitiveText, redactSensitiveValue } from "../security/redaction.js";
+import type { SenderPolicyConfig } from "../security/sender-policy.js";
 import {
   bindGatewaySessionToRoom,
   markGatewayOutcomeDispatchFailed,
@@ -511,17 +512,33 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
       deliverySenderCaches
     );
   };
+  const resolveEffectiveSenderPolicy = (input: RuntimeIngestInput) => {
+    if (input.senderPolicy) {
+      return input.senderPolicy;
+    }
+
+    const account = loadLatestAccount(input.accountId);
+    if (!account) {
+      return undefined;
+    }
+
+    return readAccountSenderPolicy(account.settings);
+  };
   const ingestMail = async (input: RuntimeIngestInput) => {
     if (!deps.config.features.mailIngest) {
       throw new RuntimeFeatureDisabledError("mail ingest is disabled");
     }
 
+    const senderPolicy = resolveEffectiveSenderPolicy(input);
     const ingested = ingestIncomingMail(
       {
         db: deps.db,
         config: deps.config
       },
-      input
+      {
+        ...input,
+        senderPolicy
+      }
     );
 
     const processed =
@@ -3613,6 +3630,44 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
   };
 
   return runtime;
+}
+
+function readAccountSenderPolicy(settings: Record<string, unknown>): SenderPolicyConfig | undefined {
+  const topLevel = Object.hasOwn(settings, "senderPolicy") ? settings.senderPolicy : undefined;
+  const security = asRecord(settings.security);
+  const nested = security && Object.hasOwn(security, "senderPolicy") ? security.senderPolicy : undefined;
+  const source = topLevel ?? nested;
+  if (!source) {
+    return undefined;
+  }
+
+  const record = asRecord(source);
+  if (!record) {
+    return undefined;
+  }
+
+  return {
+    allowEmails: normalizeSenderPolicyList(record.allowEmails),
+    allowDomains: normalizeSenderPolicyList(record.allowDomains),
+    denyEmails: normalizeSenderPolicyList(record.denyEmails),
+    denyDomains: normalizeSenderPolicyList(record.denyDomains)
+  };
+}
+
+function normalizeSenderPolicyList(value: unknown) {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const normalized = value
+    .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+    .filter(Boolean);
+
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
 }
 
 function normalizeOAuthRedirectUri(rawRedirectUri: string) {
