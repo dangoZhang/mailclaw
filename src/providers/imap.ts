@@ -206,6 +206,39 @@ export function hasConfiguredImapSettings(settings: Record<string, unknown>) {
   }
 }
 
+export async function validateConfiguredImapConnection(
+  input: {
+    settings: Record<string, unknown>;
+    signal?: AbortSignal;
+  },
+  options: {
+    clientFactory?: (config: ImapClientConfig) => ImapClientLike;
+    fetchImpl?: typeof fetch;
+  } = {}
+) {
+  const signal = input.signal ?? new AbortController().signal;
+  const settings = await resolveConfiguredImapSettings(input.settings, {
+    fetchImpl: options.fetchImpl,
+    signal
+  });
+  const client = (options.clientFactory ?? createImapClient)(settings.config);
+
+  await client.connect();
+  try {
+    await client.mailboxOpen(settings.mailbox);
+  } finally {
+    await client.logout().catch(() => undefined);
+  }
+
+  return {
+    mailbox: settings.mailbox,
+    host: settings.config.host,
+    port: settings.config.port,
+    secure: settings.config.secure,
+    username: settings.config.auth.user
+  };
+}
+
 function mapAddress(address?: ImapAddress): ProviderAddress {
   return {
     name: address?.name,

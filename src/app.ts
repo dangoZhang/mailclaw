@@ -1038,6 +1038,7 @@ async function handleRequest(options: {
       const body = applyDefaultAccountSenderPolicy(
         (await readJsonBody(request)) as Parameters<typeof mailApi.upsertAccount>[0]
       );
+      await mailApi.validateAccount(body);
       mailApi.upsertAccount(body);
       writeJson(
         response,
@@ -1046,6 +1047,14 @@ async function handleRequest(options: {
           accountId: body.accountId
         }
       );
+      return;
+    }
+
+    if (mailApi && request.method === "POST" && requestUrl.pathname === "/api/accounts/validate") {
+      const body = applyDefaultAccountSenderPolicy(
+        (await readJsonBody(request)) as Parameters<typeof mailApi.upsertAccount>[0]
+      );
+      writeJson(response, 200, await mailApi.validateAccount(body));
       return;
     }
 

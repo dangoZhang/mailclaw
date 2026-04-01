@@ -5,12 +5,13 @@ import os from "node:os";
 import path from "node:path";
 import vm from "node:vm";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createAppServer } from "../src/app.js";
 import { loadConfig } from "../src/config.js";
 import { MAIL_IO_PROTOCOL_NAME, MAIL_IO_PROTOCOL_VERSION } from "../src/providers/mail-io-command.js";
-import type { SmtpSender } from "../src/providers/smtp.js";
+import type { ImapClientLike } from "../src/providers/imap.js";
+import type { SmtpSender, SmtpTransportFactory } from "../src/providers/smtp.js";
 import { createMailSidecarRuntime } from "../src/orchestration/runtime.js";
 import { enqueueRoomJob, failRoomJob, leaseNextRoomJob } from "../src/queue/thread-queue.js";
 import { initializeDatabase } from "../src/storage/db.js";
@@ -55,6 +56,8 @@ function createFixture(options: {
   gatewayOutcomeDispatcher?: NonNullable<
     Parameters<typeof createMailSidecarRuntime>[0]["gatewayOutcomeDispatcher"]
   >;
+  imapClientFactory?: Parameters<typeof createMailSidecarRuntime>[0]["imapClientFactory"];
+  smtpTransportFactory?: SmtpTransportFactory;
 } = {}) {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "mailclaw-api-"));
   tempDirs.push(tempDir);
@@ -88,6 +91,8 @@ function createFixture(options: {
     config,
     agentExecutor: client,
     smtpSender: options.sender,
+    smtpTransportFactory: options.smtpTransportFactory,
+    imapClientFactory: options.imapClientFactory,
     mailIoCommandRunner: options.mailIoCommandRunner,
     gatewayOutcomeDispatcher: options.gatewayOutcomeDispatcher
   });
@@ -3356,7 +3361,36 @@ describe("app api", () => {
   });
 
   it("stores and lists mail accounts through the HTTP api", async () => {
-    const fixture = createFixture();
+    const imapClientFactory = vi.fn(() => ({
+      async connect() {
+        return undefined;
+      },
+      async mailboxOpen() {
+        return {
+          uidValidity: 7001
+        };
+      },
+      fetch() {
+        return [];
+      },
+      async logout() {
+        return undefined;
+      }
+    } satisfies ImapClientLike));
+    const smtpTransportFactory = vi.fn(() => ({
+      async verify() {
+        return undefined;
+      },
+      async sendMail() {
+        return {
+          messageId: "<smtp-test@example.com>"
+        };
+      }
+    }));
+    const fixture = createFixture({
+      imapClientFactory,
+      smtpTransportFactory
+    });
     const server = createAppServer({
       config: fixture.config,
       mailApi: fixture.runtime
@@ -3384,12 +3418,29 @@ describe("app api", () => {
         displayName: "MailClaws",
         status: "active",
         settings: {
-          host: "imap.example.com"
+          imap: {
+            host: "imap.example.com",
+            port: 993,
+            secure: true,
+            username: "mailclaw@example.com",
+            password: "imap-secret",
+            mailbox: "INBOX"
+          },
+          smtp: {
+            host: "smtp.example.com",
+            port: 465,
+            secure: true,
+            username: "mailclaw@example.com",
+            password: "smtp-secret",
+            from: "mailclaw@example.com"
+          }
         }
       })
     });
 
     expect(createResponse.status).toBe(200);
+    expect(imapClientFactory).toHaveBeenCalledTimes(1);
+    expect(smtpTransportFactory).toHaveBeenCalledTimes(1);
 
     const listResponse = await fetch(`${baseUrl}/api/accounts`);
     const listJson = (await listResponse.json()) as Array<{ accountId: string }>;
@@ -3455,7 +3506,7 @@ describe("app api", () => {
           mode: "imap_watch"
         }),
         outbound: expect.objectContaining({
-          mode: "disabled"
+          mode: "account_smtp"
         }),
         watch: expect.objectContaining({
           checkpoint: "77",
@@ -3469,7 +3520,30 @@ describe("app api", () => {
   });
 
   it("defaults account sender allowlist to self when senderPolicy is not provided", async () => {
-    const fixture = createFixture();
+    const fixture = createFixture({
+      imapClientFactory: () => ({
+        async connect() {
+          return undefined;
+        },
+        async mailboxOpen() {
+          return {};
+        },
+        fetch() {
+          return [];
+        },
+        async logout() {
+          return undefined;
+        }
+      }),
+      smtpTransportFactory: () => ({
+        async verify() {
+          return undefined;
+        },
+        async sendMail() {
+          return {};
+        }
+      })
+    });
     const server = createAppServer({
       config: fixture.config,
       mailApi: fixture.runtime
@@ -3499,7 +3573,17 @@ describe("app api", () => {
           imap: {
             host: "imap.example.com",
             port: 993,
-            secure: true
+            secure: true,
+            username: "MailClaw@example.com",
+            password: "imap-secret"
+          },
+          smtp: {
+            host: "smtp.example.com",
+            port: 465,
+            secure: true,
+            username: "MailClaw@example.com",
+            password: "smtp-secret",
+            from: "MailClaw@example.com"
           }
         }
       })
@@ -3519,7 +3603,30 @@ describe("app api", () => {
   });
 
   it("enforces account senderPolicy from account settings during ingest", async () => {
-    const fixture = createFixture();
+    const fixture = createFixture({
+      imapClientFactory: () => ({
+        async connect() {
+          return undefined;
+        },
+        async mailboxOpen() {
+          return {};
+        },
+        fetch() {
+          return [];
+        },
+        async logout() {
+          return undefined;
+        }
+      }),
+      smtpTransportFactory: () => ({
+        async verify() {
+          return undefined;
+        },
+        async sendMail() {
+          return {};
+        }
+      })
+    });
     const server = createAppServer({
       config: fixture.config,
       mailApi: fixture.runtime
@@ -3549,7 +3656,17 @@ describe("app api", () => {
           imap: {
             host: "imap.example.com",
             port: 993,
-            secure: true
+            secure: true,
+            username: "mailclaw@example.com",
+            password: "imap-secret"
+          },
+          smtp: {
+            host: "smtp.example.com",
+            port: 465,
+            secure: true,
+            username: "mailclaw@example.com",
+            password: "smtp-secret",
+            from: "mailclaw@example.com"
           }
         }
       })
@@ -3634,6 +3751,269 @@ describe("app api", () => {
     expect(allowedInboundResponse.status).toBe(200);
     expect(allowedInboundJson.ingested.status).toBe("queued");
     expect(allowedInboundJson.processed).toBeNull();
+
+    fixture.handle.close();
+  });
+
+  it("rejects account creation when mailbox validation fails and does not persist the account", async () => {
+    const fixture = createFixture({
+      imapClientFactory: () => ({
+        async connect() {
+          throw new Error("invalid imap credentials");
+        },
+        async mailboxOpen() {
+          return {};
+        },
+        fetch() {
+          return [];
+        },
+        async logout() {
+          return undefined;
+        }
+      }),
+      smtpTransportFactory: () => ({
+        async verify() {
+          return undefined;
+        },
+        async sendMail() {
+          return {};
+        }
+      })
+    });
+    const server = createAppServer({
+      config: fixture.config,
+      mailApi: fixture.runtime
+    });
+
+    servers.push(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+
+    const address = server.address();
+    if (address === null || typeof address === "string") {
+      throw new Error("Expected address info");
+    }
+
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+    const createResponse = await fetch(`${baseUrl}/api/accounts`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        accountId: "acct-invalid-connect",
+        provider: "imap",
+        emailAddress: "invalid@example.com",
+        status: "active",
+        settings: {
+          imap: {
+            host: "imap.example.com",
+            port: 993,
+            secure: true,
+            username: "invalid@example.com",
+            password: "wrong-password"
+          },
+          smtp: {
+            host: "smtp.example.com",
+            port: 465,
+            secure: true,
+            username: "invalid@example.com",
+            password: "smtp-secret",
+            from: "invalid@example.com"
+          }
+        }
+      })
+    });
+    const createJson = (await createResponse.json()) as { error: string };
+
+    expect(createResponse.status).toBe(502);
+    expect(createJson.error).toContain("mail account validation failed");
+    expect(createJson.error).toContain("invalid imap credentials");
+    expect(getMailAccount(fixture.handle.db, "acct-invalid-connect")).toBeNull();
+
+    fixture.handle.close();
+  });
+
+  it("exposes /api/accounts/validate and returns validation errors without persisting accounts", async () => {
+    const fixture = createFixture({
+      imapClientFactory: () => ({
+        async connect() {
+          throw new Error("imap auth failed");
+        },
+        async mailboxOpen() {
+          return {};
+        },
+        fetch() {
+          return [];
+        },
+        async logout() {
+          return undefined;
+        }
+      }),
+      smtpTransportFactory: () => ({
+        async verify() {
+          return undefined;
+        },
+        async sendMail() {
+          return {};
+        }
+      })
+    });
+    const server = createAppServer({
+      config: fixture.config,
+      mailApi: fixture.runtime
+    });
+
+    servers.push(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+
+    const address = server.address();
+    if (address === null || typeof address === "string") {
+      throw new Error("Expected address info");
+    }
+
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+    const validateResponse = await fetch(`${baseUrl}/api/accounts/validate`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        accountId: "acct-validate-fail",
+        provider: "imap",
+        emailAddress: "bad@example.com",
+        status: "active",
+        settings: {
+          imap: {
+            host: "imap.example.com",
+            port: 993,
+            secure: true,
+            username: "bad@example.com",
+            password: "bad-password"
+          },
+          smtp: {
+            host: "smtp.example.com",
+            port: 465,
+            secure: true,
+            username: "bad@example.com",
+            password: "smtp-secret",
+            from: "bad@example.com"
+          }
+        }
+      })
+    });
+    const validateJson = (await validateResponse.json()) as { error: string };
+
+    expect(validateResponse.status).toBe(502);
+    expect(validateJson.error).toContain("mail account validation failed");
+    expect(getMailAccount(fixture.handle.db, "acct-validate-fail")).toBeNull();
+
+    fixture.handle.close();
+  });
+
+  it("validates first and then allows account creation when /api/accounts/validate succeeds", async () => {
+    const imapClientFactory = vi.fn(() => ({
+      async connect() {
+        return undefined;
+      },
+      async mailboxOpen() {
+        return {};
+      },
+      fetch() {
+        return [];
+      },
+      async logout() {
+        return undefined;
+      }
+    } satisfies ImapClientLike));
+    const smtpTransportFactory = vi.fn(() => ({
+      async verify() {
+        return undefined;
+      },
+      async sendMail() {
+        return {};
+      }
+    }));
+    const fixture = createFixture({
+      imapClientFactory,
+      smtpTransportFactory
+    });
+    const server = createAppServer({
+      config: fixture.config,
+      mailApi: fixture.runtime
+    });
+
+    servers.push(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+
+    const address = server.address();
+    if (address === null || typeof address === "string") {
+      throw new Error("Expected address info");
+    }
+
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+    const accountPayload = {
+      accountId: "acct-validate-ok",
+      provider: "imap",
+      emailAddress: "ok@example.com",
+      status: "active",
+      settings: {
+        imap: {
+          host: "imap.example.com",
+          port: 993,
+          secure: true,
+          username: "ok@example.com",
+          password: "imap-secret"
+        },
+        smtp: {
+          host: "smtp.example.com",
+          port: 465,
+          secure: true,
+          username: "ok@example.com",
+          password: "smtp-secret",
+          from: "ok@example.com"
+        }
+      }
+    };
+    const validateResponse = await fetch(`${baseUrl}/api/accounts/validate`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(accountPayload)
+    });
+    const validateJson = (await validateResponse.json()) as {
+      provider: string;
+      skipped: boolean;
+      imap: { host: string };
+      smtp: { host: string };
+    };
+
+    expect(validateResponse.status).toBe(200);
+    expect(validateJson).toMatchObject({
+      provider: "imap",
+      skipped: false,
+      imap: {
+        host: "imap.example.com"
+      },
+      smtp: {
+        host: "smtp.example.com"
+      }
+    });
+
+    const createResponse = await fetch(`${baseUrl}/api/accounts`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(accountPayload)
+    });
+    expect(createResponse.status).toBe(200);
+    expect(getMailAccount(fixture.handle.db, "acct-validate-ok")).not.toBeNull();
+    expect(imapClientFactory).toHaveBeenCalledTimes(2);
+    expect(smtpTransportFactory).toHaveBeenCalledTimes(2);
 
     fixture.handle.close();
   });

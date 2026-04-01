@@ -37,11 +37,14 @@ import {
 import {
   createAccountSmtpSender,
   createConfiguredSmtpSender,
+  hasConfiguredAccountSmtpSettings,
+  validateAccountSmtpConnection,
   type SmtpSender,
   type SmtpTransportFactory
 } from "../providers/smtp.js";
 import {
   hasConfiguredImapSettings,
+  validateConfiguredImapConnection,
   type ImapClientConfig,
   type ImapClientLike
 } from "../providers/imap.js";
@@ -281,6 +284,7 @@ export interface MailSidecarRuntimeDeps {
   >;
   smtpSender?: SmtpSender;
   smtpTransportFactory?: SmtpTransportFactory;
+  imapClientFactory?: (config: ImapClientConfig) => ImapClientLike;
   gmailSendClientFactory?: (config: { accessToken: string }) => GmailSendClientLike;
   mailIoPlane?: MailIoPlane;
   mailIoCommandRunner?: LocalCommandRunner;
@@ -945,6 +949,48 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
     });
 
     return listMailAccounts(deps.db).find((account) => account.accountId === input.accountId) ?? null;
+  };
+  const validateMailboxAccount = async (input: Omit<MailAccountRecord, "createdAt" | "updatedAt">) => {
+    if (input.provider !== "imap") {
+      return {
+        provider: input.provider,
+        skipped: true
+      };
+    }
+
+    if (!hasConfiguredImapSettings(input.settings)) {
+      throw new RuntimeApiError("mail account validation failed: IMAP settings are incomplete", 400);
+    }
+    if (!hasConfiguredAccountSmtpSettings(input.settings, input.emailAddress)) {
+      throw new RuntimeApiError("mail account validation failed: SMTP settings are incomplete", 400);
+    }
+
+    try {
+      const imap = await validateConfiguredImapConnection(
+        {
+          settings: input.settings
+        },
+        {
+          clientFactory: deps.imapClientFactory
+        }
+      );
+      const smtp = await validateAccountSmtpConnection(input.settings, {
+        fallbackFrom: input.emailAddress,
+        transportFactory: deps.smtpTransportFactory
+      });
+
+      return {
+        provider: input.provider,
+        skipped: false,
+        imap,
+        smtp
+      };
+    } catch (error) {
+      throw new RuntimeApiError(
+        `mail account validation failed: ${error instanceof Error ? error.message : String(error)}`,
+        502
+      );
+    }
   };
   const buildGmailOAuthAccount = (input: {
     session: NonNullable<ReturnType<typeof getOAuthLoginSessionByState>>;
@@ -3526,6 +3572,9 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
     },
     upsertAccount(input: Omit<MailAccountRecord, "createdAt" | "updatedAt">) {
       return upsertAccountRecord(input);
+    },
+    validateAccount(input: Omit<MailAccountRecord, "createdAt" | "updatedAt">) {
+      return validateMailboxAccount(input);
     },
     startWatchers(options: RuntimeWatcherOptions) {
       const controllers: Record<string, WatcherController<string>> = {};

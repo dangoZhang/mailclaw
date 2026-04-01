@@ -53,6 +53,7 @@ export interface SmtpTransportConfig {
 }
 
 export interface SmtpTransport {
+  verify?(...args: unknown[]): Promise<unknown> | void;
   sendMail(message: {
     from: string;
     to?: string;
@@ -301,6 +302,43 @@ export function createAccountSmtpSender(
   return createSmtpTransportSender(config, input.transportFactory, {
     fetchImpl: input.fetchImpl
   });
+}
+
+export async function validateAccountSmtpConnection(
+  settings: Record<string, unknown>,
+  input: {
+    fallbackFrom?: string;
+    transportFactory?: SmtpTransportFactory;
+    fetchImpl?: typeof fetch;
+  } = {}
+) {
+  const config = resolveAccountSmtpTransportConfig(settings, input.fallbackFrom);
+  if (!config) {
+    throw new Error("smtp settings are incomplete");
+  }
+
+  const transport = (input.transportFactory ?? createDefaultSmtpTransport)({
+    host: config.host,
+    port: config.port,
+    secure: config.secure,
+    auth: await resolveSmtpTransportAuth(config, {
+      fetchImpl: input.fetchImpl
+    })
+  });
+
+  if (typeof transport.verify !== "function") {
+    throw new Error("smtp transport does not support connection verification");
+  }
+
+  await transport.verify();
+
+  return {
+    from: config.from,
+    host: config.host,
+    port: config.port,
+    secure: config.secure,
+    username: config.username ?? config.from
+  };
 }
 
 function createDefaultSmtpTransport(config: {

@@ -2023,7 +2023,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           '<div class="panel"><div class="panel-header"><h3>Connect a mailbox</h3><span class="muted">Workbench mail tab</span></div>' +
           '<div class="panel-body">' +
           '<div class="card-title">Start with one real mailbox, then inspect rooms and internal mail from the same workbench route.</div>' +
-          '<div class="detail">The workbench keeps the setup path narrow on purpose: connect, verify, send one real test email, then switch to room and mailbox inspection.</div>' +
+          '<div class="detail">The workbench keeps the setup path narrow on purpose: validate IMAP and SMTP first, create the account only after both pass, then send one real test email and inspect the room.</div>' +
           '<label><div class="section-label">Mailbox address</div><input class="console-input" id="connect-email-input" type="email" placeholder="you@example.com" value="' + escapeHtmlClient(connectEmailAddress) + '" /></label>' +
           '<div class="detail">' + escapeHtmlClient(
             (detectedWebProvider || detectedProvider)
@@ -2049,7 +2049,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
               ? "Default safety policy is on: the first connected account only accepts inbound mail from its own address until you widen the whitelist later."
               : "Inbound sender allowlist is open for this connect payload. Only turn this off when you are ready to accept mail from other senders."
           ) + '</div>' +
-          '<div class="actions-inline"><button class="btn primary" data-action="connect-mailbox">Connect Mailbox</button></div>' +
+          '<div class="actions-inline"><button class="btn primary" data-action="connect-mailbox">Validate And Connect</button></div>' +
           '<div class="mono-block">' + escapeHtmlClient((connect && connect.recommendedStartCommand) || "mailclaws dashboard") + "</div>" +
           '<div class="mono-block">' + escapeHtmlClient(loginCommand) + "</div>" +
           (detectedWebProvider && !providerOptions.some(function(provider) { return provider.id === detectedWebProvider.id; })
