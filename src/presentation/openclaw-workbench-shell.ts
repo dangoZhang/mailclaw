@@ -2362,42 +2362,41 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const detail = state.data.accountDetail;
         const account = detail.account || {};
         const inboxes = detail.inboxes || [];
-        const mailboxes = detail.mailboxes || [];
-        const rooms = detail.rooms || [];
+        const settings = account.settings && typeof account.settings === "object" ? account.settings : {};
+        const security = settings && typeof settings.security === "object" ? settings.security : {};
+        const senderPolicy =
+          security && typeof security.senderPolicy === "object"
+            ? security.senderPolicy
+            : settings && typeof settings.senderPolicy === "object"
+              ? settings.senderPolicy
+              : {};
+        const allowEmails = Array.isArray(senderPolicy.allowEmails) ? senderPolicy.allowEmails.filter(Boolean) : [];
+        const localAddress = inboxes[0] && inboxes[0].inboxId ? inboxes[0].inboxId : account.accountId || l("Not available", "暂无");
         return (
           '<div class="mail-workbench-main">' +
           renderWorkspaceHero({
             eyebrow: l("Mailbox account", "邮箱账号"),
             title: account.displayName || account.emailAddress || account.accountId || l("Mailbox account", "邮箱账号"),
-            copy: l("Inspect provider posture first, then public inbox intake, recent rooms, and mailbox-local collaboration feeds for this connected account.", "先查看提供商状态，再查看该已连接账号的公共收件箱、最近房间和邮箱本地协作消息流。"),
+            copy: l("Manage the local MailClaws address and inbound allowlist for this connected account.", "管理这个已连接账号在 MailClaws 中的本地地址和入站白名单。"),
             summaryItems: [
-              { label: l("rooms", "房间"), value: String(account.roomCount || 0) },
-              { label: l("active", "活跃"), value: String(account.activeRoomCount || 0) },
-              { label: l("mailboxes", "邮箱箱体"), value: String(account.mailboxCount || 0) },
-              { label: l("inboxes", "收件箱"), value: String(account.inboxCount || 0) }
+              { label: l("local address", "本地地址"), value: String(localAddress) },
+              { label: l("allowlist", "白名单"), value: String(allowEmails.length) },
+              { label: l("status", "状态"), value: String(account.status || "active") },
+              { label: l("mailbox", "邮箱"), value: String(account.emailAddress || account.accountId || "") }
             ]
           }) +
-          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Mailbox Account", "邮箱账号")) + '</h3><span class="muted code">' + escapeHtmlClient(account.accountId || state.route.accountId || "") + '</span></div><div class="panel-body">' +
-          '<div class="chips">' +
-          renderPill(account.provider || "provider", "") +
-          renderPill(account.health || "healthy", "") +
-          renderPill(account.status || "active", "") +
-          '</div>' +
-          '<div class="detail">' + escapeHtmlClient(account.displayName || account.emailAddress || "") + '</div>' +
-          '<div class="detail">' + escapeHtmlClient(prefixedText("Latest activity ", "最近活动 ", formatTime(account.latestActivityAt))) + '</div>' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Local MailClaws Address", "本地 MailClaws 地址")) + '</h3><span class="muted code">' + escapeHtmlClient(account.accountId || state.route.accountId || "") + '</span></div><div class="panel-body">' +
+          '<div class="mono-block">' + escapeHtmlClient(String(localAddress)) + '</div>' +
+          '<div class="detail">' + escapeHtmlClient(l("Use this local address inside MailClaws when routing work to the connected account.", "在 MailClaws 内部把工作路由给这个已连接账号时，使用这个本地地址。")) + '</div>' +
+          '</div></div>' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Inbound Allowlist", "入站白名单")) + '</h3><span class="muted">' + escapeHtmlClient(countText(allowEmails.length, "entries", " 条")) + '</span></div><div class="panel-body">' +
+          (allowEmails.length > 0
+            ? '<div class="chips">' + allowEmails.map(function(email) { return renderPill(String(email), ""); }).join("") + '</div>'
+            : '<div class="empty">' + escapeHtmlClient(l("No allowlist entries are configured.", "当前没有配置白名单条目。")) + '</div>') +
+          '<div class="detail">' + escapeHtmlClient(l("Only senders on this allowlist can enter through the first-connect policy.", "只有白名单中的发件人才能通过首次连接策略进入。")) + '</div>' +
+          '</div></div>' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Account Actions", "账号操作")) + '</h3><span class="muted">' + escapeHtmlClient(account.emailAddress || "") + '</span></div><div class="panel-body">' +
           '<div class="actions-inline"><button class="btn danger" data-action="delete-account" data-account-id="' + escapeHtmlClient(account.accountId || state.route.accountId || "") + '">' + escapeHtmlClient(l("Delete Account", "删除账号")) + '</button></div>' +
-          '</div></div>' +
-          renderProviderPanel() +
-          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Public Inboxes", "公共收件箱")) + '</h3><span class="muted">' + escapeHtmlClient(countText(inboxes.length, "configured", " 个已配置")) + '</span></div><div class="panel-body">' +
-          (inboxes.length > 0
-            ? '<div class="list">' + inboxes.map(function(inbox) { return renderInboxCard({ inbox: inbox, items: [] }); }).join("") + '</div>'
-            : '<div class="empty">' + escapeHtmlClient(l("No public inbox projection exists for this account yet.", "这个账号还没有公共收件箱投影。")) + '</div>') +
-          '</div></div>' +
-          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Recent Mailboxes", "最近邮箱")) + '</h3><span class="muted">' + escapeHtmlClient(countText(Math.min(mailboxes.length, 6), "shown", " 条已显示")) + '</span></div><div class="panel-body">' +
-          (mailboxes.length > 0 ? '<div class="list">' + mailboxes.slice(0, 6).map(renderMailboxCard).join("") + '</div>' : '<div class="empty">' + escapeHtmlClient(l("No virtual mailboxes are visible for this account.", "这个账号下没有可见的虚拟邮箱。")) + '</div>') +
-          '</div></div>' +
-          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Recent Conversations", "最近会话")) + '</h3><span class="muted">' + escapeHtmlClient(countText(Math.min(rooms.length, 6), "shown", " 条已显示")) + '</span></div><div class="panel-body">' +
-          (rooms.length > 0 ? '<div class="list">' + rooms.slice(0, 6).map(renderRoomCard).join("") + '</div>' : '<div class="empty">' + escapeHtmlClient(l("No room activity has been recorded for this account yet.", "这个账号还没有记录到房间活动。")) + '</div>') +
           '</div></div>' +
           '</div>'
         );
