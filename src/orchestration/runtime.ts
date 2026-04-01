@@ -3576,6 +3576,22 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
     validateAccount(input: Omit<MailAccountRecord, "createdAt" | "updatedAt">) {
       return validateMailboxAccount(input);
     },
+    deleteAccount(accountId: string) {
+      const existing = getMailAccount(deps.db, accountId);
+      if (!existing) {
+        throw new RuntimeApiError(`mail account not found: ${accountId}`, 404);
+      }
+      deliverySenderCaches.gmailSenderCache.delete(accountId);
+      deliverySenderCaches.accountSmtpSenderCache.delete(accountId);
+      deps.db.prepare("DELETE FROM provider_cursors WHERE account_id = ?").run(accountId);
+      deps.db.prepare("DELETE FROM provider_events WHERE account_id = ?").run(accountId);
+      deps.db.prepare("DELETE FROM oauth_login_sessions WHERE account_id = ?").run(accountId);
+      deps.db.prepare("DELETE FROM mail_accounts WHERE account_id = ?").run(accountId);
+      return {
+        accountId,
+        deleted: true
+      };
+    },
     startWatchers(options: RuntimeWatcherOptions) {
       const controllers: Record<string, WatcherController<string>> = {};
 

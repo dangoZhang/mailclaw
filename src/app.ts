@@ -1058,6 +1058,12 @@ async function handleRequest(options: {
       return;
     }
 
+    const deleteAccountMatch = mailApi ? requestUrl.pathname.match(/^\/api\/accounts\/([^/]+)$/) : null;
+    if (mailApi && request.method === "DELETE" && deleteAccountMatch) {
+      writeJson(response, 200, mailApi.deleteAccount(decodeURIComponent(deleteAccountMatch[1] ?? "")));
+      return;
+    }
+
     const authStartPostMatch = mailApi ? requestUrl.pathname.match(/^\/api\/auth\/([^/]+)\/start$/) : null;
     if (mailApi && request.method === "POST" && authStartPostMatch) {
       const resolvedProvider = resolveOAuthProvider(decodeURIComponent(authStartPostMatch[1] ?? ""));

@@ -91,6 +91,15 @@ export function listMailAccounts(db: DatabaseSync): MailAccountRecord[] {
   return rows.map(mapMailAccountRow);
 }
 
+export function deleteMailAccount(db: DatabaseSync, accountId: string) {
+  db.prepare(
+    `
+      DELETE FROM mail_accounts
+      WHERE account_id = ?;
+    `
+  ).run(accountId);
+}
+
 function mapMailAccountRow(row: MailAccountRow): MailAccountRecord {
   return {
     accountId: row.account_id,

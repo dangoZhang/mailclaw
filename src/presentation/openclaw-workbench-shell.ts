@@ -652,6 +652,22 @@ select {
   border-color: var(--accent-hover);
 }
 
+.btn.danger {
+  border-color: color-mix(in srgb, var(--danger) 24%, transparent);
+  background: color-mix(in srgb, var(--danger-subtle) 72%, var(--bg-elevated) 28%);
+  color: var(--danger);
+}
+
+.btn.danger:hover {
+  border-color: color-mix(in srgb, var(--danger) 42%, transparent);
+  background: color-mix(in srgb, var(--danger-subtle) 84%, var(--bg-hover) 16%);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .toolbar-button {
   width: 36px;
   height: 36px;
@@ -1327,6 +1343,12 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         connectDraft: {
           allowSelfOnly: true
         },
+        connectValidation: {
+          status: "idle",
+          signature: "",
+          result: null,
+          error: ""
+        },
         navCollapsed: false,
         navDrawerOpen: false,
         route: null
@@ -1518,6 +1540,27 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           return parsed;
         }
         return fallbackValue;
+      }
+
+      function buildConnectPayloadSignature(payload) {
+        return JSON.stringify(payload);
+      }
+
+      function tryBuildConnectMailboxPayload() {
+        try {
+          return buildConnectMailboxPayload();
+        } catch {
+          return null;
+        }
+      }
+
+      function clearConnectValidation() {
+        state.connectValidation = {
+          status: "idle",
+          signature: "",
+          result: null,
+          error: ""
+        };
       }
 
       function buildConnectMailboxPayload() {
@@ -1986,6 +2029,9 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const detectedWebProvider = resolveKnownWebProviderForMailbox(connectEmailAddress, knownWebProviders);
         const selectedPreset = selectedProvider && selectedProvider.preset ? selectedProvider.preset : null;
         const selectedLogin = selectedProvider && selectedProvider.login ? selectedProvider.login : null;
+        const selectedWebLoginUrl = selectedProvider && selectedProvider.web && selectedProvider.web.loginUrl
+          ? selectedProvider.web.loginUrl
+          : detectedWebProvider && detectedWebProvider.web ? detectedWebProvider.web.loginUrl : "";
         const accountIdValue = readConnectDraftValue("accountId", createSuggestedAccountIdClient(connectEmailAddress));
         const displayNameValue = readConnectDraftValue("displayName", inferSuggestedDisplayNameClient(connectEmailAddress));
         const credentialValue = readConnectDraftValue("credential", "");
@@ -2001,6 +2047,12 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const smtpSecureValue = readConnectDraftBoolean("smtpSecure", selectedPreset ? selectedPreset.smtpSecure === true : false);
         const smtpFromValue = readConnectDraftValue("smtpFrom", connectEmailAddress);
         const allowSelfOnly = readConnectDraftBoolean("allowSelfOnly", true);
+        const currentPayload = connectEmailAddress && connectEmailAddress.indexOf("@") !== -1
+          ? tryBuildConnectMailboxPayload()
+          : null;
+        const currentSignature = currentPayload ? buildConnectPayloadSignature(currentPayload) : "";
+        const validation = state.connectValidation || { status: "idle", signature: "", result: null, error: "" };
+        const validationReady = validation.status === "success" && validation.signature === currentSignature;
         const templates = connect && Array.isArray(connect.agentTemplates) ? connect.agentTemplates : [];
         const directory = connect && Array.isArray(connect.agentDirectory) ? connect.agentDirectory : [];
         const headcount = connect && Array.isArray(connect.headcountRecommendations) ? connect.headcountRecommendations : [];
@@ -2049,7 +2101,18 @@ export function renderOpenClawWorkbenchShellHtml(input: {
               ? "Default safety policy is on: the first connected account only accepts inbound mail from its own address until you widen the whitelist later."
               : "Inbound sender allowlist is open for this connect payload. Only turn this off when you are ready to accept mail from other senders."
           ) + '</div>' +
-          '<div class="actions-inline"><button class="btn primary" data-action="connect-mailbox">Validate And Connect</button></div>' +
+          (validation.status === "success"
+            ? '<div class="detail">Validation passed: IMAP ' + escapeHtmlClient((validation.result && validation.result.imap && validation.result.imap.host) || "ok") + ' / SMTP ' + escapeHtmlClient((validation.result && validation.result.smtp && validation.result.smtp.host) || "ok") + '.</div>'
+            : validation.status === "failed"
+              ? '<div class="error-banner">' + escapeHtmlClient(validation.error || "Mailbox validation failed.") + '</div>'
+              : '<div class="detail">Use Validate Mailbox explicitly before you create the account.</div>') +
+          '<div class="actions-inline">' +
+          (selectedWebLoginUrl
+            ? '<a class="btn" href="' + escapeHtmlClient(selectedWebLoginUrl) + '" target="_blank" rel="noreferrer">Open Provider Login</a>'
+            : '') +
+          '<button class="btn" data-action="validate-mailbox">Validate Mailbox</button>' +
+          '<button class="btn primary" data-action="connect-mailbox"' + (validationReady ? "" : " disabled") + '>Connect Mailbox</button>' +
+          '</div>' +
           '<div class="mono-block">' + escapeHtmlClient((connect && connect.recommendedStartCommand) || "mailclaws dashboard") + "</div>" +
           '<div class="mono-block">' + escapeHtmlClient(loginCommand) + "</div>" +
           (detectedWebProvider && !providerOptions.some(function(provider) { return provider.id === detectedWebProvider.id; })
@@ -2172,6 +2235,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           '</div>' +
           '<div class="detail">' + escapeHtmlClient(account.displayName || account.emailAddress || "") + '</div>' +
           '<div class="detail">Latest activity ' + escapeHtmlClient(formatTime(account.latestActivityAt)) + '</div>' +
+          '<div class="actions-inline"><button class="btn danger" data-action="delete-account" data-account-id="' + escapeHtmlClient(account.accountId || state.route.accountId || "") + '">Delete Account</button></div>' +
           '</div></div>' +
           renderProviderPanel() +
           '<div class="panel"><div class="panel-header"><h3>Public Inboxes</h3><span class="muted">' + escapeHtmlClient(inboxes.length) + ' configured</span></div><div class="panel-body">' +
@@ -2790,6 +2854,56 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const target = event.target instanceof Element ? event.target.closest("[data-action]") : null;
         if (!target) return;
         const action = target.getAttribute("data-action");
+        if (action === "validate-mailbox") {
+          event.preventDefault();
+          let payload;
+          try {
+            payload = buildConnectMailboxPayload();
+          } catch (error) {
+            state.error = error instanceof Error ? error.message : String(error);
+            clearConnectValidation();
+            render();
+            return;
+          }
+          const signature = buildConnectPayloadSignature(payload);
+          state.loading = true;
+          state.error = "";
+          state.connectValidation = {
+            status: "pending",
+            signature: signature,
+            result: null,
+            error: ""
+          };
+          render();
+          void requestJson((config.apiBasePath || "/api") + "/accounts/validate", {
+            method: "POST",
+            headers: {
+              "content-type": "application/json"
+            },
+            body: JSON.stringify(payload)
+          })
+            .then(function(result) {
+              state.connectValidation = {
+                status: "success",
+                signature: signature,
+                result: result,
+                error: ""
+              };
+            })
+            .catch(function(error) {
+              state.connectValidation = {
+                status: "failed",
+                signature: "",
+                result: null,
+                error: error instanceof Error ? error.message : String(error)
+              };
+            })
+            .finally(function() {
+              state.loading = false;
+              render();
+            });
+          return;
+        }
         if (action === "connect-mailbox") {
           event.preventDefault();
           let payload;
@@ -2797,6 +2911,12 @@ export function renderOpenClawWorkbenchShellHtml(input: {
             payload = buildConnectMailboxPayload();
           } catch (error) {
             state.error = error instanceof Error ? error.message : String(error);
+            render();
+            return;
+          }
+          const signature = buildConnectPayloadSignature(payload);
+          if (state.connectValidation.status !== "success" || state.connectValidation.signature !== signature) {
+            state.error = "Validate this mailbox first. Any field change requires a fresh validation run.";
             render();
             return;
           }
@@ -2814,6 +2934,40 @@ export function renderOpenClawWorkbenchShellHtml(input: {
               state.connectEmailAddress = payload.emailAddress;
               navigate({
                 accountId: account && account.accountId ? account.accountId : payload.accountId,
+                inboxId: null,
+                roomKey: null,
+                mailboxId: null,
+                mode: "accounts"
+              });
+            })
+            .catch(function(error) {
+              state.error = error instanceof Error ? error.message : String(error);
+            })
+            .finally(function() {
+              state.loading = false;
+              render();
+            });
+          return;
+        }
+        if (action === "delete-account") {
+          event.preventDefault();
+          const accountId = target.getAttribute("data-account-id") || state.route.accountId;
+          if (!accountId) {
+            return;
+          }
+          if (!window.confirm("Delete this mailbox account connection? Historical room data is kept for now.")) {
+            return;
+          }
+          state.loading = true;
+          state.error = "";
+          render();
+          void requestJson((config.apiBasePath || "/api") + "/accounts/" + encodeURIComponent(accountId), {
+            method: "DELETE"
+          })
+            .then(function() {
+              clearConnectValidation();
+              navigate({
+                accountId: null,
                 inboxId: null,
                 roomKey: null,
                 mailboxId: null,
@@ -2953,12 +3107,14 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         }
         if (target.id === "connect-email-input") {
           state.connectEmailAddress = String(target.value || "").trim();
+          clearConnectValidation();
           return;
         }
         const field = target.getAttribute("data-connect-field");
         if (!field || target instanceof HTMLSelectElement || target.type === "checkbox") {
           return;
         }
+        clearConnectValidation();
         state.connectDraft = {
           ...(state.connectDraft || {}),
           [field]: String(target.value || "")
@@ -2972,6 +3128,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         }
         if (target.id === "connect-email-input") {
           state.connectEmailAddress = String(target.value || "").trim();
+          clearConnectValidation();
           render();
           return;
         }
@@ -2979,6 +3136,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         if (!field) {
           return;
         }
+        clearConnectValidation();
         state.connectDraft = {
           ...(state.connectDraft || {}),
           [field]: target instanceof HTMLInputElement && target.type === "checkbox"

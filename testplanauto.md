@@ -176,6 +176,8 @@
 - [x] T122 ingest 路径会读取账户 settings 中的 senderPolicy，非白名单发件人被阻断，账户自身地址可通过。
 - [x] T123 添加 IMAP/SMTP 账号时会先验证 IMAP 与 SMTP 连通性，验证失败不会落库。
 - [x] T124 Workbench connect 页邮箱输入可连续输入，不会因每个按键触发整页重渲染而丢失焦点。
+- [x] T125 Workbench connect 页存在显式 `Validate Mailbox` 动作；验证通过前不能直接将当前表单落库为账号。
+- [x] T126 account detail 页存在显式删除按钮；删除连接账号后 `/api/accounts` 列表不再返回该账号。
 
 ## 本轮执行摘要
 
@@ -187,6 +189,7 @@
 - `pnpm build`
 - `pnpm vitest run tests/app-api.test.ts`
 - `pnpm vitest run tests/providers-imap.test.ts tests/providers-smtp-transport.test.ts tests/app-api.test.ts`
+- `pnpm vitest run tests/app-api.test.ts`
 - 浏览器 smoke:
   - `workbench/mail?mode=connect`
   - `workbench/mail?mode=accounts`
@@ -210,5 +213,6 @@
 - 2026-04-01 实测结果：`POST /api/accounts` 默认自白名单落库生效；账户级 senderPolicy 已接入 ingest；`tests/app-api.test.ts` 本地实测 `51 passed`，`pnpm build` 通过。
 - 2026-04-01 实测结果：`POST /api/accounts` 已切换为“先验证后创建”；IMAP 与 SMTP 任一验证失败即拒绝创建账号并保持数据库无新记录；`tests/providers-imap.test.ts tests/providers-smtp-transport.test.ts tests/app-api.test.ts` 本地实测 `64 passed`。
 - 2026-04-01 实测结果：已修复 Workbench connect 页邮箱输入每个按键触发整页重渲染导致无法连续输入的问题，并补回归断言。
+- 2026-04-01 实测结果：Workbench connect 页已拆为显式 `Validate Mailbox` + `Connect Mailbox` 两步；account detail 页新增 `Delete Account`；`tests/app-api.test.ts` 本地实测 `55 passed`，`pnpm build` 通过。
 - `docs/live-provider-smoke.md` 已改为说明 IMAP/SMTP-only 主路线，旧 Gmail OAuth runbook 仅保留历史说明。
 - 当前未再发现新的可复现 bug。

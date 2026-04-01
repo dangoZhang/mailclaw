@@ -1642,6 +1642,7 @@ describe("app api", () => {
     expect(consoleHtml).toContain("OpenClaw Workbench");
     expect(consoleHtml).toContain("Mail Workbench");
     expect(consoleHtml).toContain("/console/workbench");
+    expect(consoleHtml).toContain('data-action="delete-account"');
     expect(consoleHtml).not.toContain("<iframe");
     expect(() => new vm.Script(extractModuleScript(consoleHtml))).not.toThrow();
 
@@ -1686,7 +1687,10 @@ describe("app api", () => {
     expect(connectHtml).toContain("/workbench/mail");
     expect(connectHtml).toContain("OpenClaw Workbench");
     expect(connectHtml).toContain("/console/workbench");
+    expect(connectHtml).toContain('data-action="validate-mailbox"');
     expect(connectHtml).toContain('data-action="connect-mailbox"');
+    expect(connectHtml).toContain("Validate Mailbox");
+    expect(connectHtml).toContain("Connect Mailbox");
     expect(connectHtml).toContain('data-connect-field="credential"');
     expect(connectHtml).toContain('data-connect-field="allowSelfOnly"');
     expect(connectHtml).toContain("Allow only this mailbox address during first connect");
@@ -4014,6 +4018,103 @@ describe("app api", () => {
     expect(getMailAccount(fixture.handle.db, "acct-validate-ok")).not.toBeNull();
     expect(imapClientFactory).toHaveBeenCalledTimes(2);
     expect(smtpTransportFactory).toHaveBeenCalledTimes(2);
+
+    fixture.handle.close();
+  });
+
+  it("deletes a mailbox account connection through the HTTP api", async () => {
+    const imapClientFactory = vi.fn(() => ({
+      async connect() {
+        return undefined;
+      },
+      async mailboxOpen() {
+        return {};
+      },
+      fetch() {
+        return [];
+      },
+      async logout() {
+        return undefined;
+      }
+    } satisfies ImapClientLike));
+    const smtpTransportFactory = vi.fn(() => ({
+      async verify() {
+        return undefined;
+      },
+      async sendMail() {
+        return {};
+      }
+    }));
+    const fixture = createFixture({
+      imapClientFactory,
+      smtpTransportFactory
+    });
+    const server = createAppServer({
+      config: fixture.config,
+      mailApi: fixture.runtime
+    });
+
+    servers.push(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+
+    const address = server.address();
+    if (address === null || typeof address === "string") {
+      throw new Error("Expected address info");
+    }
+
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+    const accountPayload = {
+      accountId: "acct-delete-me",
+      provider: "imap",
+      emailAddress: "delete@example.com",
+      status: "active",
+      settings: {
+        imap: {
+          host: "imap.example.com",
+          port: 993,
+          secure: true,
+          username: "delete@example.com",
+          password: "imap-secret"
+        },
+        smtp: {
+          host: "smtp.example.com",
+          port: 465,
+          secure: true,
+          username: "delete@example.com",
+          password: "smtp-secret",
+          from: "delete@example.com"
+        }
+      }
+    };
+    const createResponse = await fetch(`${baseUrl}/api/accounts`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(accountPayload)
+    });
+    expect(createResponse.status).toBe(200);
+    expect(getMailAccount(fixture.handle.db, "acct-delete-me")).not.toBeNull();
+
+    const deleteResponse = await fetch(`${baseUrl}/api/accounts/${encodeURIComponent("acct-delete-me")}`, {
+      method: "DELETE"
+    });
+    const deleteJson = (await deleteResponse.json()) as {
+      accountId: string;
+      deleted: boolean;
+    };
+
+    expect(deleteResponse.status).toBe(200);
+    expect(deleteJson).toEqual({
+      accountId: "acct-delete-me",
+      deleted: true
+    });
+    expect(getMailAccount(fixture.handle.db, "acct-delete-me")).toBeNull();
+
+    const listResponse = await fetch(`${baseUrl}/api/accounts`);
+    const listJson = (await listResponse.json()) as Array<{ accountId: string }>;
+    expect(listJson).not.toEqual(expect.arrayContaining([expect.objectContaining({ accountId: "acct-delete-me" })]));
 
     fixture.handle.close();
   });
