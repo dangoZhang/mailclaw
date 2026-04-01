@@ -100,7 +100,7 @@ if (!hasLiveGmailEnv) {
 
 describe("live provider smoke", () => {
   (hasLiveImapSmtpEnv ? it : it.skip)(
-    "T23: connects to real IMAP and delivers one real SMTP outbox message",
+    "live IMAP/SMTP smoke: fetches from a real mailbox and delivers one real SMTP outbox message",
     async () => {
       const imapBatch = await fetchConfiguredImapMessages({
         accountId: "acct-live-imap",
@@ -189,7 +189,7 @@ describe("live provider smoke", () => {
   );
 
   (hasLiveGmailEnv ? it : it.skip)(
-    "T24: performs a real Gmail recovery/fetch/send smoke for inbound/watch plumbing and reply threading",
+    "legacy Gmail API smoke: performs real recovery/fetch/send for watch plumbing and reply threading",
     async () => {
       const batch = await recoverConfiguredGmailMailbox({
         accountId: "acct-live-gmail",

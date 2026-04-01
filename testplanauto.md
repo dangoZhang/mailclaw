@@ -144,16 +144,16 @@
 - [x] T99 SOUL/agent workspace 绑定正确。
 - [x] T100 durable agent mailbox 与 public mailbox 映射正确。
 
-## 11. 真实 provider smoke（2026-04-01 起切换为 IMAP/SMTP-only 登录，原 Gmail OAuth 组待重写）
+## 11. 真实 provider smoke（2026-04-01 起切换为 IMAP/SMTP-only 登录，原 Gmail OAuth 组待重写；2026-04-02 已按当前入口实测并记录受阻状态）
 
-- [ ] T101 旧 Gmail OAuth 前置校验项已冻结，待替换为 Gmail IMAP/SMTP app password 登录 smoke。
-- [ ] T102 旧 Gmail OAuth 浏览器启动项已冻结，待替换为 Gmail IMAP/SMTP 登录向导 smoke。
-- [ ] T103 待新增：使用 `endermanzhang@gmail.com` 通过 Gmail app password 完成 IMAP/SMTP 登录，并确认 account 记录落库。
-- [ ] T104 待新增：Gmail IMAP/SMTP 登录完成后 account 记录持久化正确，provider/status/emailAddress 正确。
-- [ ] T105 待新增：登录完成后 Gmail 入站 polling / mailbox 映射状态正确。
-- [ ] T106 待新增：基于 IMAP/SMTP 登录后的 Gmail 账号执行 recovery，能拉到真实历史邮件并产出可用 checkpoint。
-- [ ] T107 待新增：基于恢复出的真实线程发送 Gmail reply，threading 正确续接到原会话。
-- [ ] T108 待新增：IMAP/SMTP 登录失败路径、预检查输出和 runbook 与真实链路一致。
+- [ ] T101 旧 Gmail OAuth 前置校验项已冻结；2026-04-02 执行 `pnpm test:live-providers` 时因缺少 `MAILCLAW_LIVE_GMAIL_*` 环境变量被跳过，尚未替换成新的 Gmail IMAP/SMTP smoke。
+- [ ] T102 旧 Gmail OAuth 浏览器启动项已冻结；2026-04-02 已通过 `tests/mailctl.test.ts` 验证旧 `gmail oauth` CLI 命令被显式拒绝、Gmail 自动进入 IMAP/SMTP 登录向导，但未完成真实 Gmail 手工登录 smoke。
+- [ ] T103 使用 `endermanzhang@gmail.com` 通过 Gmail app password 完成 IMAP/SMTP 登录，并确认 account 记录落库；2026-04-02 因缺少 `MAILCLAW_LIVE_IMAP_*` / `MAILCLAW_LIVE_SMTP_*` 环境变量未执行。
+- [ ] T104 Gmail IMAP/SMTP 登录完成后 account 记录持久化正确，provider/status/emailAddress 正确；2026-04-02 仅通过 `tests/mail-accounts.test.ts` 与 `tests/app-api.test.ts` 做本地回归，真实 Gmail 账号落库未执行。
+- [ ] T105 登录完成后 Gmail 入站 polling / mailbox 映射状态正确；2026-04-02 因缺少真实 Gmail IMAP 凭据未执行。
+- [ ] T106 基于 IMAP/SMTP 登录后的 Gmail 账号执行 recovery，能拉到真实历史邮件并产出可用 checkpoint；2026-04-02 因缺少真实 Gmail IMAP 凭据未执行。
+- [ ] T107 基于恢复出的真实线程发送 Gmail reply，threading 正确续接到原会话；2026-04-02 因缺少真实 Gmail IMAP/SMTP 凭据未执行。
+- [ ] T108 IMAP/SMTP 登录失败路径、预检查输出和 runbook 与真实链路一致；2026-04-02 已通过 `tests/mailctl.test.ts` 与 `tests/connect-provider-guides.test.ts` 验证本地 provider 引导、app password 提示与登录向导入口，但真实 Gmail 失败链路未执行。
 
 ## 12. 回归与边界
 
@@ -188,6 +188,13 @@
 - `pnpm test`
 - `pnpm build`
 - `pnpm vitest run tests/app-api.test.ts`
+
+2026-04-02 补充执行：
+
+- `pnpm test:live-providers`（2 项 skip；缺少 `MAILCLAW_LIVE_IMAP_*` / `MAILCLAW_LIVE_SMTP_*` / `MAILCLAW_LIVE_GMAIL_*` 环境变量）
+- `pnpm vitest run tests/login-wizard.test.ts tests/mail-accounts.test.ts tests/app-api.test.ts`
+- `pnpm vitest run tests/connect-provider-guides.test.ts --reporter=verbose`
+- `pnpm vitest run tests/mailctl.test.ts -t "auto-detects Gmail and continues with the IMAP/SMTP login wizard|rejects the legacy gmail oauth login command|connects Outlook through the IMAP/SMTP preset path|Use a Google app password when the normal mailbox password is rejected|QQ Mail usually rejects the web password for IMAP/SMTP" --reporter=verbose`
 - `pnpm vitest run tests/providers-imap.test.ts tests/providers-smtp-transport.test.ts tests/app-api.test.ts`
 - `pnpm vitest run tests/app-api.test.ts`
 - 浏览器 smoke:
