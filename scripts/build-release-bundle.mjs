@@ -11,7 +11,7 @@ const releaseBaseUrl = process.env.MAILCLAW_RELEASE_BASE_URL?.trim() || "";
 const compiledRuntimeDir = path.join(rootDir, "dist");
 const docsSiteDir = path.join(rootDir, "docs", ".vitepress", "dist");
 const outputRoot = path.join(rootDir, "output", "release");
-const bundleName = `mailclaw-v${packageJson.version}`;
+const bundleName = `mailclaws-v${packageJson.version}`;
 const stageDir = path.join(outputRoot, bundleName);
 const archivePath = path.join(outputRoot, `${bundleName}.tar.gz`);
 const npmOutputDir = path.join(outputRoot, "npm");
@@ -74,7 +74,7 @@ if (tarResult.status !== 0) {
 
 const archiveSha256 = sha256File(archivePath);
 const npmTarballSha256 = sha256File(npmTarballPath);
-const homebrewFormulaPath = path.join(homebrewOutputDir, "mailclaw.rb");
+const homebrewFormulaPath = path.join(homebrewOutputDir, "mailclaws.rb");
 const archiveUrl = releaseBaseUrl
   ? `${releaseBaseUrl.replace(/\/$/, "")}/${path.basename(archivePath)}`
   : `file://${archivePath}`;
@@ -106,8 +106,11 @@ writeJson(path.join(stageDir, "release-manifest.json"), {
   scripts: {
     startServer: "node dist/index.js",
     start: "node dist/index.js",
+    mailclaws: "node dist/cli/mailclaws.js",
     mailclaw: "node dist/cli/mailclaw.js",
+    mailclawsctl: "node dist/cli/mailclawsctl.js",
     mailctl: "node dist/cli/mailctl.js",
+    mailclawsioctl: "node dist/cli/mailclawsioctl.js",
     mailioctl: "node dist/cli/mailioctl.js"
   },
   installers: {
@@ -143,13 +146,19 @@ function buildReleasePackageJson(rootPackageJson) {
     packageManager: rootPackageJson.packageManager,
     scripts: {
       start: "node dist/index.js",
+      mailclaws: "node dist/cli/mailclaws.js",
       mailclaw: "node dist/cli/mailclaw.js",
+      mailclawsctl: "node dist/cli/mailclawsctl.js",
       mailctl: "node dist/cli/mailctl.js",
+      mailclawsioctl: "node dist/cli/mailclawsioctl.js",
       mailioctl: "node dist/cli/mailioctl.js"
     },
     bin: {
+      mailclaws: "./dist/cli/mailclaws.js",
       mailclaw: "./dist/cli/mailclaw.js",
+      mailclawsctl: "./dist/cli/mailclawsctl.js",
       mailctl: "./dist/cli/mailctl.js",
+      mailclawsioctl: "./dist/cli/mailclawsioctl.js",
       mailioctl: "./dist/cli/mailioctl.js"
     },
     dependencies: rootPackageJson.dependencies
@@ -188,7 +197,7 @@ function assertExists(targetPath, message) {
 }
 
 function buildHomebrewFormula(input) {
-  return `class Mailclaw < Formula
+  return `class Mailclaws < Formula
   desc "Email-native runtime for durable, auditable, multi-agent mail workflows"
   homepage "https://github.com/dangoZhang/mailclaw"
   url "${input.archiveUrl}"
@@ -197,8 +206,11 @@ function buildHomebrewFormula(input) {
 
   def install
     libexec.install Dir["*"]
+    bin.install_symlink libexec/"dist/cli/mailclaws.js" => "mailclaws"
     bin.install_symlink libexec/"dist/cli/mailclaw.js" => "mailclaw"
+    bin.install_symlink libexec/"dist/cli/mailclawsctl.js" => "mailclawsctl"
     bin.install_symlink libexec/"dist/cli/mailctl.js" => "mailctl"
+    bin.install_symlink libexec/"dist/cli/mailclawsioctl.js" => "mailclawsioctl"
     bin.install_symlink libexec/"dist/cli/mailioctl.js" => "mailioctl"
   end
 

@@ -413,7 +413,7 @@ describe("embedded runtime executor", () => {
     );
   });
 
-  it("rejects attachment descriptors that point outside the MailClaw state directory", async () => {
+  it("rejects attachment descriptors that point outside the MailClaws state directory", async () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "mailclaw-embedded-boundary-"));
     tempDirs.push(tempDir);
     const config = loadConfig({
@@ -472,7 +472,7 @@ describe("embedded runtime executor", () => {
         }
       })
     ).rejects.toThrow(
-      "attachment attachment-1 preferredInputPath must stay within the MailClaw state directory"
+      "attachment attachment-1 preferredInputPath must stay within the MailClaws state directory"
     );
   });
 });

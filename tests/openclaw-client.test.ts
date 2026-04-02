@@ -415,7 +415,7 @@ describe("openclaw client", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("rejects bridge attachment descriptors that point outside the MailClaw state directory", async () => {
+  it("rejects bridge attachment descriptors that point outside the MailClaws state directory", async () => {
     const fetchMock = vi.fn();
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "mailclaw-openclaw-client-boundary-"));
     tempDirs.push(tempDir);
@@ -468,7 +468,7 @@ describe("openclaw client", () => {
         }
       })
     ).rejects.toThrow(
-      "attachment attachment-1 preferredInputPath must stay within the MailClaw state directory"
+      "attachment attachment-1 preferredInputPath must stay within the MailClaws state directory"
     );
     expect(fetchMock).not.toHaveBeenCalled();
   });

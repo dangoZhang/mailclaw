@@ -224,7 +224,7 @@ describe("local command executor", () => {
     expect(env.MAILCLAW_TEST_LEAK).toBeUndefined();
   });
 
-  it("rejects command runtime attachment descriptors that point outside the MailClaw state directory", async () => {
+  it("rejects command runtime attachment descriptors that point outside the MailClaws state directory", async () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "mailclaw-local-command-boundary-"));
     tempDirs.push(tempDir);
     const config = loadConfig({
@@ -282,7 +282,7 @@ describe("local command executor", () => {
         }
       })
     ).rejects.toThrow(
-      "attachment attachment-1 preferredInputPath must stay within the MailClaw state directory"
+      "attachment attachment-1 preferredInputPath must stay within the MailClaws state directory"
     );
   });
 });

@@ -23,7 +23,7 @@ function formatScenario(label: string, scenario: (typeof result)[keyof typeof re
 }
 
 const sections = [
-  "MailClaw prompt footprint benchmark",
+  "MailClaws prompt footprint benchmark",
   `Generated at: ${result.generatedAt}`,
   `Estimate method: ${result.estimateMethod}`,
   "",

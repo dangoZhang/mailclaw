@@ -469,7 +469,7 @@ async function main() {
     sqlitePath: resolvedSqlitePath
   });
 
-  console.log("MailClaw demo data seeded.");
+  console.log("MailClaws demo data seeded.");
   console.log(`State dir: ${resolvedStateDir}`);
   console.log(`SQLite:    ${resolvedSqlitePath}`);
   console.log(`Account:   ${seeded.manifest.accountId}`);

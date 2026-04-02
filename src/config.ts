@@ -98,7 +98,7 @@ export function loadConfig(source: NodeJS.ProcessEnv | Record<string, string | u
   const runtimePolicyManifest = parseRuntimePolicyManifest(env.MAILCLAW_RUNTIME_POLICY_MANIFEST_JSON);
 
   return {
-    serviceName: "mailclaw",
+    serviceName: "mailclaws",
     env: env.MAILCLAW_ENV,
     http: {
       host: env.MAILCLAW_HTTP_HOST,

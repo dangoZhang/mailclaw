@@ -14,11 +14,11 @@ afterEach(() => {
 });
 
 describe("npm bin launchers", () => {
-  it("resolve the real package directory when invoked through node_modules/.bin symlinks", () => {
+  function runLauncherFixture(commandName: string, distEntry: string, args: string[]) {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "mailclaw-bin-launcher-"));
     tempDirs.push(tempDir);
 
-    const packageDir = path.join(tempDir, "node_modules", "mailclaw");
+    const packageDir = path.join(tempDir, "node_modules", "mailclaws");
     const binDir = path.join(packageDir, "bin");
     const cliDir = path.join(packageDir, "dist", "cli");
     const npmBinDir = path.join(tempDir, "node_modules", ".bin");
@@ -26,11 +26,11 @@ describe("npm bin launchers", () => {
     fs.mkdirSync(cliDir, { recursive: true });
     fs.mkdirSync(npmBinDir, { recursive: true });
 
-    const launcherSource = fs.readFileSync(path.join(process.cwd(), "bin", "mailctl"), "utf8");
-    const launcherPath = path.join(binDir, "mailctl");
+    const launcherSource = fs.readFileSync(path.join(process.cwd(), "bin", commandName), "utf8");
+    const launcherPath = path.join(binDir, commandName);
     fs.writeFileSync(launcherPath, launcherSource, { mode: 0o755 });
     fs.writeFileSync(
-      path.join(cliDir, "mailctl.js"),
+      path.join(cliDir, distEntry),
       [
         "#!/usr/bin/env node",
         "process.stdout.write(JSON.stringify({",
@@ -41,9 +41,9 @@ describe("npm bin launchers", () => {
       { mode: 0o755 }
     );
 
-    fs.symlinkSync(path.relative(npmBinDir, launcherPath), path.join(npmBinDir, "mailctl"));
+    fs.symlinkSync(path.relative(npmBinDir, launcherPath), path.join(npmBinDir, commandName));
 
-    const output = childProcess.execFileSync(path.join(npmBinDir, "mailctl"), ["observe", "runtime"], {
+    const output = childProcess.execFileSync(path.join(npmBinDir, commandName), args, {
       cwd: tempDir,
       env: {
         ...process.env,
@@ -52,9 +52,27 @@ describe("npm bin launchers", () => {
       encoding: "utf8"
     });
 
-    expect(JSON.parse(output)).toEqual({
+    return {
+      parsed: JSON.parse(output) as { entry: string; args: string[] },
+      cliDir
+    };
+  }
+
+  it("resolves the real package directory for mailctl when invoked through node_modules/.bin symlinks", () => {
+    const { parsed, cliDir } = runLauncherFixture("mailctl", "mailctl.js", ["observe", "runtime"]);
+
+    expect(parsed).toEqual({
       entry: fs.realpathSync(path.join(cliDir, "mailctl.js")),
       args: ["observe", "runtime"]
+    });
+  });
+
+  it("resolves the real package directory for mailclaws when invoked through node_modules/.bin symlinks", () => {
+    const { parsed, cliDir } = runLauncherFixture("mailclaws", "mailclaws.js", ["status"]);
+
+    expect(parsed).toEqual({
+      entry: fs.realpathSync(path.join(cliDir, "mailclaws.js")),
+      args: ["status"]
     });
   });
 });

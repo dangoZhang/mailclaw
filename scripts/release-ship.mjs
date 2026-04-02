@@ -34,9 +34,9 @@ process.stdout.write(
   [
     `release shipped: ${tag}`,
     "assets:",
-    `  output/release/mailclaw-v${packageJson.version}/`,
-    `  output/release/mailclaw-v${packageJson.version}.tar.gz`,
-    `  output/release/npm/mailclaw-${packageJson.version}.tgz`,
+    `  output/release/mailclaws-v${packageJson.version}/`,
+    `  output/release/mailclaws-v${packageJson.version}.tar.gz`,
+    `  output/release/npm/mailclaws-${packageJson.version}.tgz`,
     "GitHub Actions release workflow will publish the generated assets on tag push."
   ].join("\n") + "\n"
 );

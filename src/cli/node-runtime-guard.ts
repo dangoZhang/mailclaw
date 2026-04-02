@@ -10,7 +10,7 @@ export function ensureSupportedNodeVersion() {
     return;
   }
 
-  process.stderr.write("\nMailClaw requires Node.js 22+ because it uses the built-in node:sqlite module.\n");
+  process.stderr.write("\nMailClaws requires Node.js 22+ because it uses the built-in node:sqlite module.\n");
   process.stderr.write(`Current runtime: ${process.version}\n`);
   process.stderr.write("Install Node.js 22+ and retry.\n");
   process.exit(1);

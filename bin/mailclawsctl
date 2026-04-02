@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+  SCRIPT_DIR="$(cd -P -- "$(dirname -- "$SOURCE")" && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  if [[ "$SOURCE" != /* ]]; then
+    SOURCE="$SCRIPT_DIR/$SOURCE"
+  fi
+done
+
+SCRIPT_DIR="$(cd -P -- "$(dirname -- "$SOURCE")" && pwd)"
+PACKAGE_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+
+find_node_binary() {
+  local -a candidates=()
+  local candidate=""
+  local path_entry=""
+
+  append_candidate() {
+    local next_candidate="$1"
+    local existing=""
+    if [ -z "$next_candidate" ] || [ ! -x "$next_candidate" ]; then
+      return 0
+    fi
+    for existing in "${candidates[@]-}"; do
+      if [ -z "$existing" ]; then
+        continue
+      fi
+      if [ "$existing" = "$next_candidate" ]; then
+        return 0
+      fi
+    done
+    candidates+=("$next_candidate")
+  }
+
+  append_candidate "${NODE:-}"
+  append_candidate "${npm_node_execpath:-}"
+
+  if command -v node >/dev/null 2>&1; then
+    append_candidate "$(command -v node)"
+  fi
+
+  IFS=':' read -r -a path_entries <<< "${PATH:-}"
+  for path_entry in "${path_entries[@]}"; do
+    append_candidate "$path_entry/node"
+  done
+
+  for candidate in \
+    /opt/homebrew/opt/node@22/bin/node \
+    /usr/local/opt/node@22/bin/node \
+    /opt/homebrew/bin/node \
+    /usr/local/bin/node
+  do
+    append_candidate "$candidate"
+  done
+
+  for candidate in "${candidates[@]}"; do
+    if "$candidate" -e 'const major = Number(process.versions.node.split(".")[0]); process.exit(Number.isFinite(major) && major >= 22 ? 0 : 1)' >/dev/null 2>&1; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+NODE_BIN="$(find_node_binary || true)"
+
+if [ -z "$NODE_BIN" ]; then
+  CURRENT_VERSION="unknown"
+  CURRENT_PATH="node"
+  if command -v node >/dev/null 2>&1; then
+    CURRENT_VERSION="$(node -p 'process.version' 2>/dev/null || printf 'unknown')"
+    CURRENT_PATH="$(command -v node)"
+  fi
+
+  echo >&2
+  echo "MailClaws requires Node.js 22+ because it uses the built-in node:sqlite module." >&2
+  echo "Current runtime: ${CURRENT_VERSION} (${CURRENT_PATH})" >&2
+  echo "Install Node 22+ or place a Node 22 binary earlier in PATH and retry." >&2
+  exit 1
+fi
+
+exec "$NODE_BIN" "$PACKAGE_DIR/dist/cli/mailclawsctl.js" "$@"
