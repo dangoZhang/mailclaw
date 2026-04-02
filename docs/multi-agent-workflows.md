@@ -1,52 +1,60 @@
 # Multi-Agent Collaboration
 
-MailClaw does not ask multiple agents to share one giant transcript.
+MailClaws does not ask multiple agents to share one giant transcript.
 
-Instead, it turns collaboration into inspectable mail-shaped objects:
+Instead, it splits the workflow into three inspectable layers:
 
-- rooms hold the durable truth for one external conversation
-- virtual mailboxes separate public personas from internal worker roles
-- work threads keep parallel tasks isolated
-- reducers converge worker output back into one room-visible result
-- approvals and outbox intents stay as the only path to real external send
+- `Mail`: the external thread the user sees
+- `Address`: the single-agent queue and mailbox projection for one agent
+- `Room`: the shared collaboration truth when several agents touch the same mail
 
 ## The Practical Model
 
 When one real email arrives:
 
-1. MailClaw opens or updates one room.
-2. The front orchestrator reads the latest inbound plus the latest durable Pre state.
-3. If more work is needed, it sends internal task mail to worker mailboxes.
-4. Workers reply through single-parent internal mail.
-5. A reducer or orchestrator converges the results.
-6. Only then can MailClaw create an approval or governed outbox intent.
+1. MailClaws opens or updates one mail session.
+2. That mail session points at one linked room.
+3. The front agent reads the latest inbound plus the durable room state.
+4. If more work is needed, it routes internal task mail to one or more addresses.
+5. Workers reply through single-parent virtual mail.
+6. A reducer or orchestrator converges the result back into the room.
+7. Only then can MailClaws create an approval or governed outbox intent.
 
 That means:
 
 - internal collaboration is durable and replayable
 - stale worker results can be discarded without corrupting the room
 - external mail stays clean even when several workers participated
+- you can inspect one agent queue without confusing it with the shared room truth
 
 ## Durable Agents Versus One-Off Subagents
 
-MailClaw intentionally keeps these execution types separate:
+MailClaws intentionally keeps these execution types separate:
 
-- durable agents have their own `SOUL.md`, public mailbox, and internal role mailboxes
+- durable agents have their own `SOUL.md`, mailbox entrypoints, and internal role mailboxes
 - one-off subagents are burst compute workers and do not keep a soul
 
 That means:
 
-- long-lived persona, collaboration rules, and reusable division of work belong to durable agents
+- long-lived persona, collaboration rules, and division of work belong to durable agents
 - elastic task execution belongs to subagents
 - subagent output only enters the room collaboration path after it is normalized into internal reply mail
 
-So MailClaw is not “make every agent permanent.” It is “keep durable agents for organization, keep subagents for elastic compute.”
+So MailClaws is not “make every agent permanent.” It is “keep durable agents for organization, keep subagents for elastic compute.”
 
 ## What To Look At In The Workbench
 
-Open the Mail tab, then:
+Start from the view that matches the question you are asking.
 
-1. select `Rooms`
+### If the question starts from the user's email
+
+1. open `Mail`
+2. open one mail session
+3. pivot into `Addresses` or `Rooms` only when needed
+
+### If the question is about shared collaboration truth
+
+1. open `Rooms`
 2. open one room
 3. inspect these sections in order
 
@@ -57,6 +65,7 @@ Use this to confirm:
 - which account owns the room
 - which front agent identity is active
 - which collaborator agents or summoned roles participated
+- which public or collaborator addresses were routed
 
 ### Virtual Mail
 
@@ -97,12 +106,12 @@ It shows:
 - which room outcomes were projected back toward Gateway
 - whether dispatch is pending, dispatched, or failed
 
-## Mailbox Views
+## Address Views
 
-If you want to inspect one role mailbox directly:
+If you want to inspect one agent queue directly:
 
-1. open `Mailboxes`
-2. select the mailbox
+1. open `Addresses`
+2. select the address/mailbox
 3. inspect both:
    - `Mailbox Feed`
    - `Room Thread In Mailbox`
@@ -117,11 +126,12 @@ This is useful when you want to answer:
 
 ### Simple Direct Reply
 
-- one room
+- one mail session
+- one linked room
 - one orchestrator decision
 - one governed outbox intent
 
-You will mainly inspect `Room Summary`, `Governed Outbox`, and `Timeline`.
+You will mainly inspect `Mail`, `Room Summary`, `Governed Outbox`, and `Timeline`.
 
 ### Parallel Worker Collaboration
 
@@ -129,7 +139,7 @@ You will mainly inspect `Room Summary`, `Governed Outbox`, and `Timeline`.
 - workers answer in separate work threads
 - reducer converges the results
 
-You will mainly inspect `Virtual Mail` and `Mailbox Deliveries`.
+You will mainly inspect `Addresses`, `Virtual Mail`, and `Mailbox Deliveries`.
 
 ### Approval-Gated Response
 
@@ -139,22 +149,31 @@ You will mainly inspect `Virtual Mail` and `Mailbox Deliveries`.
 
 You will mainly inspect `Approvals` plus the room’s `Governed Outbox`.
 
+## Routing Entry Points
+
+MailClaws can expose a durable agent through:
+
+- plus-addressing such as `assistant+research@example.com`
+- a subject fallback such as `[agent:research]`
+
+That lets external mail target one agent directly without creating a separate external mailbox for every durable role.
+
 ## CLI Surfaces
 
 If you want the same story from the terminal:
 
 ```bash
-mailclaw rooms
-mailclaw replay <roomKey>
+mailclaws rooms
+mailclaws replay <roomKey>
 mailctl mailbox view <roomKey> <mailboxId>
 mailctl mailbox feed <accountId> <mailboxId>
-mailclaw approvals room <roomKey>
-mailclaw trace <roomKey>
+mailclaws approvals room <roomKey>
+mailclaws trace <roomKey>
 ```
 
-## What MailClaw Intentionally Avoids
+## What MailClaws Intentionally Avoids
 
-MailClaw does not use:
+MailClaws does not use:
 
 - one shared transcript as the authority for all agents
 - subject-only continuity for collaboration truth

@@ -1,6 +1,6 @@
 # Mail Workbench
 
-The Mail workbench is the user-facing surface for MailClaw.
+The Mail workbench is the user-facing surface for MailClaws.
 
 In the intended setup, it appears as the `Mail` tab inside OpenClaw/Gateway. The direct `/workbench/mail` route exists as a fallback and deep-link target.
 
@@ -9,7 +9,7 @@ In the intended setup, it appears as the `Mail` tab inside OpenClaw/Gateway. The
 Preferred path:
 
 ```bash
-mailclaw dashboard
+mailclaws dashboard
 ```
 
 Then sign in to OpenClaw/Gateway and click `Mail`.
@@ -17,23 +17,51 @@ Then sign in to OpenClaw/Gateway and click `Mail`.
 Direct fallback:
 
 ```bash
-mailclaw open
+mailclaws open
 ```
 
 ## What Each Tab Means
 
 ### Mail
 
-The entry surface for setup and mailbox connection.
+The external conversation surface.
 
 Use it when:
 
-- you are connecting a mailbox for the first time
-- you want the recommended provider path
-- you want one-click agent templates
-- you want to create a custom durable agent
-- you want to inspect the current agent directory and HeadCount suggestions
-- you want the shortest path back into the Mail tab
+- you want to browse external mail sessions first
+- you want to inspect who currently owns a conversation
+- you want to jump from the external thread into one address or one linked room
+
+### Agents
+
+The persistent agent roster.
+
+Use it when:
+
+- you want to inspect durable agents and their entrypoints
+- you want to see collaborator links
+- you want to inspect installed skills
+- you want to understand which agent identities exist before looking at one queue
+
+### Addresses
+
+The single-agent work layer.
+
+Use it when:
+
+- you want to inspect one agent's mailbox feed
+- you want to see which mail sessions are visible to one address
+- you want to inspect queueing and room-local projection without opening the shared room first
+
+### Rooms
+
+The room-level truth view.
+
+Use it when:
+
+- you want the durable collaboration state for one conversation
+- you want replay, task tracking, gateway projection, and governed delivery in one place
+- you want to inspect multi-agent coordination rather than one agent queue
 
 ### Accounts
 
@@ -42,29 +70,9 @@ The account-level view.
 Use it when:
 
 - you want to confirm a mailbox is connected
-- you want to check provider posture and general health
-- you want to jump into recent rooms or mailbox views for that account
-
-### Rooms
-
-The room-level view.
-
-Use it when:
-
-- you want to inspect a conversation as durable state
-- you want to see revision, participants, approvals, and replay-visible timeline
-- you want to understand why the latest reply looks the way it does
-- you want to inspect virtual mail, mailbox deliveries, and governed outbox state for one room
-
-### Mailboxes
-
-The internal collaboration view.
-
-Use it when:
-
-- you want to inspect one public or internal mailbox
-- you want to understand what one agent role saw
-- you want to inspect internal collaboration without reading the whole room timeline first
+- you want to inspect provider posture and general health
+- you want to inspect the single local MailClaws intake address for that mailbox
+- you want to inspect the inbound allowlist used during first connect
 
 ### Approvals
 
@@ -79,17 +87,18 @@ Use it when:
 
 The most common path is:
 
-1. open `Accounts`
-2. select the connected mailbox account
-3. open the new room
-4. if needed, jump to one mailbox participant
+1. open `Mail`
+2. select the external mail session
+3. if needed, open one `Address`
+4. if needed, open the linked `Room`
 5. if needed, inspect `Approvals` before delivery
 
 This mirrors the runtime model:
 
-- account gives you provider and mailbox scope
-- room gives you durable truth
-- mailbox gives you collaboration detail
+- mail session gives you the user-visible thread
+- address gives you one agent queue
+- room gives you shared truth
+- account gives you provider and intake configuration
 - approvals give you side-effect control
 
 ## Multi-Agent Collaboration In One Room
@@ -109,13 +118,14 @@ This gives you a clean explanation of:
 - whether delivery rows were consumed or marked stale
 - which internal result became an external send candidate
 
-If you then want one mailbox-local view, click a mailbox chip from the room.
+If you then want one address-local view, click a mailbox chip from the room or open `Addresses` directly.
 
 ## Deep Links
 
 Useful direct routes:
 
 - `/workbench/mail`
+- `/workbench/mail?mode=agents`
 - `/workbench/mail?mode=accounts`
 - `/workbench/mail?mode=rooms`
 - `/workbench/mail?mode=mailboxes`
@@ -130,9 +140,10 @@ These routes are meant to make navigation stable whether you entered from Gatewa
 
 The Mail workbench is designed to explain the system in operationally useful terms:
 
-- connected accounts
+- external mail sessions
+- agent addresses
 - durable rooms
-- internal/public mailboxes
+- connected accounts and intake address
 - approval state
 
 It is not meant to be just another generic chat transcript viewer.

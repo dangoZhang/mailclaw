@@ -2,15 +2,15 @@
 
 This page is the shortest path from zero to one working mailbox conversation.
 
-If you already know what MailClaw is, jump to [Send Your First Real Email](#three-minute-first-mail).
+If you already know what MailClaws is, jump to [Send Your First Real Email](#three-minute-first-mail).
 
 ## What You Need
 
 - Node.js 22+
-- one mailbox you want MailClaw to connect
+- one mailbox you want MailClaws to connect
 - another mailbox or mail client to send a test email from
 
-MailClaw does not assume one provider. Built-in connection paths cover Gmail, Outlook, QQ, iCloud, Yahoo, 163/126, and generic IMAP/SMTP accounts.
+MailClaws does not assume one provider. Built-in IMAP/SMTP presets cover Gmail, Outlook, QQ, iCloud, Yahoo, 163/126, and generic IMAP/SMTP accounts.
 
 ## Install
 
@@ -23,9 +23,9 @@ Recommended:
 Other supported paths:
 
 ```bash
-npm install -g mailclaw
-pnpm setup && pnpm add -g mailclaw
-brew install mailclaw
+npm install -g mailclaws
+pnpm setup && pnpm add -g mailclaws
+brew install mailclaws
 ```
 
 If you are running from source:
@@ -34,33 +34,41 @@ If you are running from source:
 pnpm install
 ```
 
-## Start MailClaw
+## Start MailClaws
 
 ```bash
 MAILCLAW_FEATURE_MAIL_INGEST=true \
-mailclaw
+mailclaws
 ```
 
-This starts the local runtime and the Mail tab backend.
+This starts the local runtime and the Mail workbench backend.
 
 ## Connect One Mailbox
 
 Recommended path:
 
 ```bash
-mailclaw onboard you@example.com
-mailclaw login
+mailclaws onboard you@example.com
+mailclaws login you@example.com
 ```
 
 What these do:
 
-- `mailclaw onboard` recommends the easiest provider path from the mailbox address
-- `mailclaw login` walks you through the actual account connection flow
+- `mailclaws onboard` recommends the easiest provider path from the mailbox address
+- `mailclaws login you@example.com` detects the provider, suggests IMAP/SMTP defaults, and asks for the mailbox credential
+
+What to expect in the current connect flow:
+
+1. enter one mailbox address
+2. let MailClaws detect the provider
+3. open the provider's web login page if you need to sign in, register, or generate an app password
+4. paste the mailbox password, app password, or provider authorization code into MailClaws
+5. validate IMAP and SMTP before the account is saved
 
 If you already know the provider path you want, use:
 
 ```bash
-mailclaw providers
+mailclaws providers
 ```
 
 ## Open The Mail Tab
@@ -68,7 +76,7 @@ mailclaw providers
 Preferred host flow:
 
 ```bash
-mailclaw dashboard
+mailclaws dashboard
 ```
 
 Then sign in to OpenClaw/Gateway and click `Mail`.
@@ -76,7 +84,7 @@ Then sign in to OpenClaw/Gateway and click `Mail`.
 Direct fallback:
 
 ```bash
-mailclaw open
+mailclaws open
 ```
 
 or open:
@@ -89,45 +97,47 @@ http://127.0.0.1:3000/workbench/mail
 
 ## Send Your First Real Email {#three-minute-first-mail}
 
-1. Connect one mailbox with `mailclaw login`.
-2. Copy the connected address from the Mail tab or `mailclaw accounts`.
+1. Connect one mailbox with `mailclaws login you@example.com`.
+2. Use the connected mailbox address, or the local MailClaws intake address shown on the account page.
 3. Send one email to that address from another mailbox.
-4. Open the Mail tab.
-5. Open the connected account, then the new room.
+4. Open the Mail workbench.
+5. Start from the new `Mail` session. Open `Addresses` for one agent view or `Rooms` for the shared collaboration view.
 
-That is the core MailClaw loop:
+That is the core MailClaws loop:
 
 - real mail arrives
-- MailClaw creates or updates a room
-- agents work inside that room
-- you inspect the result from the Mail tab
+- MailClaws creates or updates a mail session and its linked room
+- agents work through addresses and virtual mail
+- you inspect the result from `Mail`, `Addresses`, or `Rooms`
 
 ## What You Will See
 
-After the first message arrives, the Mail tab gives you four useful views:
+After the first message arrives, the Mail workbench gives you six useful views:
 
-- `Accounts`: which mailboxes are connected and healthy
-- `Rooms`: the durable conversation state
-- `Mailboxes`: internal and public mailbox views for agent collaboration
+- `Mail`: external mail sessions
+- `Agents`: the durable agent roster and routing entrypoints
+- `Addresses`: address-local mailbox projections for one agent
+- `Rooms`: the shared collaboration truth
+- `Accounts`: mailbox settings, provider state, local intake address, and allowlist
 - `Approvals`: gated outbound work waiting for review
 
 If you want to inspect internal agent collaboration after the first message:
 
-- open a room
+- start from `Mail`
+- open the linked `Room` when you need the shared truth
 - inspect `Virtual Mail`, `Mailbox Deliveries`, and `Governed Outbox`
-- click a mailbox participant if you want one role-local feed
-- inspect the mailbox feed and room-local collaboration state
+- open `Addresses` when you want one role-local feed without the full room
 
 ## For OpenClaw Users
 
 If you already use OpenClaw, keep the same outer workflow:
 
-1. start MailClaw
-2. run `mailclaw dashboard`
+1. start MailClaws
+2. run `mailclaws dashboard`
 3. enter the host console
 4. click `Mail`
 
-MailClaw is meant to feel like an extra Mail tab inside the existing OpenClaw shell, not like a separate console you have to learn first.
+MailClaws is meant to feel like an extra Mail tab inside the existing OpenClaw shell, not like a separate console you have to learn first.
 
 ## Next Steps
 

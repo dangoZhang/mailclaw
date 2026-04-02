@@ -1,6 +1,6 @@
 # Operators Guide
 
-This page is for people responsible for keeping MailClaw healthy in daily use.
+This page is for people responsible for keeping MailClaws healthy in daily use.
 
 It focuses on what to check when users say:
 
@@ -10,11 +10,12 @@ It focuses on what to check when users say:
 
 ## The Main Objects To Check
 
-MailClaw operations are easiest when you follow the same object model the runtime uses:
+MailClaws operations are easiest when you follow the same object model the runtime uses:
 
-- `account`: one connected mailbox and its provider posture
-- `room`: the durable truth boundary for one conversation
-- `mailbox`: the internal or public collaboration view
+- `account`: one connected mailbox, its intake address, allowlist, and provider posture
+- `mail session`: the external conversation surface
+- `address`: the single-agent queue and mailbox projection
+- `room`: the durable multi-agent truth boundary
 - `approval`: gated external side effects
 
 ## First-Line Triage
@@ -28,38 +29,49 @@ Confirm the connected mailbox exists and looks healthy.
 Useful commands:
 
 ```bash
-mailclaw accounts
-mailclaw accounts show <accountId>
+mailclaws accounts
+mailclaws accounts show <accountId>
 ```
 
 Useful API:
 
 - `GET /api/accounts/:accountId/provider-state`
 
-### 2. Room
+### 2. Mail Session
 
-Confirm MailClaw created or updated the room.
+Confirm MailClaws created or updated the external conversation surface, then pivot to the linked room if needed.
 
 Useful commands:
 
 ```bash
-mailclaw rooms
-mailclaw replay <roomKey>
+mailclaws rooms
+mailclaws replay <roomKey>
 ```
 
-### 3. Mailbox View
+### 3. Address View
 
-If the room exists but behavior is unclear, inspect the related mailbox or inbox view.
+If the mail session exists but behavior is unclear, inspect the related address/mailbox view.
 
 Useful commands:
 
 ```bash
-mailclaw inboxes <accountId>
+mailclaws inboxes <accountId>
 mailctl observe mailbox-feed <accountId> <mailboxId>
 mailctl observe mailbox-view <roomKey> <mailboxId>
 ```
 
-### 4. Approval State
+### 4. Room
+
+If several agents participated or you need the durable truth view, inspect the room next.
+
+Useful commands:
+
+```bash
+mailclaws replay <roomKey>
+mailctl observe mailbox-view <roomKey> <mailboxId>
+```
+
+### 5. Approval State
 
 If the system prepared an answer but did not send it, check approval state next.
 
@@ -74,14 +86,17 @@ mailctl operate deliver-outbox
 
 The browser workbench mirrors the same triage flow:
 
-1. open `Accounts`
-2. open the mailbox account
-3. open the room
-4. jump into a mailbox if collaboration detail is needed
-5. open `Approvals` if delivery is blocked
+1. open `Mail`
+2. open the mail session
+3. jump into `Addresses` if one agent queue is the question
+4. open the linked `Room` if shared truth is the question
+5. open `Accounts` for provider/intake config
+6. open `Approvals` if delivery is blocked
 
 Useful deep links:
 
+- `/workbench/mail`
+- `/workbench/mail?mode=agents`
 - `/workbench/mail?mode=accounts`
 - `/workbench/mail?mode=rooms`
 - `/workbench/mail?mode=mailboxes`
@@ -92,33 +107,33 @@ Useful deep links:
 
 ## Common Situations
 
-### Mail Was Sent But No Room Appears
+### Mail Was Sent But No Mail Session Appears
 
 Check:
 
 - account/provider posture
 - inbound path configuration
-- whether the message reached MailClaw at all
+- whether the message reached MailClaws at all
 
 Start with:
 
 ```bash
-mailclaw accounts show <accountId>
-mailclaw rooms
+mailclaws accounts show <accountId>
+mailclaws rooms
 ```
 
-### Room Exists But There Is No Reply Yet
+### Mail Session Exists But There Is No Reply Yet
 
 Check:
 
-- the room replay
-- internal mailbox activity
+- the linked room replay
+- address-local mailbox activity
 - approval state
 
 Start with:
 
 ```bash
-mailclaw replay <roomKey>
+mailclaws replay <roomKey>
 mailctl observe mailbox-view <roomKey> <mailboxId>
 mailctl observe approvals room <roomKey>
 ```
@@ -168,8 +183,9 @@ Delivery and recovery:
 If something is unclear, inspect in this order:
 
 1. account
-2. room
-3. mailbox
-4. approval
+2. mail session
+3. address
+4. room
+5. approval
 
-That order matches the way MailClaw itself is structured, so it usually gets you to the answer faster than starting from raw execution traces.
+That order matches the way MailClaws itself is structured, so it usually gets you to the answer faster than starting from raw execution traces.

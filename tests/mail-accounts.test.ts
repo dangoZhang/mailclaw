@@ -35,7 +35,7 @@ describe("mail account repository", () => {
       accountId: "acct-1",
       provider: "imap",
       emailAddress: "mailclaw@example.com",
-      displayName: "MailClaw",
+      displayName: "MailClaws",
       status: "active",
       settings: {
         host: "imap.example.com"

@@ -6,19 +6,20 @@ MailClaws is built to sit on top of real email systems and, when needed, inside 
 
 ## Integration Model
 
-MailClaws separates responsibilities:
+MailClaws separates responsibilities like this:
 
 - providers move mail in and out
-- rooms keep durable truth
-- virtual mail handles internal agent collaboration
+- accounts own the external mailbox connection
+- mail sessions represent the external conversation surface
+- addresses represent one agent's work queue
+- rooms keep shared multi-agent truth
 - approvals and outbox govern external side effects
-- the Mail tab lets users inspect the whole system
 
 That means MailClaws can connect to existing mailbox providers without treating any one provider as the system of record.
 
 ## Which Mailbox Paths Are Supported
 
-MailClaws currently supports three practical connection paths.
+MailClaws currently supports two practical connection paths.
 
 ### 1. IMAP / SMTP Mailboxes
 
@@ -40,6 +41,7 @@ Why choose this path:
 - uses the user's own mailbox directly
 - works well for CLI and workbench onboarding
 - keeps MailClaws provider-agnostic at the account boundary
+- matches the current Workbench connect flow and validation model
 
 ### 2. Forward / Raw MIME Ingress
 
@@ -57,7 +59,7 @@ If you only know the mailbox address and want the easiest path:
 
 ```bash
 mailclaws onboard you@example.com
-mailclaws login
+mailclaws login you@example.com
 ```
 
 If you want to inspect supported paths first:
@@ -71,6 +73,14 @@ General recommendation:
 1. use the IMAP / SMTP login path first
 2. use a provider app password / authorization code when the normal mailbox password is rejected
 3. use forward/raw MIME as the fallback path
+
+In the browser workbench, the connect flow is intentionally minimal:
+
+1. enter one email address
+2. open the provider's login page if needed
+3. expand advanced options only when manual IMAP/SMTP input is needed
+4. run `Validate Mailbox`
+5. save only after validation succeeds
 
 ## OpenClaw / Gateway Fit
 
@@ -134,10 +144,13 @@ Useful APIs:
 - `GET /api/connect/providers`
 - `GET /api/connect/providers/:provider`
 - `POST /api/accounts`
+- `POST /api/accounts/validate`
 
 Legacy compatibility note:
 
-- `/api/auth/:provider/*` remains available for older OAuth-based integrations, but the primary user-facing login flow is now IMAP/SMTP.
+- `/api/auth/:provider/*` remains available for older compatibility surfaces
+- the primary user-facing connection flow is now IMAP/SMTP-only
+- older Gmail API smoke coverage is no longer the main onboarding baseline
 
 ## What To Read Next
 

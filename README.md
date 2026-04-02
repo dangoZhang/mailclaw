@@ -1,7 +1,7 @@
 # MailClaws
 
 <p align="center">
-  Multi-agent email. Clear rooms. Visible handoffs. Smaller prompts.
+  Multi-agent email. Visible collaboration. Traceable context. Smaller prompts.
 </p>
 
 <p align="center">
@@ -17,106 +17,132 @@
 </p>
 
 <p align="center">
-  <img src="./docs/public/mailclaws-poster.svg" alt="MailClaws poster showing one public inbox coordinating multiple internal agents through visible internal mail, rooms, and governed delivery." width="960" />
+  <img src="./docs/public/mailclaws-poster.svg" alt="MailClaws poster showing a real email workflow: one public mailbox in front, several specialist agents behind it, and visible internal mail flowing around a shared room." width="960" />
 </p>
 
-MailClaws turns email into a real multi-agent runtime.
+MailClaws turns one real mailbox into a governed multi-agent runtime for OpenClaw-style work.
 
-One thread becomes one room.  
-One front agent can pull in many specialist agents.  
-Every handoff stays visible.  
-Every reply stays traceable.  
-Every send stays governed.
+It is built for:
 
-Built for shared inboxes, long-running threads, rapid room switching, and work that needs progress updates before it needs a final answer.
+- people who already work in email
+- OpenClaw users
+- long-running threads
+- frequent context switching
+- work that needs progress before the final answer
+- teams that want many agents without losing control of context
 
-## Why People Notice It Fast
+## Current Architecture
 
-Most agent tools hide the collaboration. MailClaws puts it on the table.
+MailClaws separates the runtime into three user-facing layers:
 
-You can see the room.  
-You can see the internal mail.  
-You can see the review path.  
-You can see what was blocked, approved, or sent.
+- `Mail`: the external conversation session the user sees
+- `Address`: the single-agent work layer for one agent queue
+- `Room`: the shared multi-agent truth layer for collaboration, replay, approvals, and delivery
 
-It feels less like one giant hidden run.  
-It feels more like a real team working the inbox.
+Around those layers:
 
-## The Signature Advantage
+- one connected mailbox account exposes one MailClaws intake address
+- the account page keeps the inbound allowlist used during first connect
+- durable agents can expose virtual ingress like `mailbox+research@example.com`
+- if plus-addressing is unavailable, MailClaws falls back to subject routing like `[agent:research]`
 
-MailClaws keeps prompts small without making work dumb.
-
-It carries forward compact Pre state instead of replaying the whole transcript every turn. In the benchmark, long-thread follow-ups drop from **2006** estimated tokens to **755** on average. Turn-6 follow-ups drop from **2868** to **752**. A 5-worker reducer handoff drops from **3444** to **750**.
-
-That is not just cheaper. It is what makes multi-agent email feel calm at scale.
-
-## Why Email Works
+## Why Email Fits
 
 Email already has the right shape.
 
 - clear context boundaries
 - traceable history
-- easy sharing
+- easy thread sharing
 - natural message size
 - familiar work habits
-- no new collaboration ritual
+- no extra protocol to teach your team
 
-Users already know how to work in threads. MailClaws starts there.
+MailClaws starts from what users already understand.
 
 ## What You Actually Get
 
-- durable rooms instead of disposable chat state
-- visible internal mail instead of hidden subagent runs
-- ACK, progress, review, approval, and send in one flow
-- durable agents with `SOUL.md`, mailbox identity, and memory boundaries
-- burst subagents for compute-only spikes
-- a Workbench Mail tab that shows the whole chain
+- IMAP/SMTP-first mailbox connection instead of a provider-specific primary login path
+- a Workbench that starts from external mail sessions, then lets you pivot into one address or one room
+- one account page focused on provider state, the single intake address, and the inbound allowlist
+- virtual agent routing through plus-addressing and subject fallback
+- governed delivery: only approvals and the outbox can produce real external email
+- durable agents with `SOUL.md`, mailbox identity, and collaboration boundaries
 
-## Three Minutes To Your First Agent Email
+## Install It Your Way
+
+```bash
+npm install -g mailclaws
+```
+
+```bash
+pnpm setup && pnpm add -g mailclaws
+```
+
+```bash
+brew install mailclaws
+```
+
+You can also run the repo installer directly with `./install.sh`.
+
+## Three Minutes To Your First Mail Session
 
 ```bash
 ./install.sh
-MAILCLAW_FEATURE_MAIL_INGEST=true mailclaw
+MAILCLAW_FEATURE_MAIL_INGEST=true mailclaws
 ```
 
-In a second terminal:
+Open a second terminal:
 
 ```bash
-mailclaw onboard you@example.com
-mailclaw login
-mailclaw dashboard
+mailclaws onboard you@example.com
+mailclaws login you@example.com
+mailclaws dashboard
 ```
 
 Then do this:
 
-1. Connect any mailbox you already use.
-2. Send one email to it from another mailbox.
-3. Open the Workbench and click `Mail`.
-4. Watch the room appear, the internal collaboration happen, and the reply chain form.
-5. Let your agents send you their first real email through the governed outbox flow.
+1. Enter one mailbox address.
+2. Let MailClaws detect the provider and open the provider's login page if needed.
+3. Paste the mailbox password, app password, or provider authorization code into the IMAP/SMTP flow.
+4. Send a test email to the connected mailbox from another mailbox.
+5. Open `Mail`, then pivot into `Addresses` or `Rooms` only when needed.
 
-If you want a safe local walkthrough first, run `pnpm demo:mail` and open `http://127.0.0.1:3020/workbench/mail`.
+If you want a safe local walkthrough first, run `pnpm demo:mail`, then open `http://127.0.0.1:3020/workbench/mail`.
 
-## Start Fast
+## Login Model
 
-Templates exist for one reason: fast setup.
+MailClaws currently treats IMAP/SMTP as the main user-facing connection path.
 
-- `One-Person Company` gives you a front desk plus durable specialist peers, adapted from the operating style popularized by <https://github.com/cyfyifanchen/one-person-company>.
-- `Three Provinces, Six Departments` gives you a larger review-and-governance roster aligned to the `Edict` structure at <https://github.com/cft0808/edict>.
+- Gmail, Outlook, QQ, iCloud, Yahoo, 163, 126, and generic IMAP/SMTP are supported presets
+- MailClaws can open the provider's web login page so the user can sign in, register, or generate an app password
+- the saved account connection in MailClaws is the validated IMAP/SMTP configuration
+- older OAuth API routes remain only as compatibility surfaces, not the main onboarding path
 
-Template implementation lives here:
+## Already Using OpenClaw?
+
+- Keep your existing Gateway and Workbench habits.
+- Run `mailclaws dashboard`, sign in, and click the `Mail` tab.
+- Start from external mail sessions first. Open `Addresses` for one agent queue. Open `Rooms` only when you need shared collaboration truth.
+- If you want the direct fallback route, run `mailclaws open`.
+
+## Quick-Start Templates
+
+Templates exist for one reason: faster multi-agent setup.
+
+- `One-Person Company`: a front desk plus specialist back-office roles. It follows the operating style popularized by <https://github.com/cyfyifanchen/one-person-company>, but MailClaws turns it into durable agents with real mailboxes and visible collaboration.
+- `Three Provinces, Six Departments`: a larger governance-heavy roster aligned with the structure from <https://github.com/cft0808/edict>.
+
+Template definitions live here:
 
 - <https://github.com/dangoZhang/mailclaw/blob/main/src/agents/templates.ts>
-
-When you apply the larger roster, generated `SOUL.md` files include upstream alignment notes and role contracts so the team shape stays intentional instead of drifting into a name-only homage.
 
 ## Website And Workbench
 
 - Website: <https://dangozhang.github.io/mailclaw/>
-- Workbench: run `mailclaw dashboard`, sign in, and click `Mail`
+- Workbench: run `mailclaws dashboard`, sign in, and click `Mail`
 
-The website explains the model.  
-The Workbench shows it live.
+The website explains the model.
+The Workbench lets you inspect the runtime directly.
 
 ## License
 

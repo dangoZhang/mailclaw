@@ -1,131 +1,116 @@
 # Core Concepts
 
-To understand MailClaw, you only need to hold a few ideas in your head.
+MailClaws is easiest to reason about if you separate five objects.
 
-## 1. Room
+## 1. Account
 
-A room is the durable truth boundary for one external email conversation.
+An account is one connected external mailbox.
+
+What an account owns:
+
+- one validated IMAP/SMTP connection
+- one MailClaws intake address
+- one inbound allowlist used during first-connect safety policy
+- provider posture such as ingress, outbound, and watch state
+
+The account is the mailbox boundary, not the collaboration boundary.
+
+## 2. Mail Session
+
+A mail session is the external conversation surface.
+
+Use it to answer:
+
+- which real thread is this
+- which address currently owns it
+- which room is coordinating internal work for it
+- whether governed delivery has produced an outbound candidate
+
+The `Mail` tab starts here because this is the closest view to what the user actually sent.
+
+## 3. Address
+
+An address is the single-agent work layer.
+
+Use it to answer:
+
+- which mail sessions are visible to one agent
+- what one agent mailbox received
+- what one agent replied with
+
+MailClaws can route into an agent-specific address with:
+
+- plus-addressing like `assistant+research@example.com`
+- subject fallback like `[agent:research]`
+
+If you want one agent's queue, open `Addresses` rather than the shared room.
+
+## 4. Room
+
+A room is the multi-agent collaboration truth layer.
 
 What lives in a room:
 
-- the current external thread state
-- participants
-- attachments and extracted evidence
-- approval and delivery state
-- a replayable timeline
-- the latest durable Pre
+- the durable state for one mail session
+- revisions and replay-visible timeline entries
+- mailbox participation
+- task and handoff state
+- approvals and governed outbox state
+- gateway projection and synchronization traces
 
-Why this matters:
+The room is where MailClaws keeps truth when several agents have touched the same conversation.
 
-- email continuity should not depend on one growing chat transcript
-- when a new reply arrives, old work can be marked stale safely
-- operators need one source of truth for debugging and audit
+## 5. Virtual Mail
 
-## 2. Virtual Mail
-
-Internal agent collaboration happens through virtual mailboxes and work threads.
+Virtual mail is the internal collaboration plane inside a room.
 
 Its constraints matter:
 
 - replies are single-parent
-- work can fan out to multiple workers
-- fan-in is handled by reducers
-- mailbox visibility can be scoped by role
-- internal collaboration stays observable without polluting the external thread
+- work can fan out to multiple agents
+- reducers or orchestrators handle fan-in
+- delivery rows make queueing and staleness visible
 
-## 3. Pre-First Memory
+This is how MailClaws keeps internal coordination inspectable without treating one giant transcript as truth.
 
-MailClaw does not build long-term memory on raw reasoning traces.
+## 6. Durable Memory
 
-Instead it works like this:
+MailClaws does not treat raw reasoning traces as durable memory.
 
-- agents do temporary work in scratch space
-- the result worth keeping is compressed into Pre
-- the next turn loads latest inbound, latest Pre, and only the refs it needs
+Instead:
 
-Pre usually contains:
+- agents work in scratch space
+- durable summaries and facts are kept in compact state
+- the next turn loads the latest mail, durable room state, and only the references it needs
 
-- summary
-- facts
-- open questions
-- decisions
-- commitments
+That keeps long-running threads lighter and easier to govern.
 
-## 4. ReAct-Pre
+## 7. Approval And Outbox
 
-MailClaw's behavior model can be summarized like this:
-
-1. React inside scratch space
-2. Compress the result into Pre
-3. Render that Pre into external mail, internal mail, approvals, or workbench views
-
-That means:
-
-- chain-of-thought is not long-term memory
-- child transcripts are not business truth
-- email bodies are not the only state in the system
-
-## 5. Approval And Outbox
-
-MailClaw separates side effects from reasoning.
+MailClaws separates collaboration from external side effects.
 
 The normal path is:
 
-1. draft
-2. review / guard
-3. approval
-4. outbox intent
-5. delivery attempt
+1. internal draft
+2. review / guard / approval
+3. outbox intent
+4. delivery attempt
 
-Why this matters:
+Workers and subagents do not send real external mail directly.
 
-- workers cannot send mail directly
-- unsafe or stale drafts do not leak out silently
-- audit, trace, and replay all have one canonical path
+## 8. Workbench
 
-## 6. Workbench
-
-The Mail tab is the user-facing surface for these concepts.
+The Workbench exposes the runtime model directly.
 
 Main views:
 
-- `Mail`
-- `Accounts`
-- `Rooms`
-- `Mailboxes`
-- `Approvals`
-
-It is not just a chat history viewer. It exposes the runtime model directly.
-
-## 7. Durable Agents
-
-Long-lived MailClaw agents are not anonymous workers.
-
-Each durable agent has its own:
-
-- `SOUL.md`
-- `AGENTS.md`
-- public mailbox
-- internal role mailboxes
-
-`SOUL.md` makes the contract explicit:
-
-- which virtual mail addresses belong to the agent
-- what the agent owns
-- when it should collaborate with another role
-
-That keeps multi-agent coordination grounded in a durable roster instead of one temporary prompt.
-
-## 8. Templates And HeadCount
-
-MailClaw supports three ways to grow an agent roster:
-
-- built-in templates
-- custom durable agents
-- HeadCount recommendations inferred from repeated subagent usage
-
-Templates are the fast starting point. HeadCount helps decide which roles should become durable once workload grows.
+- `Mail`: external mail sessions
+- `Agents`: persistent agent roster, entrypoints, collaborators, skills
+- `Addresses`: address-local queueing and mailbox projections
+- `Rooms`: shared collaboration truth
+- `Accounts`: mailbox settings, provider state, intake address, allowlist
+- `Approvals`: governed outbound release state
 
 ## In One Sentence
 
-MailClaw turns email into durable rooms, multi-agent collaboration into virtual mail, and long-term memory into compact Pre.
+MailClaws turns one mailbox into mail sessions for users, addresses for single agents, and rooms for shared multi-agent truth.

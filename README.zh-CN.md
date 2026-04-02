@@ -1,7 +1,7 @@
 # MailClaws
 
 <p align="center">
-  多智能体邮件。房间清晰。协作可见。上下文更轻。
+  邮件通信的多智能体。协作可见。可追溯、可共享、更轻的上下文。
 </p>
 
 <p align="center">
@@ -17,41 +17,30 @@
 </p>
 
 <p align="center">
-  <img src="./docs/public/mailclaws-poster.svg" alt="MailClaws 宣传图：一个公开邮箱驱动多个内部智能体协作，所有房间、内部邮件与外发治理都在同一个 Mail 工作台里可见。" width="960" />
+  <img src="./docs/public/mailclaws-poster.svg" alt="MailClaws 场景图：一条邮件线程沉淀成一个房间，多个智能体围绕同一上下文通过可见的虚拟邮件协作。" width="960" />
 </p>
 
-MailClaws 把邮件变成真正的多智能体运行时。
+MailClaws 把邮件作为 Openclaw 多智能体运行时的通信方式。
 
-一条线程，就是一个房间。  
-一个前台智能体，可以带起多个专门智能体。  
-每一次接力，都看得见。  
-每一次回复，都能追。  
-每一次外发，都有闸门。
+它特别适合：
 
-它特别适合共享邮箱、长线程、频繁切换、以及需要先汇报进度再给最终答案的工作。
+- 以邮件来工作的人
+- Openclaw用户
+- 长线程对话
+- 高频切换不同会话
+- 需要先汇报进度、再给最终答案的工作
+- 想用多个智能体协作，但又不想丢掉上下文控制权的团队
 
-## 为什么它一眼就不一样
+## 为什么它对用户更友好
 
-很多工具把协作藏起来。MailClaws 把协作摊开来。
+很多工具把协作藏起来。MailClaws 把协作直接展示出来，而且让你能控制。
 
-你能看到房间。  
-你能看到内部邮件。  
-你能看到审阅链。  
-你能看到哪里被拦下，哪里被通过，哪里真正发出去了。
+- 你能以发送邮件的方式直接接入，无需多余配置。
+- 你能在长时间任务后收到邮件。
+- 你能看到完整的报告。
+- 你能看到多智能体怎么共享信息。
+- 和原生Openclaw一致的体验和能力
 
-它不像一个巨大的黑盒 run。  
-它更像一个真的在收件、分工、回信的团队。
-
-## 最有杀伤力的优势
-
-MailClaws 更轻。不是口号。是结构决定的。
-
-它不会每一轮都重放整段历史。它只带着真正该留下来的预摘要继续往前走。基准测试里，长线程后续回复的估算 prompt 体积从 **2006** 降到 **755**，第 6 轮后续回复从 **2868** 降到 **752**，5 个工作智能体汇总回主智能体的场景从 **3444** 降到 **750**。
-
-这不只是省钱。  
-这让多房间切换更轻。  
-这让长任务汇报更稳。  
-这让多智能体协作不再把主智能体拖垮。
 
 ## 为什么邮件天然适合
 
@@ -64,29 +53,47 @@ MailClaws 更轻。不是口号。是结构决定的。
 - 完全符合工作习惯
 - 不需要额外配置新协议
 
-用户早就会在线程里工作。MailClaws 直接从这里开始。
+我们早就习惯在邮件里工作。MailClaws 直接从这里开始。
 
-## 你实际会得到什么
+## 你真正会得到什么
 
 - 一个公开智能体可以守住前台邮箱，多个专门智能体在背后协作。
-- 内部协作不是隐藏 run，而是虚拟邮箱、协作线程和可回看的内部邮件。
-- ACK、进度汇报、审阅、审批、最终外发，全都挂在同一个房间上。
+- 内部协作不会隐藏，每个智能体都有虚拟邮箱、协作线程和可回看的内部邮件。
+- 长线程消耗token更少：智能体不会一直保存上下文，而是会保存邮件
+- 多智能体消耗token更少：多个智能体间通过邮件来共享背景信息和交流成果
+- 用房间来管理ACK、进度汇报、审阅、审批、最终外发。
 - Workbench 里能看到谁收到了什么、谁回了什么、哪版草稿胜出、哪里被拦下。
 - 短期 subagent 只负责计算，不偷走长期人格；常驻智能体才拥有自己的 `SOUL.md`、邮箱和记忆边界。
+
+## 任选一种安装方式
+
+```bash
+npm install -g mailclaws
+```
+
+```bash
+pnpm setup && pnpm add -g mailclaws
+```
+
+```bash
+brew install mailclaws
+```
+
+也可以直接运行仓库内的 `./install.sh`。
 
 ## 三分钟跑通，让智能体发给你第一封邮件
 
 ```bash
 ./install.sh
-MAILCLAW_FEATURE_MAIL_INGEST=true mailclaw
+MAILCLAW_FEATURE_MAIL_INGEST=true mailclaws
 ```
 
 再开一个终端：
 
 ```bash
-mailclaw onboard you@example.com
-mailclaw login
-mailclaw dashboard
+mailclaws onboard you@example.com
+mailclaws login
+mailclaws dashboard
 ```
 
 然后这样体验：
@@ -99,26 +106,31 @@ mailclaw dashboard
 
 如果你想先看一个安全的本地演示，运行 `pnpm demo:mail`，然后打开 `http://127.0.0.1:3020/workbench/mail`。
 
+## 如果你已经在用 OpenClaw
+
+- 保留原来的 Gateway 和 Workbench 使用习惯。
+- 运行 `mailclaws dashboard`，登录后直接点击 `Mail` 标签。
+- 原来的工作台体验不需要重学，MailClaws 只是把邮件、房间和多智能体协作接进来。
+- 想直接打开邮件页，也可以运行 `mailclaws open`。
+
 ## 快速上手模板
 
-模板存在的目的只有一个：更快开工。
+用熟悉的模版来尝试多智能体能力：更快开工。
 
 - `One-Person Company`：前台收件，后台分工，适合一人团队或很轻的前后台协作形态。它参考了 <https://github.com/cyfyifanchen/one-person-company> 的经营方式，但在 MailClaws 里被落成了真正的常驻角色编制。
-- `Three Provinces, Six Departments`：更强的审阅、治理和执行编制，角色结构对齐 <https://github.com/cft0808/edict>。
+- `Three Provinces, Six Departments`：三省六部制，体验赛博皇帝，更强的审阅、治理和执行编制，角色结构对齐 <https://github.com/cft0808/edict>。
 
-模板实现代码在这里：
+在此编辑你的模版：
 
 - <https://github.com/dangoZhang/mailclaw/blob/main/src/agents/templates.ts>
 
-应用大编制模板时，生成出来的 `SOUL.md` 会带上上游对齐说明和角色契约，避免只剩名字像、行为却越来越散。
 
 ## 网站与工作台
 
 - 网站：<https://dangozhang.github.io/mailclaw/>
-- 工作台：运行 `mailclaw dashboard`，登录后点击 `Mail`
+- 工作台：运行 `mailclaws dashboard`，登录后点击 `Mail`
 
-网站负责解释模型。  
-工作台负责把系统真相直接展示给你。
+欢迎前往了解更详细的概念信息和使用方式。  
 
 ## 许可
 
