@@ -344,7 +344,7 @@ async function handleRequest(options: {
         response,
         200,
         mailApi.getConsoleWorkbench({
-          mode: (requestUrl.searchParams.get("mode") as "connect" | "accounts" | "rooms" | "mailboxes" | "approvals" | null) ?? undefined,
+          mode: (requestUrl.searchParams.get("mode") as "connect" | "agents" | "accounts" | "rooms" | "mailboxes" | "approvals" | null) ?? undefined,
           accountId: requestUrl.searchParams.get("accountId") ?? undefined,
           roomKey: requestUrl.searchParams.get("roomKey") ?? undefined,
           mailboxId: normalizeMailboxIdQueryValue(requestUrl.searchParams.get("mailboxId")),
@@ -379,6 +379,20 @@ async function handleRequest(options: {
         mailApi.getAgentDirectory({
           tenantId: requestUrl.searchParams.get("tenantId") ?? requestUrl.searchParams.get("accountId") ?? "default",
           accountId: requestUrl.searchParams.get("accountId") ?? undefined
+        })
+      );
+      return;
+    }
+
+    const agentSoulMatch = mailApi ? requestUrl.pathname.match(/^\/api\/console\/agents\/([^/]+)\/soul$/) : null;
+    if (mailApi && request.method === "GET" && agentSoulMatch) {
+      writeJson(
+        response,
+        200,
+        mailApi.inspectAgentSoul({
+          tenantId: requestUrl.searchParams.get("tenantId") ?? requestUrl.searchParams.get("accountId") ?? "default",
+          accountId: requestUrl.searchParams.get("accountId") ?? undefined,
+          agentId: decodeURIComponent(agentSoulMatch[1] ?? "")
         })
       );
       return;
@@ -917,6 +931,26 @@ async function handleRequest(options: {
             burstCoalesceSeconds:
               typeof body.burstCoalesceSeconds === "number" ? body.burstCoalesceSeconds : undefined,
             now: typeof body.now === "string" ? body.now : undefined
+          })
+        );
+        return;
+      }
+
+      const agentSoulMatch = requestUrl.pathname.match(/^\/api\/console\/agents\/([^/]+)\/soul$/);
+      if (agentSoulMatch) {
+        const body = (await readJsonBody(request)) as {
+          accountId?: string;
+          tenantId?: string;
+          content?: string;
+        };
+        writeJson(
+          response,
+          200,
+          mailApi.updateAgentSoul({
+            tenantId: typeof body.tenantId === "string" ? body.tenantId : requestUrl.searchParams.get("tenantId") ?? requestUrl.searchParams.get("accountId") ?? body.accountId ?? "default",
+            accountId: typeof body.accountId === "string" ? body.accountId : requestUrl.searchParams.get("accountId") ?? undefined,
+            agentId: decodeURIComponent(agentSoulMatch[1] ?? ""),
+            content: requireStringBody(body.content, "content")
           })
         );
         return;

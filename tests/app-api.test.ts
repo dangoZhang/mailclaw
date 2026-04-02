@@ -2024,6 +2024,96 @@ describe("app api", () => {
     fixture.handle.close();
   });
 
+  it("exposes agent SOUL read/write APIs and renders SOUL editing controls in the agents workbench", async () => {
+    const fixture = createFixture();
+    upsertMailAccount(fixture.handle.db, {
+      accountId: "acct-agents",
+      provider: "forward",
+      emailAddress: "mailclaw@example.com",
+      status: "active",
+      settings: {},
+      createdAt: "2026-03-27T00:00:00.000Z",
+      updatedAt: "2026-03-27T00:00:00.000Z"
+    });
+    const server = createAppServer({
+      config: fixture.config,
+      mailApi: fixture.runtime
+    });
+
+    servers.push(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+
+    const address = server.address();
+    if (address === null || typeof address === "string") {
+      throw new Error("Expected address info");
+    }
+
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+    await fetch(`${baseUrl}/api/console/agent-templates/one-person-company/apply`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        accountId: "acct-agents"
+      })
+    });
+
+    const soulResponse = await fetch(
+      `${baseUrl}/api/console/agents/${encodeURIComponent("assistant")}/soul?accountId=acct-agents&tenantId=acct-agents`
+    );
+    const soulJson = (await soulResponse.json()) as {
+      agentId: string;
+      displayName: string;
+      templateId: string | null;
+      soulPath: string;
+      content: string;
+    };
+
+    expect(soulResponse.status).toBe(200);
+    expect(soulJson.agentId).toBe("assistant");
+    expect(soulJson.templateId).toBe("one-person-company");
+    expect(soulJson.soulPath).toContain("/assistant/SOUL.md");
+    expect(soulJson.content).toContain("Agent ID: `assistant`");
+    expect(soulJson.content).toContain("Template: `one-person-company`");
+
+    const updatedSoul = `${soulJson.content}\n## Operator Notes\n- Updated from workbench test.\n`;
+    const saveResponse = await fetch(`${baseUrl}/api/console/agents/${encodeURIComponent("assistant")}/soul`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        accountId: "acct-agents",
+        tenantId: "acct-agents",
+        content: updatedSoul
+      })
+    });
+    const saveJson = (await saveResponse.json()) as {
+      content: string;
+      soulPath: string;
+    };
+
+    expect(saveResponse.status).toBe(200);
+    expect(saveJson.soulPath).toContain("/assistant/SOUL.md");
+    expect(saveJson.content).toContain("## Operator Notes");
+    expect(fs.readFileSync(saveJson.soulPath, "utf8")).toContain("Updated from workbench test.");
+
+    const agentsWorkbenchResponse = await fetch(`${baseUrl}/workbench/mail?mode=agents&accountId=acct-agents`);
+    const agentsWorkbenchHtml = await agentsWorkbenchResponse.text();
+
+    expect(agentsWorkbenchResponse.status).toBe(200);
+    expect(agentsWorkbenchHtml).toContain("SOUL Editor");
+    expect(agentsWorkbenchHtml).toContain('data-action="open-agent-soul"');
+    expect(agentsWorkbenchHtml).toContain('data-action="save-agent-soul"');
+    expect(agentsWorkbenchHtml).toContain('data-action="apply-agent-template"');
+    expect(agentsWorkbenchHtml).toContain('data-agent-soul-field="content"');
+    expect(() => new vm.Script(extractModuleScript(agentsWorkbenchHtml))).not.toThrow();
+
+    fixture.handle.close();
+  });
+
   it("routes new rooms into durable agent inboxes after a template is applied and enables worker prelude without the global swarm flag", async () => {
     const fixture = createFixture();
     upsertMailAccount(fixture.handle.db, {

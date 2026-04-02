@@ -113,6 +113,7 @@ import {
   createAgentMemoryDraftFromLatestRoomSnapshot,
   ensureAgentWorkspace,
   findAgentMemoryDraft,
+  getAgentWorkspaceSoul,
   getAgentWorkspaceSkill,
   getTenantStateDir,
   installAgentWorkspaceSkill,
@@ -120,7 +121,8 @@ import {
   listAgentWorkspaceSkills,
   rejectAgentMemoryDraft,
   resolveAgentMemoryDraftNamespaces,
-  reviewAgentMemoryDraft
+  reviewAgentMemoryDraft,
+  updateAgentWorkspaceSoul
 } from "../memory/agent-memory.js";
 import {
   consoleBoundaries,
@@ -2670,6 +2672,47 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
       skillId: string;
     }) {
       return getAgentWorkspaceSkill(deps.config, input.tenantId, input.agentId, input.skillId);
+    },
+    inspectAgentSoul(input: {
+      tenantId: string;
+      accountId?: string;
+      agentId: string;
+    }) {
+      const directoryEntry = listAgentDirectory({
+        tenantId: input.tenantId,
+        accountId: input.accountId
+      }).find((entry) => entry.agentId === input.agentId);
+      const soul = getAgentWorkspaceSoul(deps.config, input.tenantId, input.agentId);
+      return {
+        agentId: input.agentId,
+        displayName: directoryEntry?.displayName ?? input.agentId,
+        templateId: directoryEntry?.templateId ?? null,
+        soulPath: soul.path,
+        content: soul.content
+      };
+    },
+    updateAgentSoul(input: {
+      tenantId: string;
+      accountId?: string;
+      agentId: string;
+      content: string;
+    }) {
+      const directoryEntry = listAgentDirectory({
+        tenantId: input.tenantId,
+        accountId: input.accountId
+      }).find((entry) => entry.agentId === input.agentId);
+      const soul = updateAgentWorkspaceSoul(deps.config, {
+        tenantId: input.tenantId,
+        agentId: input.agentId,
+        content: input.content
+      });
+      return {
+        agentId: input.agentId,
+        displayName: directoryEntry?.displayName ?? input.agentId,
+        templateId: directoryEntry?.templateId ?? null,
+        soulPath: soul.path,
+        content: soul.content
+      };
     },
     getHeadcountRecommendations(accountId?: string) {
       return listHeadcountRecommendations(accountId);

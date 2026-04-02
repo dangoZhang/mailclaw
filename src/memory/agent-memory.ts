@@ -197,6 +197,34 @@ export function getAgentWorkspaceSkill(
   };
 }
 
+export function getAgentWorkspaceSoul(
+  config: AppConfig,
+  tenantId: string,
+  agentId: string
+) {
+  const workspace = ensureAgentWorkspace(config, tenantId, agentId);
+  return {
+    path: workspace.soulPath,
+    content: fs.readFileSync(workspace.soulPath, "utf8")
+  };
+}
+
+export function updateAgentWorkspaceSoul(
+  config: AppConfig,
+  input: {
+    tenantId: string;
+    agentId: string;
+    content: string;
+  }
+) {
+  const workspace = ensureAgentWorkspace(config, input.tenantId, input.agentId);
+  fs.writeFileSync(workspace.soulPath, input.content, "utf8");
+  return {
+    path: workspace.soulPath,
+    content: fs.readFileSync(workspace.soulPath, "utf8")
+  };
+}
+
 export async function installAgentWorkspaceSkill(
   config: AppConfig,
   input: {

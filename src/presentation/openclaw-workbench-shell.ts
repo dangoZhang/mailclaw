@@ -1518,6 +1518,16 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           result: null,
           error: ""
         },
+        agentSoul: {
+          status: "idle",
+          agentId: "",
+          displayName: "",
+          templateId: "",
+          soulPath: "",
+          content: "",
+          draft: "",
+          error: ""
+        },
         navCollapsed: false,
         navDrawerOpen: false,
         route: null
@@ -1539,6 +1549,19 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         return state.language === "zh-CN"
           ? chinese + String(value)
           : english + String(value);
+      }
+
+      function resetAgentSoul() {
+        state.agentSoul = {
+          status: "idle",
+          agentId: "",
+          displayName: "",
+          templateId: "",
+          soulPath: "",
+          content: "",
+          draft: "",
+          error: ""
+        };
       }
 
       function readStoredLanguage() {
@@ -2324,6 +2347,9 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           ((entry.virtualMailboxes || []).length > 0
             ? '<div class="detail code">' + escapeHtmlClient((entry.virtualMailboxes || []).join(", ")) + "</div>"
             : "") +
+          '<div class="actions-inline">' +
+          '<button class="btn" data-action="open-agent-soul" data-agent-id="' + escapeHtmlClient(entry.agentId || "") + '">' + escapeHtmlClient(l("View SOUL", "查看 SOUL")) + '</button>' +
+          '</div>' +
           "</div>"
         );
       }
@@ -2723,6 +2749,19 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const agents = connect && Array.isArray(connect.agentDirectory) ? connect.agentDirectory : [];
         const agentMailView = connect && Array.isArray(connect.agentMailView) ? connect.agentMailView : [];
         const skills = connect && Array.isArray(connect.skills) ? connect.skills : [];
+        const templates = connect && Array.isArray(connect.agentTemplates) ? connect.agentTemplates : [];
+        const recommendations = connect && Array.isArray(connect.headcountRecommendations) ? connect.headcountRecommendations : [];
+        const soul = state.agentSoul || {
+          status: "idle",
+          agentId: "",
+          displayName: "",
+          templateId: "",
+          soulPath: "",
+          content: "",
+          draft: "",
+          error: ""
+        };
+        const soulDirty = soul.status === "ready" && soul.draft !== soul.content;
         return (
           '<div class="mail-workbench-main">' +
           renderWorkspaceHero({
@@ -2733,9 +2772,28 @@ export function renderOpenClawWorkbenchShellHtml(input: {
               { label: l("agents", "Agent"), value: String(agentMailView.length || agents.length) },
               { label: l("mail sessions", "邮件会话"), value: String(agentMailView.reduce(function(total, entry) { return total + Number(entry.roomCount || 0); }, 0)) },
               { label: l("skills", "技能"), value: String(skills.reduce(function(total, entry) { return total + Number((entry.skills || []).length || 0); }, 0)) },
-              { label: l("templates", "模板"), value: String(agents.filter(function(agent) { return Boolean(agent.templateId); }).length) }
+              { label: l("templates", "模板"), value: String(templates.length) }
             ]
           }) +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Templates", "模板")) + '</h3><span class="muted">' + escapeHtmlClient(countText(templates.length, "available", " 个可用")) + '</span></div><div class="panel-body">' +
+          (templates.length > 0 ? '<div class="timeline-list">' + templates.map(function(template) { return renderAgentTemplateCard(template, connect); }).join("") + '</div>' : '<div class="empty">' + escapeHtmlClient(l("No durable agent templates are available.", "当前没有可用的常驻 Agent 模板。")) + '</div>') +
+          (recommendations.length > 0
+            ? '<div class="detail">' + escapeHtmlClient(l("Headcount suggestions: ", "编制建议：")) + escapeHtmlClient(recommendations.slice(0, 3).map(function(item) { return item.displayName || item.templateId; }).join(" | ")) + '</div>'
+            : '') +
+          '</div></div>' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("SOUL Editor", "SOUL 编辑器")) + '</h3><span class="muted">' + escapeHtmlClient(soul.agentId || l("no agent selected", "未选择 Agent")) + '</span></div><div class="panel-body">' +
+          (soul.status === "loading"
+            ? '<div class="detail">' + escapeHtmlClient(l("Loading SOUL…", "正在加载 SOUL…")) + '</div>'
+            : soul.status === "ready"
+              ? '<div class="detail">' + escapeHtmlClient((soul.displayName || soul.agentId) + (soul.templateId ? " / " + soul.templateId : "")) + '</div>' +
+                (soul.soulPath ? '<div class="detail code">' + escapeHtmlClient(soul.soulPath) + '</div>' : '') +
+                '<label><div class="section-label">SOUL.md</div><textarea class="console-input" data-agent-soul-field="content" rows="22" spellcheck="false">' + escapeHtmlClient(soul.draft || "") + '</textarea></label>' +
+                (soul.error ? '<div class="error-banner">' + escapeHtmlClient(soul.error) + '</div>' : '') +
+                '<div class="actions-inline"><button class="btn primary" data-action="save-agent-soul"' + (soulDirty ? "" : " disabled") + ' data-agent-id="' + escapeHtmlClient(soul.agentId || "") + '">' + escapeHtmlClient(l("Save SOUL", "保存 SOUL")) + '</button><button class="btn" data-action="reset-agent-soul">' + escapeHtmlClient(l("Reset", "重置")) + '</button></div>'
+              : soul.status === "failed"
+                ? '<div class="error-banner">' + escapeHtmlClient(soul.error || l("Failed to load SOUL.", "加载 SOUL 失败。")) + '</div>'
+                : '<div class="empty">' + escapeHtmlClient(l("Select one agent from the directory to view or edit its SOUL.md.", "从下方目录选择一个 Agent，即可查看或编辑它的 SOUL.md。")) + '</div>') +
+          '</div></div>' +
           (agentMailView.length > 0
             ? agentMailView.map(renderAgentMailCard).join("")
             : '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(l("Agents", "Agent")) + '</h3></div><div class="panel-body"><div class="empty">' + escapeHtmlClient(l("No agent mail view is available yet.", "当前还没有可见的 Agent 邮件视图。")) + '</div></div></div>') +
@@ -3544,6 +3602,126 @@ export function renderOpenClawWorkbenchShellHtml(input: {
             });
           return;
         }
+        if (action === "open-agent-soul") {
+          event.preventDefault();
+          const agentId = target.getAttribute("data-agent-id");
+          const tenantId = state.data && state.data.workspace && state.data.workspace.connect
+            ? state.data.workspace.connect.templateApplyTenantId
+            : null;
+          const accountId = state.route.accountId || (state.data && state.data.workspace && state.data.workspace.connect
+            ? state.data.workspace.connect.templateApplyAccountId
+            : null);
+          if (!agentId) {
+            return;
+          }
+          state.loading = true;
+          state.error = "";
+          state.agentSoul = {
+            status: "loading",
+            agentId: agentId,
+            displayName: "",
+            templateId: "",
+            soulPath: "",
+            content: "",
+            draft: "",
+            error: ""
+          };
+          render();
+          const params = new URLSearchParams();
+          if (tenantId) params.set("tenantId", tenantId);
+          if (accountId) params.set("accountId", accountId);
+          void requestJson((config.apiBasePath || "/api") + "/console/agents/" + encodeURIComponent(agentId) + "/soul" + (params.toString() ? "?" + params.toString() : ""))
+            .then(function(payload) {
+              state.agentSoul = {
+                status: "ready",
+                agentId: payload.agentId || agentId,
+                displayName: payload.displayName || payload.agentId || agentId,
+                templateId: payload.templateId || "",
+                soulPath: payload.soulPath || "",
+                content: payload.content || "",
+                draft: payload.content || "",
+                error: ""
+              };
+            })
+            .catch(function(error) {
+              state.agentSoul = {
+                status: "failed",
+                agentId: agentId,
+                displayName: "",
+                templateId: "",
+                soulPath: "",
+                content: "",
+                draft: "",
+                error: error instanceof Error ? error.message : String(error)
+              };
+              state.error = error instanceof Error ? error.message : String(error);
+            })
+            .finally(function() {
+              state.loading = false;
+              render();
+            });
+          return;
+        }
+        if (action === "save-agent-soul") {
+          event.preventDefault();
+          const agentId = target.getAttribute("data-agent-id") || (state.agentSoul && state.agentSoul.agentId);
+          const tenantId = state.data && state.data.workspace && state.data.workspace.connect
+            ? state.data.workspace.connect.templateApplyTenantId
+            : null;
+          const accountId = state.route.accountId || (state.data && state.data.workspace && state.data.workspace.connect
+            ? state.data.workspace.connect.templateApplyAccountId
+            : null);
+          if (!agentId || !state.agentSoul || state.agentSoul.status !== "ready") {
+            return;
+          }
+          state.loading = true;
+          state.error = "";
+          render();
+          void requestJson((config.apiBasePath || "/api") + "/console/agents/" + encodeURIComponent(agentId) + "/soul", {
+            method: "POST",
+            headers: {
+              "content-type": "application/json"
+            },
+            body: JSON.stringify({
+              tenantId: tenantId || accountId || "default",
+              accountId: accountId || undefined,
+              content: state.agentSoul.draft || ""
+            })
+          })
+            .then(function(payload) {
+              state.agentSoul = {
+                status: "ready",
+                agentId: payload.agentId || agentId,
+                displayName: payload.displayName || payload.agentId || agentId,
+                templateId: payload.templateId || "",
+                soulPath: payload.soulPath || "",
+                content: payload.content || "",
+                draft: payload.content || "",
+                error: ""
+              };
+              return refresh(true);
+            })
+            .catch(function(error) {
+              if (state.agentSoul) {
+                state.agentSoul.error = error instanceof Error ? error.message : String(error);
+              }
+              state.error = error instanceof Error ? error.message : String(error);
+            })
+            .finally(function() {
+              state.loading = false;
+              render();
+            });
+          return;
+        }
+        if (action === "reset-agent-soul") {
+          event.preventDefault();
+          if (state.agentSoul && state.agentSoul.status === "ready") {
+            state.agentSoul.draft = state.agentSoul.content;
+            state.agentSoul.error = "";
+            render();
+          }
+          return;
+        }
         if (action === "create-custom-agent") {
           event.preventDefault();
           const accountId = target.getAttribute("data-account-id");
@@ -3643,6 +3821,12 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement)) {
           return;
         }
+        const soulField = target.getAttribute("data-agent-soul-field");
+        if (soulField === "content" && state.agentSoul && state.agentSoul.status === "ready") {
+          state.agentSoul.draft = String(target.value || "");
+          state.agentSoul.error = "";
+          return;
+        }
         if (target.id === "connect-email-input") {
           state.connectEmailAddress = String(target.value || "").trim();
           clearConnectValidation();
@@ -3663,6 +3847,12 @@ export function renderOpenClawWorkbenchShellHtml(input: {
       document.addEventListener("change", function(event) {
         const target = event.target;
         if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement)) {
+          return;
+        }
+        const soulField = target.getAttribute("data-agent-soul-field");
+        if (soulField === "content" && state.agentSoul && state.agentSoul.status === "ready") {
+          state.agentSoul.draft = String(target.value || "");
+          state.agentSoul.error = "";
           return;
         }
         if (target.id === "connect-email-input") {
