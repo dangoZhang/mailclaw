@@ -600,8 +600,11 @@ export interface ThreadRoom {
   stableThreadId: string;
   parentSessionKey: string;
   frontAgentAddress?: string;
+  frontAgentId?: string;
   publicAgentAddresses?: string[];
+  publicAgentIds?: string[];
   collaboratorAgentAddresses?: string[];
+  collaboratorAgentIds?: string[];
   summonedRoles?: WorkerRole[];
   state: ThreadRoomState;
   revision: number;

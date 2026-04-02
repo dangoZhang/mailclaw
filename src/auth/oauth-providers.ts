@@ -234,7 +234,8 @@ const CONNECT_PROVIDER_GUIDES: ConnectProviderGuide[] = [
     optionalEnvVars: [],
     notes: [
       "Use this path for mailbox providers that expose IMAP/SMTP but are not hard-coded as a preset.",
-      "The interactive wizard asks for IMAP host, SMTP host, ports, and credentials."
+      "The interactive wizard asks for your mailbox address first, then tries Thunderbird ISPDB and domain autoconfig before falling back to manual IMAP/SMTP entry.",
+      "If discovery is incomplete, the wizard still lets you override IMAP host, SMTP host, ports, and credentials."
     ]
   },
   {

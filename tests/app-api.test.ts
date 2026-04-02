@@ -560,6 +560,11 @@ describe("app api", () => {
       console: {
         browserPath: string;
       };
+      autoconfig?: {
+        imapHost: string;
+        smtpHost: string;
+        source: string;
+      };
       migration: {
         openClawUsers: {
           startCommand: string;
@@ -581,8 +586,13 @@ describe("app api", () => {
         matchReason: "email_domain"
       },
       commands: {
-        login: 'mailclaws login gmail acct-person-gmail-com "person"',
-        observeWorkbench: "mailclaws workbench acct-person-gmail-com"
+        login: 'mailctl connect login gmail acct-person-gmail-com "person"',
+        observeWorkbench: "mailctl observe workbench acct-person-gmail-com"
+      },
+      autoconfig: {
+        imapHost: "imap.gmail.com",
+        smtpHost: "smtp.gmail.com",
+        source: "preset"
       },
       console: {
         browserPath: "/workbench/mail"
@@ -591,7 +601,7 @@ describe("app api", () => {
         openClawUsers: {
           startCommand:
             "MAILCLAW_FEATURE_OPENCLAW_BRIDGE=true MAILCLAW_FEATURE_MAIL_INGEST=true pnpm dev",
-          inspectRuntime: "mailclaws observe runtime"
+          inspectRuntime: "mailctl observe runtime"
         }
       }
     });
@@ -1927,14 +1937,13 @@ describe("app api", () => {
     });
     expect(replayJson.ledger).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ type: "worker.task_assigned" }),
+        expect.objectContaining({ type: "virtual_mail.message_submitted" }),
         expect.objectContaining({ type: "worker.result" })
       ])
     );
     expect(replayJson.virtualMessages).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ kind: "task", subject: "Task: mail-researcher" }),
-        expect.objectContaining({ subject: "mail-researcher result" })
+        expect.objectContaining({ kind: "task", subject: "Task: research-target" })
       ])
     );
 

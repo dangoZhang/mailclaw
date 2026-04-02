@@ -36,8 +36,11 @@ export function initializeDatabase(config: AppConfig): DatabaseHandle {
       stable_thread_id TEXT NOT NULL,
       parent_session_key TEXT NOT NULL,
       front_agent_address TEXT,
+      front_agent_id TEXT,
       public_agent_addresses_json TEXT NOT NULL DEFAULT '[]',
+      public_agent_ids_json TEXT NOT NULL DEFAULT '[]',
       collaborator_agent_addresses_json TEXT NOT NULL DEFAULT '[]',
+      collaborator_agent_ids_json TEXT NOT NULL DEFAULT '[]',
       summoned_roles_json TEXT NOT NULL DEFAULT '[]',
       state TEXT NOT NULL,
       revision INTEGER NOT NULL,
@@ -1027,13 +1030,27 @@ function ensureThreadRoomColumns(db: DatabaseSync) {
     db.exec("ALTER TABLE thread_rooms ADD COLUMN front_agent_address TEXT;");
   }
 
+  if (!names.has("front_agent_id")) {
+    db.exec("ALTER TABLE thread_rooms ADD COLUMN front_agent_id TEXT;");
+  }
+
   if (!names.has("public_agent_addresses_json")) {
     db.exec("ALTER TABLE thread_rooms ADD COLUMN public_agent_addresses_json TEXT NOT NULL DEFAULT '[]';");
+  }
+
+  if (!names.has("public_agent_ids_json")) {
+    db.exec("ALTER TABLE thread_rooms ADD COLUMN public_agent_ids_json TEXT NOT NULL DEFAULT '[]';");
   }
 
   if (!names.has("collaborator_agent_addresses_json")) {
     db.exec(
       "ALTER TABLE thread_rooms ADD COLUMN collaborator_agent_addresses_json TEXT NOT NULL DEFAULT '[]';"
+    );
+  }
+
+  if (!names.has("collaborator_agent_ids_json")) {
+    db.exec(
+      "ALTER TABLE thread_rooms ADD COLUMN collaborator_agent_ids_json TEXT NOT NULL DEFAULT '[]';"
     );
   }
 

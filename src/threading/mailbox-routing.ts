@@ -20,9 +20,12 @@ const DEFAULT_ROLE_ALIAS_MAP = new Map<string, WorkerRole>(ROLE_ALIAS_ENTRIES);
 export interface MailboxRoute {
   canonicalMailboxAddress: string;
   frontAgentAddress: string;
+  frontAgentId?: string;
   matchedAddress: string;
   publicAgentAddresses: string[];
+  publicAgentIds: string[];
   collaboratorAgentAddresses: string[];
+  collaboratorAgentIds: string[];
   summonedRoles: WorkerRole[];
   internalAliasAddresses: string[];
 }
@@ -89,9 +92,12 @@ export function resolveMailboxRoute(input: {
   return {
     canonicalMailboxAddress,
     frontAgentAddress,
+    frontAgentId: looksLikeDurableAgentId(frontAgentAddress) ? frontAgentAddress : undefined,
     matchedAddress,
     publicAgentAddresses,
+    publicAgentIds: publicAgentAddresses.filter(looksLikeDurableAgentId),
     collaboratorAgentAddresses,
+    collaboratorAgentIds: collaboratorAgentAddresses.filter(looksLikeDurableAgentId),
     summonedRoles: [...summonedRoles],
     internalAliasAddresses: [...internalAliasAddresses]
   };
@@ -351,6 +357,11 @@ function normalizeAddress(value?: string) {
 
 function normalizeToken(value?: string) {
   return value?.trim().toLowerCase() ?? "";
+}
+
+function looksLikeDurableAgentId(value?: string) {
+  const normalized = normalizeToken(value);
+  return normalized.length > 0 && !normalized.includes("@");
 }
 
 function firstNonEmpty(...values: string[]) {

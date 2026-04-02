@@ -1500,7 +1500,7 @@ function readAccountAgentRoutingHints(account?: MailAccountRecord | null) {
 }
 
 function roomUsesDurableAgentRoster(room: NonNullable<ReturnType<typeof getThreadRoom>>) {
-  return [...(room.publicAgentAddresses ?? []), ...(room.collaboratorAgentAddresses ?? [])].some((value) =>
+  return [...(room.publicAgentIds ?? []), ...(room.collaboratorAgentIds ?? [])].some((value) =>
     looksLikeDurableAgentId(value)
   );
 }
@@ -4213,8 +4213,8 @@ function resolveRuntimeControlPlane(config: AppConfig) {
   return "openclaw";
 }
 
-function normalizeRecipient(value: string) {
-  return value.trim().toLowerCase();
+function normalizeRecipient(value: string | null | undefined) {
+  return value?.trim().toLowerCase() ?? "";
 }
 
 function readNormalizedAgentId(value: unknown) {

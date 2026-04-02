@@ -1,6 +1,7 @@
 import http from "node:http";
 
 import type { AppConfig } from "./config.js";
+import { discoverMailboxProfile } from "./auth/mailbox-autoconfig.js";
 import { renderOAuthCallbackHtml } from "./auth/oauth-core.js";
 import { renderOpenClawWorkbenchShellHtml } from "./presentation/openclaw-workbench-shell.js";
 import {
@@ -235,13 +236,24 @@ async function handleRequest(options: {
     }
 
     if (request.method === "GET" && requestUrl.pathname === "/api/connect/onboarding") {
+      const emailAddress = requestUrl.searchParams.get("emailAddress") ?? undefined;
+      const providerHint = requestUrl.searchParams.get("provider") ?? undefined;
+      const autoconfig = emailAddress
+        ? await discoverMailboxProfile({
+            emailAddress,
+            providerPreset: providerHint
+          })
+        : null;
       writeJson(
         response,
         200,
-        buildConnectOnboardingPlan({
-          emailAddress: requestUrl.searchParams.get("emailAddress") ?? undefined,
-          providerHint: requestUrl.searchParams.get("provider") ?? undefined
-        })
+        {
+          ...buildConnectOnboardingPlan({
+            emailAddress,
+            providerHint
+          }),
+          ...(autoconfig ? { autoconfig } : {})
+        }
       );
       return;
     }

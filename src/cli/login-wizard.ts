@@ -2,6 +2,11 @@ import readline from "node:readline/promises";
 import { Writable } from "node:stream";
 import process from "node:process";
 
+import {
+  detectMailboxProfile,
+  discoverMailboxProfile,
+  type MailboxProfile
+} from "../auth/mailbox-autoconfig.js";
 import type { MailAccountRecord } from "../storage/repositories/mail-accounts.js";
 
 export interface MailctlPrompter {
@@ -31,11 +36,14 @@ export function createTerminalPrompter(
   const rl = readline.createInterface({
     input,
     output: mirror,
-    terminal: true
+    terminal: Boolean(input.isTTY && output.isTTY)
   });
 
   return {
     async ask(prompt, options) {
+      if (isInputClosed(input)) {
+        throw new Error("input stream closed while waiting for login input");
+      }
       const suffix =
         typeof options?.defaultValue === "string" && options.defaultValue.length > 0
           ? ` [${options.defaultValue}]`
@@ -43,7 +51,7 @@ export function createTerminalPrompter(
       output.write(`${prompt}${suffix}: `);
       muted = options?.secret === true;
       try {
-        const answer = await rl.question("");
+        const answer = await readAnswer(rl, input);
         const trimmed = answer.trim();
         return trimmed.length > 0 ? trimmed : options?.defaultValue ?? "";
       } finally {
@@ -72,11 +80,20 @@ export async function promptInteractiveMailboxLogin(
     emailAddress?: string;
     password?: string;
     providerPreset?: string;
+    profileResolver?: (input: {
+      emailAddress: string;
+      providerPreset?: string;
+    }) => Promise<MailboxProfile | null>;
   } = {}
 ): Promise<InteractiveMailboxLoginResult> {
   const warnings: string[] = [];
   const emailAddress = await askRequired(prompter, "Email address", options.emailAddress);
-  const profile = detectMailboxProfile(emailAddress, options.providerPreset);
+  const profileResolver = options.profileResolver ?? discoverMailboxProfile;
+  const profile =
+    (await profileResolver({
+      emailAddress,
+      providerPreset: options.providerPreset
+    })) ?? detectMailboxProfile(emailAddress, options.providerPreset);
   if (profile?.warning) {
     warnings.push(profile.warning);
   }
@@ -116,7 +133,7 @@ export async function promptInteractiveMailboxLogin(
           host: imapHost,
           port: imapPort,
           secure: imapSecure,
-          username: emailAddress,
+          username: profile?.imapUsername ?? emailAddress,
           password,
           mailbox: imapMailbox
         },
@@ -124,142 +141,13 @@ export async function promptInteractiveMailboxLogin(
           host: smtpHost,
           port: smtpPort,
           secure: smtpSecure,
-          username: emailAddress,
+          username: profile?.smtpUsername ?? emailAddress,
           password,
           from: smtpFrom
         }
       }
     }
   };
-}
-
-interface MailboxProfile {
-  imapHost: string;
-  imapPort: number;
-  imapSecure: boolean;
-  imapMailbox?: string;
-  smtpHost: string;
-  smtpPort: number;
-  smtpSecure: boolean;
-  warning?: string;
-}
-
-export function resolveMailboxProfilePreset(providerPreset?: string): MailboxProfile | null {
-  const normalized = providerPreset?.trim().toLowerCase();
-  switch (normalized) {
-    case "gmail":
-    case "googlemail":
-      return {
-        imapHost: "imap.gmail.com",
-        imapPort: 993,
-        imapSecure: true,
-        smtpHost: "smtp.gmail.com",
-        smtpPort: 465,
-        smtpSecure: true,
-        warning:
-          "Gmail password login usually needs an app password. If you want browser OAuth instead, use `mailctl connect login gmail <accountId>`."
-      };
-    case "qq":
-      return {
-        imapHost: "imap.qq.com",
-        imapPort: 993,
-        imapSecure: true,
-        smtpHost: "smtp.qq.com",
-        smtpPort: 465,
-        smtpSecure: true,
-        warning: "QQ Mail typically requires an authorization code instead of the web password."
-      };
-    case "outlook":
-    case "microsoft":
-    case "office365":
-    case "hotmail":
-    case "live":
-    case "msn":
-      return {
-        imapHost: "outlook.office365.com",
-        imapPort: 993,
-        imapSecure: true,
-        smtpHost: "smtp.office365.com",
-        smtpPort: 587,
-        smtpSecure: false,
-        warning:
-          "Outlook and Microsoft 365 support browser OAuth. If you want OAuth instead of IMAP/SMTP credentials, use `mailctl connect login outlook <accountId>`."
-      };
-    case "icloud":
-    case "me":
-    case "mac":
-      return {
-        imapHost: "imap.mail.me.com",
-        imapPort: 993,
-        imapSecure: true,
-        smtpHost: "smtp.mail.me.com",
-        smtpPort: 587,
-        smtpSecure: false,
-        warning: "iCloud usually needs an app-specific password."
-      };
-    case "yahoo":
-      return {
-        imapHost: "imap.mail.yahoo.com",
-        imapPort: 993,
-        imapSecure: true,
-        smtpHost: "smtp.mail.yahoo.com",
-        smtpPort: 465,
-        smtpSecure: true
-      };
-    case "163":
-      return {
-        imapHost: "imap.163.com",
-        imapPort: 993,
-        imapSecure: true,
-        smtpHost: "smtp.163.com",
-        smtpPort: 465,
-        smtpSecure: true
-      };
-    case "126":
-      return {
-        imapHost: "imap.126.com",
-        imapPort: 993,
-        imapSecure: true,
-        smtpHost: "smtp.126.com",
-        smtpPort: 465,
-        smtpSecure: true
-      };
-    default:
-      return null;
-  }
-}
-
-function detectMailboxProfile(emailAddress: string, providerPreset?: string): MailboxProfile | null {
-  const preset = resolveMailboxProfilePreset(providerPreset);
-  if (preset) {
-    return preset;
-  }
-
-  const domain = emailAddress.split("@")[1]?.toLowerCase() ?? "";
-  switch (domain) {
-    case "gmail.com":
-    case "googlemail.com":
-      return resolveMailboxProfilePreset("gmail");
-    case "qq.com":
-      return resolveMailboxProfilePreset("qq");
-    case "outlook.com":
-    case "hotmail.com":
-    case "live.com":
-    case "msn.com":
-      return resolveMailboxProfilePreset("outlook");
-    case "icloud.com":
-    case "me.com":
-    case "mac.com":
-      return resolveMailboxProfilePreset("icloud");
-    case "yahoo.com":
-      return resolveMailboxProfilePreset("yahoo");
-    case "163.com":
-      return resolveMailboxProfilePreset("163");
-    case "126.com":
-      return resolveMailboxProfilePreset("126");
-    default:
-      return null;
-  }
 }
 
 async function askRequired(
@@ -313,4 +201,51 @@ function parseBooleanChoice(value: string) {
 
 function yesNo(value: boolean) {
   return value ? "yes" : "no";
+}
+
+function isInputClosed(input: NodeJS.ReadStream) {
+  return Boolean(
+    (input as NodeJS.ReadStream & { readableEnded?: boolean }).readableEnded ||
+      (input as NodeJS.ReadStream & { destroyed?: boolean }).destroyed
+  );
+}
+
+function readAnswer(
+  rl: readline.Interface,
+  input: NodeJS.ReadStream
+) {
+  return new Promise<string>((resolve, reject) => {
+    let settled = false;
+    const finishResolve = (value: string) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      cleanup();
+      resolve(value);
+    };
+    const finishReject = (error: unknown) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      cleanup();
+      reject(error);
+    };
+    const handleClosed = () => {
+      finishReject(new Error("input stream closed while waiting for login input"));
+    };
+    const cleanup = () => {
+      input.off("end", handleClosed);
+      input.off("close", handleClosed);
+      input.off("error", handleClosed);
+    };
+
+    input.once("end", handleClosed);
+    input.once("close", handleClosed);
+    input.once("error", handleClosed);
+    rl.question("")
+      .then((answer) => finishResolve(answer))
+      .catch((error) => finishReject(error));
+  });
 }

@@ -53,8 +53,11 @@ export interface ConsoleRoomSummary {
   attention: "stable" | "watch" | "critical";
   revision: number;
   frontAgentAddress: string | null;
+  frontAgentId: string | null;
   publicAgentAddresses: string[];
+  publicAgentIds: string[];
   collaboratorAgentAddresses: string[];
+  collaboratorAgentIds: string[];
   summonedRoles: string[];
   mailboxIds: string[];
   mailboxCount: number;
@@ -473,8 +476,11 @@ function buildConsoleRoomSummary(snapshot: ReturnType<typeof replayRoom>): Conso
     }),
     revision: room.revision,
     frontAgentAddress: room.frontAgentAddress ?? null,
+    frontAgentId: room.frontAgentId ?? null,
     publicAgentAddresses: [...(room.publicAgentAddresses ?? [])],
+    publicAgentIds: [...(room.publicAgentIds ?? [])],
     collaboratorAgentAddresses: [...(room.collaboratorAgentAddresses ?? [])],
+    collaboratorAgentIds: [...(room.collaboratorAgentIds ?? [])],
     summonedRoles: [...(room.summonedRoles ?? [])],
     mailboxIds: uniqueStrings(snapshot.mailboxDeliveries.map((delivery) => delivery.mailboxId)),
     mailboxCount: uniqueStrings(snapshot.mailboxDeliveries.map((delivery) => delivery.mailboxId)).length,

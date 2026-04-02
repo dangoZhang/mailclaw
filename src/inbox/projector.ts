@@ -3,6 +3,7 @@ import type { DatabaseSync } from "node:sqlite";
 
 import type { InboxItem, PublicAgentInbox, ThreadRoom } from "../core/types.js";
 import { findLatestMailMessageForThread } from "../storage/repositories/mail-messages.js";
+import { getMailAccount } from "../storage/repositories/mail-accounts.js";
 import { listRoomQueueJobs } from "../queue/thread-queue.js";
 import { listSubAgentRunsForRoom } from "../storage/repositories/subagent-runs.js";
 import { getThreadRoom, listThreadRooms } from "../storage/repositories/thread-rooms.js";
@@ -59,6 +60,7 @@ export function projectPublicAgentInbox(
   }
 ) {
   const now = input.now ?? new Date().toISOString();
+  const accountRouting = readAccountAgentRoutingHints(input.accountId, db);
   const inbox = ensurePublicAgentInbox(db, {
     accountId: input.accountId,
     agentId: input.agentId,
@@ -71,7 +73,7 @@ export function projectPublicAgentInbox(
     .filter(
       (room) =>
         room.accountId === input.accountId &&
-        resolveInboxParticipantRole(room, input.agentId) !== null
+        resolveInboxParticipantRole(room, input.agentId, accountRouting) !== null
     )
     .map((room) => projectInboxItemForRoom(db, {
       inbox,
@@ -99,7 +101,7 @@ export function projectInboxItemForRoom(
   const room = getThreadRoom(db, input.roomKey);
   const participantRole =
     room && room.accountId === input.inbox.accountId
-      ? resolveInboxParticipantRole(room, input.inbox.agentId)
+      ? resolveInboxParticipantRole(room, input.inbox.agentId, readAccountAgentRoutingHints(input.inbox.accountId, db))
       : null;
   if (!room || !participantRole) {
     return null;
@@ -237,7 +239,8 @@ export function listProjectedInboxItems(db: DatabaseSync, inboxId: string) {
 
 function resolveInboxParticipantRole(
   room: ThreadRoom,
-  agentId: string
+  agentId: string,
+  accountRouting?: ReturnType<typeof readAccountAgentRoutingHints>
 ): InboxItem["participantRole"] | null {
   const normalizedAgentId = normalizeAddress(agentId);
   if (!normalizedAgentId) {
@@ -247,13 +250,31 @@ function resolveInboxParticipantRole(
   if (normalizeAddress(room.frontAgentAddress) === normalizedAgentId) {
     return "front";
   }
+  if (normalizeAddress(room.frontAgentId) === normalizedAgentId) {
+    return "front";
+  }
+
+  const roomHasDurableIds =
+    looksLikeDurableAgentId(room.frontAgentId) ||
+    (room.publicAgentIds ?? []).some((id) => looksLikeDurableAgentId(id)) ||
+    (room.collaboratorAgentIds ?? []).some((id) => looksLikeDurableAgentId(id));
+  if (!roomHasDurableIds && accountRouting?.defaultFrontAgentId === normalizedAgentId) {
+    return "front";
+  }
 
   if (
     (room.collaboratorAgentAddresses ?? []).some(
       (address) => normalizeAddress(address) === normalizedAgentId
     ) ||
+    (room.collaboratorAgentIds ?? []).some((id) => normalizeAddress(id) === normalizedAgentId) ||
     (room.publicAgentAddresses ?? []).some((address) => normalizeAddress(address) === normalizedAgentId)
+    ||
+    (room.publicAgentIds ?? []).some((id) => normalizeAddress(id) === normalizedAgentId)
   ) {
+    return "collaborator";
+  }
+
+  if (!roomHasDurableIds && accountRouting?.collaboratorAgentIds.includes(normalizedAgentId)) {
     return "collaborator";
   }
 
@@ -262,4 +283,43 @@ function resolveInboxParticipantRole(
 
 function normalizeAddress(value?: string) {
   return value?.trim().toLowerCase() ?? "";
+}
+
+function looksLikeDurableAgentId(value?: string) {
+  const normalized = normalizeAddress(value);
+  return normalized.length > 0 && !normalized.includes("@");
+}
+
+function readAccountAgentRoutingHints(accountId: string, db: DatabaseSync) {
+  const account = getMailAccount(db, accountId);
+  const settings =
+    typeof account?.settings === "object" && account.settings !== null
+      ? (account.settings as Record<string, unknown>)
+      : {};
+  const routing =
+    typeof settings.agentRouting === "object" && settings.agentRouting !== null
+      ? (settings.agentRouting as Record<string, unknown>)
+      : {};
+
+  return {
+    defaultFrontAgentId: normalizeAddress(
+      typeof routing.defaultFrontAgentId === "string" ? routing.defaultFrontAgentId : undefined
+    ),
+    collaboratorAgentIds: uniqueNormalizedStrings(routing.collaboratorAgentIds)
+  };
+}
+
+function uniqueNormalizedStrings(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return Array.from(
+    new Set(
+      value
+        .filter((entry): entry is string => typeof entry === "string")
+        .map((entry) => normalizeAddress(entry))
+        .filter(Boolean)
+    )
+  );
 }

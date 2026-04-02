@@ -1114,11 +1114,15 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
     };
     const roomAgents = listThreadRooms(deps.db)
       .filter((room) => room.accountId === accountId)
-      .flatMap((room) =>
-        accountAgentRouting.durableAgentIds.length > 0 || room.frontAgentId || (room.publicAgentIds?.length ?? 0) > 0
-          ? [room.frontAgentId, ...(room.publicAgentIds ?? [])]
-          : [room.frontAgentAddress, ...(room.publicAgentAddresses ?? [])]
-      )
+      .flatMap((room) => {
+        if (room.frontAgentId || (room.publicAgentIds?.length ?? 0) > 0) {
+          return [room.frontAgentId, ...(room.publicAgentIds ?? [])];
+        }
+        if (accountAgentRouting.defaultFrontAgentId) {
+          return [accountAgentRouting.defaultFrontAgentId];
+        }
+        return [room.frontAgentAddress, ...(room.publicAgentAddresses ?? [])];
+      })
       .filter((agentId): agentId is string =>
         typeof agentId === "string" &&
         agentId.trim().length > 0 &&
@@ -2507,6 +2511,12 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
           updatedAt: now
         });
       }
+      remapLegacyRoomsToDurableAgents(deps.db, {
+        accountId: input.accountId,
+        defaultFrontAgentId: template.persistentAgents[0]?.agentId,
+        durableAgentIds: template.persistentAgents.map((agent) => agent.agentId),
+        collaboratorAgentIds: template.persistentAgents.slice(1).map((agent) => agent.agentId)
+      });
 
       return {
         templateId: template.templateId,
@@ -4193,4 +4203,45 @@ function shouldExposeDurableAgentId(
   }
 
   return false;
+}
+
+function remapLegacyRoomsToDurableAgents(
+  db: DatabaseSync,
+  input: {
+    accountId: string;
+    defaultFrontAgentId?: string;
+    durableAgentIds: string[];
+    collaboratorAgentIds: string[];
+  }
+) {
+  const defaultFrontAgentId = normalizeAgentId(input.defaultFrontAgentId);
+
+  for (const room of listThreadRooms(db).filter((entry) => entry.accountId === input.accountId)) {
+    const nextFrontAgentId = room.frontAgentId ?? defaultFrontAgentId;
+    const nextCollaboratorAgentIds = uniqueAgentIds([
+      ...(room.collaboratorAgentIds ?? []),
+      ...input.collaboratorAgentIds
+    ]).filter((agentId) => agentId !== nextFrontAgentId);
+    const nextPublicAgentIds = uniqueAgentIds([
+      ...(nextFrontAgentId ? [nextFrontAgentId] : []),
+      ...(room.publicAgentIds ?? []),
+      ...input.durableAgentIds,
+      ...nextCollaboratorAgentIds
+    ]);
+
+    const changed =
+      nextFrontAgentId !== room.frontAgentId ||
+      JSON.stringify(nextCollaboratorAgentIds) !== JSON.stringify(room.collaboratorAgentIds ?? []) ||
+      JSON.stringify(nextPublicAgentIds) !== JSON.stringify(room.publicAgentIds ?? []);
+    if (!changed) {
+      continue;
+    }
+
+    saveThreadRoom(db, {
+      ...room,
+      frontAgentId: nextFrontAgentId,
+      publicAgentIds: nextPublicAgentIds,
+      collaboratorAgentIds: nextCollaboratorAgentIds
+    });
+  }
 }

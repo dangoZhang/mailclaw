@@ -156,8 +156,11 @@ describe("mailctl", () => {
     saveThreadRoom(fixture.handle.db, {
       ...replayBeforeRender.room!,
       frontAgentAddress: "assistant@ai.example.com",
+      frontAgentId: "assistant@ai.example.com",
       publicAgentAddresses: ["assistant@ai.example.com", "research@ai.example.com"],
+      publicAgentIds: ["assistant@ai.example.com", "research@ai.example.com"],
       collaboratorAgentAddresses: ["research@ai.example.com"],
+      collaboratorAgentIds: ["research@ai.example.com"],
       summonedRoles: ["mail-researcher", "mail-drafter"]
     });
     const stdout = createWritableBuffer();
@@ -189,7 +192,9 @@ describe("mailctl", () => {
     expect(JSON.parse(replayStdout.read())).toMatchObject({
       room: {
         roomKey: ingested.ingested.roomKey,
+        frontAgentId: "assistant@ai.example.com",
         frontAgentAddress: "assistant@ai.example.com",
+        collaboratorAgentIds: ["research@ai.example.com"],
         collaboratorAgentAddresses: ["research@ai.example.com"],
         summonedRoles: ["mail-researcher", "mail-drafter"]
       }
@@ -203,9 +208,10 @@ describe("mailctl", () => {
     });
 
     expect(textExitCode).toBe(0);
-    expect(textStdout.read()).toContain("Front agent: assistant@ai.example.com");
-    expect(textStdout.read()).toContain("Collaborators: research@ai.example.com");
-    expect(textStdout.read()).toContain("Summoned roles: mail-researcher, mail-drafter");
+    const roomText = textStdout.read();
+    expect(roomText).toContain("Front agent: assistant@ai.example.com");
+    expect(roomText).toContain("Collaborators: research@ai.example.com");
+    expect(roomText).toContain("Summoned roles: mail-researcher, mail-drafter");
 
     fixture.handle.close();
   });
@@ -260,9 +266,10 @@ describe("mailctl", () => {
 
     expect(exitCode).toBe(0);
     expect(stderr.read()).toBe("");
-    expect(stdout.read()).toContain("MailClaw prompt footprint benchmark");
-    expect(stdout.read()).toContain("Transcript follow-up average");
-    expect(stdout.read()).toContain("Multi-agent reducer handoff");
+    const benchmarkText = stdout.read();
+    expect(benchmarkText).toContain("MailClaws prompt footprint benchmark");
+    expect(benchmarkText).toContain("Transcript follow-up average");
+    expect(benchmarkText).toContain("Multi-agent reducer handoff");
 
     const jsonStdout = createWritableBuffer();
     const jsonExitCode = await runMailctl(["--json", "benchmark", "prompt-footprint"], {
@@ -296,7 +303,7 @@ describe("mailctl", () => {
     expect(listStdout.read()).toContain("Connect providers:");
     expect(listStdout.read()).toContain("API discovery: GET /api/connect and GET /api/connect/providers");
     expect(listStdout.read()).toContain(
-      "gmail | Gmail | browser OAuth | login mailclaw login gmail <accountId> [displayName]"
+      "gmail | Gmail | browser OAuth | login mailclaws login gmail <accountId> [displayName]"
     );
     expect(listStdout.read()).toContain("forward | Forward / raw MIME fallback");
     expect(listStderr.read()).toBe("");
@@ -338,13 +345,13 @@ describe("mailctl", () => {
     });
 
     expect(exitCode).toBe(0);
-    expect(stdout.read()).toContain("MailClaw mailbox onboarding");
+    expect(stdout.read()).toContain("MailClaws mailbox onboarding");
     expect(stdout.read()).toContain("Recommended provider: Gmail (gmail)");
-    expect(stdout.read()).toContain("1. Login: mailclaw login gmail acct-person-gmail-com \"person\"");
+    expect(stdout.read()).toContain("1. Login: mailclaws login gmail acct-person-gmail-com \"person\"");
     expect(stdout.read()).toContain("2. Send one email to the connected address from another mailbox.");
     expect(stdout.read()).toContain("3. Open browser: /workbench/mail");
-    expect(stdout.read()).toContain("5. Check rooms/inbox: mailclaw rooms | mailclaw inboxes acct-person-gmail-com");
-    expect(stdout.read()).toContain("Optional internal mailbox view later: mailclaw workbench acct-person-gmail-com");
+    expect(stdout.read()).toContain("5. Check rooms/inbox: mailclaws rooms | mailclaws inboxes acct-person-gmail-com");
+    expect(stdout.read()).toContain("Optional internal mailbox view later: mailclaws workbench acct-person-gmail-com");
     expect(stderr.read()).toBe("");
 
     const jsonStdout = createWritableBuffer();
@@ -1208,7 +1215,7 @@ describe("mailctl", () => {
 
       expect(startExitCode).toBe(0);
       expect(onboardingStderr.read()).toBe("");
-      expect(onboardingStdout.read()).toContain("1. Login: mailclaw login qq acct-user-qq-com \"user\"");
+      expect(onboardingStdout.read()).toContain("1. Login: mailclaws login qq acct-user-qq-com \"user\"");
 
       const loginExitCode = await runMailctl(["connect", "login", "qq"], {
         stdout: loginStdout.stream,
