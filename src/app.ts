@@ -317,7 +317,16 @@ async function handleRequest(options: {
         response,
         200,
         mailApi.getConsoleWorkbench({
-          mode: (requestUrl.searchParams.get("mode") as "connect" | "accounts" | "rooms" | "mailboxes" | "approvals" | null) ?? undefined,
+          mode: (requestUrl.searchParams.get("mode") as
+            | "home"
+            | "connect"
+            | "accounts"
+            | "rooms"
+            | "agents"
+            | "skills"
+            | "mailboxes"
+            | "approvals"
+            | null) ?? undefined,
           accountId: requestUrl.searchParams.get("accountId") ?? undefined,
           roomKey: requestUrl.searchParams.get("roomKey") ?? undefined,
           mailboxId: requestUrl.searchParams.get("mailboxId") ?? undefined,
@@ -507,7 +516,10 @@ async function handleRequest(options: {
                   : "The mailbox is connected. Add a Pub/Sub topic if you want Gmail watch/recovery to be active."
                 : "The mailbox is connected. MailClaws will use IMAP/SMTP with OAuth for this account.",
             accountId: completed.account?.accountId,
-            emailAddress: completed.account?.emailAddress
+            emailAddress: completed.account?.emailAddress,
+            returnUrl: completed.account?.accountId
+              ? `/workbench/mail/accounts/${encodeURIComponent(completed.account.accountId)}`
+              : "/workbench/mail"
           })
         );
       } catch (error) {
@@ -528,7 +540,8 @@ async function handleRequest(options: {
             providerName: resolvedProvider.displayName,
             success: false,
             title: `${resolvedProvider.displayName} mailbox connection failed`,
-            message: error instanceof Error ? error.message : String(error)
+            message: error instanceof Error ? error.message : String(error),
+            returnUrl: "/workbench/mail/login"
           })
         );
       }

@@ -1047,6 +1047,39 @@ select {
   flex-wrap: wrap;
 }
 
+.setup-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.setup-note {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--bg-content) 82%, transparent);
+  padding: 12px 14px;
+}
+
+.setup-note--ok {
+  border-color: color-mix(in srgb, var(--ok) 24%, transparent);
+  background: color-mix(in srgb, var(--ok) 10%, var(--bg-content) 90%);
+}
+
+.setup-note--warn {
+  border-color: color-mix(in srgb, var(--warn) 24%, transparent);
+  background: color-mix(in srgb, var(--warn) 10%, var(--bg-content) 90%);
+}
+
+.setup-note--danger {
+  border-color: color-mix(in srgb, var(--danger) 22%, transparent);
+  background: color-mix(in srgb, var(--danger-subtle) 80%, var(--bg-content) 20%);
+}
+
+.field-note {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .mono-block {
   padding: 12px 14px;
   border: 1px solid var(--border);
@@ -1286,17 +1319,20 @@ export function renderOpenClawWorkbenchShellHtml(input: {
       const config = ${config};
 
       const ICONS = {
-        mail: '<svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"></path><path d="m4 8 8 6 8-6"></path></svg>',
+        home: '<svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"></path><path d="M5 10.5V20h14v-9.5"></path><path d="M9 20v-6h6v6"></path></svg>',
         accounts: '<svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>',
         rooms: '<svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>',
-        mailboxes: '<svg viewBox="0 0 24 24"><path d="M3 7h18"></path><path d="M5 7l2-3h10l2 3"></path><path d="M5 7v11a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7"></path><path d="M9 11h6"></path></svg>',
-        approvals: '<svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>'
+        agents: '<svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"></path><path d="M4 20a8 8 0 0 1 16 0"></path><path d="M19 8h2"></path><path d="M20 7v2"></path></svg>',
+        skills: '<svg viewBox="0 0 24 24"><path d="m14 7 3-3 3 3"></path><path d="M17 4v10"></path><path d="M10 17 7 20l-3-3"></path><path d="M7 20V10"></path><path d="M14 17h7"></path><path d="M3 7h7"></path></svg>',
+        mailboxes: '<svg viewBox="0 0 24 24"><path d="M3 7h18"></path><path d="M5 7l2-3h10l2 3"></path><path d="M5 7v11a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7"></path><path d="M9 11h6"></path></svg>'
       };
 
       const state = {
         loading: true,
         error: null,
         data: null,
+        runtime: null,
+        connect: null,
         navCollapsed: false,
         navDrawerOpen: false,
         route: null
@@ -1351,12 +1387,21 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         };
         const base = normalizeBasePath(pathname);
         const segments = base.rest.split("/").filter(Boolean);
+        if (segments[0] === "home") {
+          parsed.mode = "home";
+        }
         if (segments[0] === "connect") {
-          parsed.mode = "connect";
+          parsed.mode = "home";
         }
         if (segments[0] === "accounts" && segments[1]) {
           parsed.accountId = decodeURIComponent(segments[1]);
           parsed.mode = "accounts";
+        }
+        if (segments[0] === "agents") {
+          parsed.mode = "agents";
+        }
+        if (segments[0] === "skills") {
+          parsed.mode = "skills";
         }
         if (segments[0] === "rooms" && segments[1]) {
           parsed.roomKey = decodeURIComponent(segments[1]);
@@ -1374,7 +1419,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         }
         const params = new URLSearchParams(search);
         if (!parsed.mode && params.get("mode")) {
-          parsed.mode = params.get("mode");
+          parsed.mode = params.get("mode") === "connect" ? "home" : params.get("mode");
         }
         if (!parsed.accountId && params.get("accountId")) {
           parsed.accountId = params.get("accountId");
@@ -1389,7 +1434,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         parsed.originKind = params.get("originKind") || "";
         parsed.approvalStatus = params.get("approvalStatus") || "";
         if (!parsed.mode) {
-          parsed.mode = "connect";
+          parsed.mode = "home";
         }
         return parsed;
       }
@@ -1498,6 +1543,309 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         );
       }
 
+      function getConnectWorkspace() {
+        const workspace = state.data && state.data.workspace ? state.data.workspace : null;
+        return workspace && workspace.connect ? workspace.connect : null;
+      }
+
+      function getConnectSetupState() {
+        const connect = getConnectWorkspace();
+        const stored = state.connect || {};
+        const plan = stored.plan || (connect && connect.defaultPlan ? connect.defaultPlan : null);
+        const providerOptions = connect && Array.isArray(connect.providerOptions) ? connect.providerOptions : [];
+        const provider = stored.provider || (plan && plan.recommendation ? plan.recommendation.provider : null);
+        const providerId =
+          (typeof stored.providerId === "string" && stored.providerId.trim().length > 0 ? stored.providerId.trim() : "") ||
+          (provider && typeof provider.id === "string" ? provider.id : "") ||
+          (providerOptions[0] && typeof providerOptions[0].id === "string" ? providerOptions[0].id : "imap");
+        const autoconfig = stored.autoconfig || (plan && plan.autoconfig ? plan.autoconfig : null);
+        const accountIdSuggestion =
+          plan && plan.input && typeof plan.input.accountIdSuggestion === "string" ? plan.input.accountIdSuggestion : "";
+        const displayNameSuggestion =
+          plan && plan.input && typeof plan.input.displayNameSuggestion === "string" ? plan.input.displayNameSuggestion : "";
+
+        return {
+          connect,
+          plan,
+          provider,
+          providerId,
+          providerOptions,
+          autoconfig,
+          emailAddress:
+            typeof stored.emailAddress === "string"
+              ? stored.emailAddress
+              : plan && plan.input && typeof plan.input.emailAddress === "string"
+                ? plan.input.emailAddress
+                : "",
+          accountId:
+            typeof stored.accountId === "string" && stored.accountId.trim().length > 0
+              ? stored.accountId
+              : accountIdSuggestion === "<accountId>"
+                ? ""
+                : accountIdSuggestion,
+          displayName:
+            typeof stored.displayName === "string" && stored.displayName.trim().length > 0
+              ? stored.displayName
+              : displayNameSuggestion,
+          password: typeof stored.password === "string" ? stored.password : "",
+          imapHost:
+            typeof stored.imapHost === "string" && stored.imapHost.trim().length > 0
+              ? stored.imapHost
+              : autoconfig && typeof autoconfig.imapHost === "string"
+                ? autoconfig.imapHost
+                : "",
+          imapPort:
+            typeof stored.imapPort === "string" && stored.imapPort.trim().length > 0
+              ? stored.imapPort
+              : autoconfig && typeof autoconfig.imapPort === "number"
+                ? String(autoconfig.imapPort)
+                : "993",
+          imapSecure:
+            typeof stored.imapSecure === "string" && stored.imapSecure.trim().length > 0
+              ? stored.imapSecure
+              : autoconfig && typeof autoconfig.imapSecure === "boolean"
+                ? (autoconfig.imapSecure ? "yes" : "no")
+                : "yes",
+          imapMailbox:
+            typeof stored.imapMailbox === "string" && stored.imapMailbox.trim().length > 0
+              ? stored.imapMailbox
+              : autoconfig && typeof autoconfig.imapMailbox === "string"
+                ? autoconfig.imapMailbox
+                : "INBOX",
+          smtpHost:
+            typeof stored.smtpHost === "string" && stored.smtpHost.trim().length > 0
+              ? stored.smtpHost
+              : autoconfig && typeof autoconfig.smtpHost === "string"
+                ? autoconfig.smtpHost
+                : "",
+          smtpPort:
+            typeof stored.smtpPort === "string" && stored.smtpPort.trim().length > 0
+              ? stored.smtpPort
+              : autoconfig && typeof autoconfig.smtpPort === "number"
+                ? String(autoconfig.smtpPort)
+                : "587",
+          smtpSecure:
+            typeof stored.smtpSecure === "string" && stored.smtpSecure.trim().length > 0
+              ? stored.smtpSecure
+              : autoconfig && typeof autoconfig.smtpSecure === "boolean"
+                ? (autoconfig.smtpSecure ? "yes" : "no")
+                : "no",
+          smtpFrom:
+            typeof stored.smtpFrom === "string" && stored.smtpFrom.trim().length > 0
+              ? stored.smtpFrom
+              : typeof stored.emailAddress === "string" && stored.emailAddress.trim().length > 0
+                ? stored.emailAddress
+                : plan && plan.input && typeof plan.input.emailAddress === "string"
+                  ? plan.input.emailAddress
+                  : "",
+          clientId: typeof stored.clientId === "string" ? stored.clientId : "",
+          clientSecret: typeof stored.clientSecret === "string" ? stored.clientSecret : "",
+          tenant: typeof stored.tenant === "string" ? stored.tenant : "",
+          topicName: typeof stored.topicName === "string" ? stored.topicName : "",
+          userId: typeof stored.userId === "string" ? stored.userId : "",
+          labelIds: typeof stored.labelIds === "string" ? stored.labelIds : "",
+          scopes: typeof stored.scopes === "string" ? stored.scopes : ""
+        };
+      }
+
+      function readConnectField(root, name) {
+        const element = root.querySelector('[data-connect-field="' + name + '"]');
+        return element && "value" in element ? String(element.value || "").trim() : "";
+      }
+
+      function readConnectFormState(target) {
+        const root = (target && target.closest(".connect-config-panel")) || document;
+        return {
+          emailAddress: readConnectField(root, "emailAddress"),
+          providerId: readConnectField(root, "providerId"),
+          accountId: readConnectField(root, "accountId"),
+          displayName: readConnectField(root, "displayName"),
+          password: readConnectField(root, "password"),
+          imapHost: readConnectField(root, "imapHost"),
+          imapPort: readConnectField(root, "imapPort"),
+          imapSecure: readConnectField(root, "imapSecure") || "yes",
+          imapMailbox: readConnectField(root, "imapMailbox"),
+          smtpHost: readConnectField(root, "smtpHost"),
+          smtpPort: readConnectField(root, "smtpPort"),
+          smtpSecure: readConnectField(root, "smtpSecure") || "no",
+          smtpFrom: readConnectField(root, "smtpFrom"),
+          clientId: readConnectField(root, "clientId"),
+          clientSecret: readConnectField(root, "clientSecret"),
+          tenant: readConnectField(root, "tenant"),
+          topicName: readConnectField(root, "topicName"),
+          userId: readConnectField(root, "userId"),
+          labelIds: readConnectField(root, "labelIds"),
+          scopes: readConnectField(root, "scopes")
+        };
+      }
+
+      function rememberConnectFormState(target) {
+        state.connect = {
+          ...(state.connect || {}),
+          ...readConnectFormState(target)
+        };
+        return state.connect;
+      }
+
+      function renderConnectRuntimePanel(setup) {
+        const runtimeResponse = state.runtime;
+        const runtime = runtimeResponse && runtimeResponse.runtime ? runtimeResponse.runtime : runtimeResponse;
+        const plan = setup.plan;
+        const startCommand =
+          plan && plan.migration && plan.migration.openClawUsers
+            ? plan.migration.openClawUsers.startCommand
+            : "MAILCLAW_FEATURE_OPENCLAW_BRIDGE=true MAILCLAW_FEATURE_MAIL_INGEST=true pnpm dev";
+        if (!runtime) {
+          return '<div class="panel"><div class="panel-header"><h3>Runtime And LLM</h3></div><div class="panel-body"><div class="empty">Loading runtime boundary…</div></div></div>';
+        }
+
+        const reusesOpenClaw = runtime.runtimeKind === "bridge";
+        const title = reusesOpenClaw ? "OpenClaw runtime is active" : "Local runtime is active";
+        const copy = reusesOpenClaw
+          ? "Configure mailbox here and keep your existing OpenClaw runtime/LLM. MailClaws will reuse that execution path for room work."
+          : "This server is running with the built-in embedded adapter. You can still connect mailbox accounts here, but a real external LLM path needs bridge mode.";
+        const statusTone = reusesOpenClaw ? "setup-note setup-note--ok" : "setup-note setup-note--warn";
+
+        return (
+          '<div class="panel"><div class="panel-header"><h3>Runtime And LLM</h3><span class="muted">' + escapeHtmlClient(runtime.runtimeKind || "runtime") + '</span></div><div class="panel-body">' +
+          '<div class="' + statusTone + '">' +
+          '<div class="title">' + escapeHtmlClient(title) + '</div>' +
+          '<div class="detail">' + escapeHtmlClient(copy) + '</div>' +
+          '</div>' +
+          '<div class="detail-grid">' +
+          renderMetric("runtime", runtime.runtimeKind || "unknown") +
+          renderMetric("label", runtime.runtimeLabel || "unknown") +
+          renderMetric("backend", runtime.backendEnforcement || "unknown") +
+          renderMetric("bridge sessions", String(runtimeResponse && typeof runtimeResponse.bridgeSessionCount === "number" ? runtimeResponse.bridgeSessionCount : 0)) +
+          '</div>' +
+          (!reusesOpenClaw
+            ? '<div class="setup-stack">' +
+              '<div class="detail">If you are an OpenClaw user, restart MailClaws in bridge mode, then reopen this workbench and only configure mailbox here.</div>' +
+              '<div class="mono-block">' + escapeHtmlClient(startCommand) + '</div>' +
+              '</div>'
+            : '') +
+          '</div></div>'
+        );
+      }
+
+      function renderConnectMailboxPanel(setup) {
+        const provider = setup.provider || {};
+        const providerSetupKind = provider.setupKind || "app_password";
+        const providerDisplayName = provider.displayName || setup.providerId || "Mailbox";
+        const requiredEnvVars = Array.isArray(provider.requiredEnvVars) ? provider.requiredEnvVars : [];
+        const notes = Array.isArray(provider.notes) ? provider.notes : [];
+        const status = state.connect && state.connect.status ? state.connect.status : null;
+        const recommendation = setup.plan && setup.plan.recommendation ? setup.plan.recommendation : null;
+        const setupNoteTone = status && status.tone === "danger"
+          ? "setup-note setup-note--danger"
+          : status && status.tone === "ok"
+            ? "setup-note setup-note--ok"
+            : "setup-note";
+
+        return (
+          '<div class="panel connect-config-panel"><div class="panel-header"><h3>Connect A Mailbox</h3><span class="muted">' + escapeHtmlClient(providerDisplayName) + '</span></div><div class="panel-body">' +
+          '<div class="setup-stack">' +
+          (status
+            ? '<div class="' + setupNoteTone + '"><div class="detail-strong">' + escapeHtmlClient(status.message || "") + '</div></div>'
+            : '') +
+          '<div class="detail-grid">' +
+          '<label><div class="section-label">Email address</div><input class="console-input" data-connect-field="emailAddress" type="email" placeholder="user@example.com" value="' + escapeHtmlClient(setup.emailAddress || "") + '" /></label>' +
+          '<label><div class="section-label">Provider</div><select class="console-input" data-connect-field="providerId">' +
+          setup.providerOptions.map(function(option) {
+            const selected = option.id === setup.providerId ? ' selected' : '';
+            return '<option value="' + escapeHtmlClient(option.id) + '"' + selected + '>' + escapeHtmlClient(option.displayName || option.id) + '</option>';
+          }).join("") +
+          '</select></label>' +
+          '<label><div class="section-label">Account ID</div><input class="console-input" data-connect-field="accountId" placeholder="acct-support" value="' + escapeHtmlClient(setup.accountId || "") + '" /></label>' +
+          '<label><div class="section-label">Display name</div><input class="console-input" data-connect-field="displayName" placeholder="Support" value="' + escapeHtmlClient(setup.displayName || "") + '" /></label>' +
+          '</div>' +
+          '<div class="actions-inline">' +
+          '<button class="btn" data-action="prepare-connect-plan">Load Setup</button>' +
+          '</div>' +
+          (recommendation
+            ? '<div class="setup-note"><div class="detail-strong">Recommended path: ' + escapeHtmlClient(recommendation.provider.displayName || recommendation.provider.id || setup.providerId) + '</div><div class="detail">Match reason: ' + escapeHtmlClient(recommendation.matchReason || "manual") + '. Setup kind: ' + escapeHtmlClient(recommendation.provider.setupKind || providerSetupKind) + '.</div></div>'
+            : '') +
+          (setup.autoconfig
+            ? '<div class="setup-note"><div class="detail-strong">Autoconfig ready</div><div class="detail">IMAP ' + escapeHtmlClient(setup.autoconfig.imapHost || "") + ':' + escapeHtmlClient(setup.autoconfig.imapPort || "") + ' · SMTP ' + escapeHtmlClient(setup.autoconfig.smtpHost || "") + ':' + escapeHtmlClient(setup.autoconfig.smtpPort || "") + (setup.autoconfig.source ? ' · source ' + escapeHtmlClient(setup.autoconfig.source) : '') + '</div>' + (setup.autoconfig.warning ? '<div class="field-note">' + escapeHtmlClient(setup.autoconfig.warning) + '</div>' : '') + '</div>'
+            : '') +
+          '<div class="setup-note"><div class="detail-strong">' + escapeHtmlClient(providerDisplayName) + '</div><div class="detail">' + escapeHtmlClient((notes[0] || "Use the recommended provider path, then confirm the account shows up under Accounts.")) + '</div>' + (requiredEnvVars.length > 0 ? '<div class="field-note">Required env when left blank here: ' + escapeHtmlClient(requiredEnvVars.join(", ")) + '</div>' : '') + '</div>' +
+          (providerSetupKind === "browser_oauth"
+            ? renderConnectOAuthForm(setup, provider)
+            : providerSetupKind === "forward_ingest"
+              ? renderConnectForwardForm(setup)
+              : renderConnectPasswordForm(setup, provider)) +
+          '</div>' +
+          '</div></div>'
+        );
+      }
+
+      function renderConnectOAuthForm(setup, provider) {
+        const providerId = provider && provider.id ? provider.id : setup.providerId;
+        const providerDisplayName = provider && provider.displayName ? provider.displayName : providerId;
+        const supportsTopic = providerId === "gmail";
+        const supportsTenant = providerId === "outlook";
+
+        return (
+          '<div class="setup-stack">' +
+          '<div class="detail">Browser OAuth starts from this workbench. Leave client credentials blank when the server already has them in env.</div>' +
+          '<div class="detail-grid">' +
+          '<label><div class="section-label">OAuth client ID</div><input class="console-input" data-connect-field="clientId" placeholder="optional override" value="' + escapeHtmlClient(setup.clientId || "") + '" /></label>' +
+          '<label><div class="section-label">OAuth client secret</div><input class="console-input" data-connect-field="clientSecret" type="password" placeholder="optional override" value="' + escapeHtmlClient(setup.clientSecret || "") + '" /></label>' +
+          (supportsTenant
+            ? '<label><div class="section-label">Tenant</div><input class="console-input" data-connect-field="tenant" placeholder="common" value="' + escapeHtmlClient(setup.tenant || "") + '" /></label>'
+            : '<label><div class="section-label">User ID</div><input class="console-input" data-connect-field="userId" placeholder="me" value="' + escapeHtmlClient(setup.userId || "") + '" /></label>') +
+          '<label><div class="section-label">Scopes</div><input class="console-input" data-connect-field="scopes" placeholder="comma separated, optional" value="' + escapeHtmlClient(setup.scopes || "") + '" /></label>' +
+          (supportsTopic
+            ? '<label><div class="section-label">Pub/Sub topic</div><input class="console-input" data-connect-field="topicName" placeholder="projects/.../topics/..." value="' + escapeHtmlClient(setup.topicName || "") + '" /></label>'
+            : '<label><div class="section-label">Label IDs</div><input class="console-input" data-connect-field="labelIds" placeholder="optional, comma separated" value="' + escapeHtmlClient(setup.labelIds || "") + '" /></label>') +
+          '</div>' +
+          (supportsTopic
+            ? '<label><div class="section-label">Label IDs</div><input class="console-input" data-connect-field="labelIds" placeholder="INBOX,IMPORTANT" value="' + escapeHtmlClient(setup.labelIds || "") + '" /></label>'
+            : '') +
+          '<div class="actions-inline"><button class="btn primary" data-action="start-oauth-connect" data-provider-id="' + escapeHtmlClient(providerId || "") + '">Continue With ' + escapeHtmlClient(providerDisplayName || "OAuth") + '</button></div>' +
+          '</div>'
+        );
+      }
+
+      function renderConnectPasswordForm(setup, provider) {
+        const providerPortalUrl = provider && provider.portalUrl ? provider.portalUrl : "";
+        const providerPortalLabel =
+          provider && provider.portalLabel ? provider.portalLabel : "Open Provider Mail";
+        return (
+          '<div class="setup-stack">' +
+          '<div class="detail">This path stores IMAP/SMTP settings directly through the HTTP API. It does not verify the credentials before saving.</div>' +
+          (providerPortalUrl
+            ? '<div class="actions-inline"><a class="btn" href="' + escapeHtmlClient(providerPortalUrl) + '" target="_blank" rel="noreferrer">' + escapeHtmlClient(providerPortalLabel) + '</a></div>'
+            : '') +
+          '<label><div class="section-label">Password or app password</div><input class="console-input" data-connect-field="password" type="password" placeholder="required for IMAP/SMTP" value="' + escapeHtmlClient(setup.password || "") + '" /></label>' +
+          '<div class="detail-grid">' +
+          '<label><div class="section-label">IMAP host</div><input class="console-input" data-connect-field="imapHost" placeholder="imap.example.com" value="' + escapeHtmlClient(setup.imapHost || "") + '" /></label>' +
+          '<label><div class="section-label">IMAP port</div><input class="console-input" data-connect-field="imapPort" inputmode="numeric" placeholder="993" value="' + escapeHtmlClient(setup.imapPort || "") + '" /></label>' +
+          '<label><div class="section-label">IMAP secure</div><select class="console-input" data-connect-field="imapSecure"><option value="yes"' + (setup.imapSecure === "yes" ? ' selected' : '') + '>yes</option><option value="no"' + (setup.imapSecure === "no" ? ' selected' : '') + '>no</option></select></label>' +
+          '<label><div class="section-label">IMAP mailbox</div><input class="console-input" data-connect-field="imapMailbox" placeholder="INBOX" value="' + escapeHtmlClient(setup.imapMailbox || "INBOX") + '" /></label>' +
+          '<label><div class="section-label">SMTP host</div><input class="console-input" data-connect-field="smtpHost" placeholder="smtp.example.com" value="' + escapeHtmlClient(setup.smtpHost || "") + '" /></label>' +
+          '<label><div class="section-label">SMTP port</div><input class="console-input" data-connect-field="smtpPort" inputmode="numeric" placeholder="587" value="' + escapeHtmlClient(setup.smtpPort || "") + '" /></label>' +
+          '<label><div class="section-label">SMTP secure</div><select class="console-input" data-connect-field="smtpSecure"><option value="yes"' + (setup.smtpSecure === "yes" ? ' selected' : '') + '>yes</option><option value="no"' + (setup.smtpSecure === "no" ? ' selected' : '') + '>no</option></select></label>' +
+          '<label><div class="section-label">SMTP from</div><input class="console-input" data-connect-field="smtpFrom" placeholder="user@example.com" value="' + escapeHtmlClient(setup.smtpFrom || "") + '" /></label>' +
+          '</div>' +
+          '<div class="actions-inline"><button class="btn primary" data-action="save-password-mailbox">Save Mailbox Config</button></div>' +
+          '</div>'
+        );
+      }
+
+      function renderConnectForwardForm(setup) {
+        const command =
+          setup.plan && setup.plan.commands && typeof setup.plan.commands.inspectProvider === "string"
+            ? setup.plan.commands.inspectProvider
+            : "mailctl connect providers forward";
+        return (
+          '<div class="setup-stack">' +
+          '<div class="setup-note setup-note--warn"><div class="detail-strong">Forward ingest stays API-first.</div><div class="detail">Use raw MIME forward only when there is no provider-native or IMAP/OAuth path for this mailbox.</div></div>' +
+          '<div class="mono-block">' + escapeHtmlClient(command) + '</div>' +
+          '</div>'
+        );
+      }
+
       function renderAccountCard(account) {
         return (
           '<button class="list-card' + (account.accountId === state.route.accountId ? " active" : "") + '" data-action="select-account" data-account-id="' + escapeHtmlClient(account.accountId) + '">' +
@@ -1531,11 +1879,14 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           '<div class="chips">' +
           renderPill("attention " + escapeHtmlClient(room.attention || "normal"), "") +
           renderPill("rev " + escapeHtmlClient(room.revision || 0), "") +
+          renderPill(String(room.visibleAgentCount || 0) + " agents", "") +
+          renderPill(String(room.messageCount || 0) + " mail", "") +
+          renderPill(String(room.resourceCount || 0) + " resources", "") +
           renderPill(String(room.pendingApprovalCount || 0) + " approvals", Number(room.pendingApprovalCount || 0) > 0 ? "pill--warn" : "") +
           (room.mailTaskKind ? renderPill("task " + room.mailTaskKind, "") : "") +
           (room.mailTaskStage ? renderPill("stage " + room.mailTaskStage, "") : "") +
           '</div>' +
-          '<div class="detail">Updated ' + escapeHtmlClient(formatTime(room.latestActivityAt)) + '</div>' +
+          '<div class="detail">Processed ' + escapeHtmlClient(formatTime(room.latestActivityAt)) + '</div>' +
           '</button>'
         );
       }
@@ -1690,7 +2041,14 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         );
       }
 
-      function renderAgentDirectoryCard(entry) {
+      function renderAgentDirectoryCard(entry, connect) {
+        const skillGroups = connect && Array.isArray(connect.skills) ? connect.skills : [];
+        const skillCount = (() => {
+          const match = skillGroups.find(function(group) {
+            return group.agentId === entry.agentId;
+          });
+          return match && Array.isArray(match.skills) ? match.skills.length : 0;
+        })();
         return (
           '<div class="timeline-entry">' +
           '<div class="meta"><span>' + escapeHtmlClient(entry.displayName || entry.agentId || "agent") + '</span><span>' + escapeHtmlClient(String((entry.virtualMailboxes || []).length) + " mailboxes") + "</span></div>" +
@@ -1698,10 +2056,36 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           '<div class="detail">' + escapeHtmlClient(entry.purpose || "") + "</div>" +
           '<div class="chips">' +
           (entry.templateId ? renderPill(entry.templateId, "") : "") +
+          renderPill(String(skillCount) + " skills", "") +
           ((entry.collaboratorAgentIds || []).slice(0, 3).map(function(agentId) { return renderPill("works with " + agentId, ""); }).join("")) +
           "</div>" +
+          (entry.soulPath ? '<div class="detail code">' + escapeHtmlClient(entry.soulPath) + '</div>' : '<div class="detail">SOUL.md has not been initialized yet.</div>') +
           ((entry.virtualMailboxes || []).length > 0
             ? '<div class="detail code">' + escapeHtmlClient((entry.virtualMailboxes || []).join(", ")) + "</div>"
+            : "") +
+          "</div>"
+        );
+      }
+
+      function readSkillSourceValue(skill) {
+        return (skill && (skill.sourceRef || skill.path)) ? String(skill.sourceRef || skill.path) : "";
+      }
+
+      function renderAgentSkillCard(agentId, skill) {
+        const sourceValue = readSkillSourceValue(skill);
+        return (
+          '<div class="timeline-entry">' +
+          '<div class="meta"><span>' + escapeHtmlClient(skill.title || skill.skillId || "skill") + '</span><span>' + escapeHtmlClient(skill.source || "managed") + "</span></div>" +
+          '<div class="title code">' + escapeHtmlClient(skill.skillId || "skill") + "</div>" +
+          (sourceValue
+            ? '<div class="detail code">' + escapeHtmlClient(sourceValue) + "</div>"
+            : '<div class="detail">No reusable source reference recorded.</div>') +
+          '<div class="chips">' +
+          renderPill(skill.source || "managed", skill.source === "managed" ? "pill--ok" : "") +
+          (sourceValue ? renderPill("source ready", "pill--ok") : renderPill("inline only", "")) +
+          "</div>" +
+          (sourceValue
+            ? '<div class="actions-inline"><button class="btn" data-action="prefill-skill-install" data-agent-id="' + escapeHtmlClient(agentId || "") + '" data-skill-source="' + escapeHtmlClient(sourceValue) + '" data-skill-id="' + escapeHtmlClient(skill.skillId || "") + '" data-skill-title="' + escapeHtmlClient(skill.title || skill.skillId || "skill") + '">Use As Source</button></div>'
             : "") +
           "</div>"
         );
@@ -1717,15 +2101,60 @@ export function renderOpenClawWorkbenchShellHtml(input: {
             ? '<div class="chips">' + skills.map(function(skill) {
                 return renderPill((skill.source || "default") + " " + (skill.skillId || "skill"), skill.source === "managed" ? "pill--ok" : "");
               }).join("") + "</div>" +
-              '<div class="detail">' + escapeHtmlClient(skills.map(function(skill) { return skill.title || skill.skillId || "skill"; }).join(" | ")) + "</div>"
+              '<div class="mailbox-feed">' + skills.map(function(skill) {
+                return renderAgentSkillCard(entry.agentId || "", skill);
+              }).join("") + "</div>"
             : '<div class="detail">No skills discovered yet.</div>') +
           "</div>"
         );
       }
 
+      function renderSkillInstallPanel(connect) {
+        const stored = state.connect || {};
+        const accountId = connect && connect.templateApplyAccountId ? connect.templateApplyAccountId : "";
+        const tenantId = connect && connect.templateApplyTenantId ? connect.templateApplyTenantId : (accountId || "");
+        const directory = connect && Array.isArray(connect.agentDirectory) ? connect.agentDirectory : [];
+        const status = stored.skillStatus || null;
+        const targetAgentId =
+          typeof stored.skillTargetAgentId === "string" && stored.skillTargetAgentId.trim().length > 0
+            ? stored.skillTargetAgentId
+            : directory[0] && directory[0].agentId
+              ? directory[0].agentId
+              : "";
+        const source = typeof stored.skillSource === "string" ? stored.skillSource : "";
+        const skillId = typeof stored.skillId === "string" ? stored.skillId : "";
+        const title = typeof stored.skillTitle === "string" ? stored.skillTitle : "";
+        const noteClass =
+          !status
+            ? "setup-note"
+            : status.tone === "danger"
+              ? "setup-note setup-note--danger"
+              : status.tone === "ok"
+                ? "setup-note setup-note--ok"
+                : "setup-note";
+        return (
+          '<div class="panel"><div class="panel-header"><h3>Install Or Reuse Skill</h3><span class="muted">' + escapeHtmlClient(directory.length > 0 ? String(directory.length) + " target agents" : "connect an account first") + '</span></div><div class="panel-body">' +
+          '<div class="detail">Reuse an existing OpenClaw skill by pasting a local markdown path. Download a new one by pasting a GitHub raw/blob URL or any direct markdown URL.</div>' +
+          (status ? '<div class="' + noteClass + '">' + escapeHtmlClient(status.message || "") + "</div>" : "") +
+          (accountId
+            ? '<div class="detail-grid">' +
+              '<label><div class="section-label">Target Agent</div><input class="console-input" data-skill-install-field="agentId" list="skill-agent-options" placeholder="assistant-ops" value="' + escapeHtmlClient(targetAgentId) + '" /></label>' +
+              '<label><div class="section-label">Skill ID</div><input class="console-input" data-skill-install-field="skillId" placeholder="follow-up-skill" value="' + escapeHtmlClient(skillId) + '" /></label>' +
+              '<label><div class="section-label">Title</div><input class="console-input" data-skill-install-field="title" placeholder="Follow-up Skill" value="' + escapeHtmlClient(title) + '" /></label>' +
+              '</div>' +
+              '<label><div class="section-label">Source</div><input class="console-input" data-skill-install-field="source" placeholder="/Users/me/.codex/skills/reply/SKILL.md or https://github.com/org/repo/blob/main/skill.md" value="' + escapeHtmlClient(source) + '" /></label>' +
+              '<datalist id="skill-agent-options">' + directory.map(function(entry) {
+                return '<option value="' + escapeHtmlClient(entry.agentId || "") + '">' + escapeHtmlClient(entry.displayName || entry.agentId || "") + "</option>";
+              }).join("") + "</datalist>" +
+              '<div class="actions-inline"><button class="btn" data-action="install-agent-skill" data-account-id="' + escapeHtmlClient(accountId) + '" data-tenant-id="' + escapeHtmlClient(tenantId) + '">Install From Source</button></div>'
+            : '<div class="detail">Connect a mailbox first. Then create a durable agent or apply a template before installing skills.</div>') +
+          "</div></div>"
+        );
+      }
+
       function renderConnectHome() {
-        const workspace = state.data && state.data.workspace ? state.data.workspace : null;
-        const connect = workspace && workspace.connect ? workspace.connect : null;
+        const setup = getConnectSetupState();
+        const connect = setup.connect;
         const providerCount = connect && Array.isArray(connect.providerOptions) ? connect.providerOptions.length : 0;
         const loginCommand = (connect && connect.recommendedLoginCommand) || "mailclaws login";
         const templates = connect && Array.isArray(connect.agentTemplates) ? connect.agentTemplates : [];
@@ -1747,13 +2176,14 @@ export function renderOpenClawWorkbenchShellHtml(input: {
               { label: "approvals", value: String((state.data && state.data.approvals ? state.data.approvals.length : 0)) }
             ]
           }) +
-          '<div class="panel"><div class="panel-header"><h3>Connect a mailbox</h3><span class="muted">Workbench mail tab</span></div>' +
+          renderConnectRuntimePanel(setup) +
+          renderConnectMailboxPanel(setup) +
+          '<div class="panel"><div class="panel-header"><h3>CLI Fallback</h3><span class="muted">same runtime, same account model</span></div>' +
           '<div class="panel-body">' +
-          '<div class="card-title">Start with one real mailbox, then inspect rooms and internal mail from the same workbench route.</div>' +
-          '<div class="detail">The workbench keeps the setup path narrow on purpose: connect, verify, send one real test email, then switch to room and mailbox inspection.</div>' +
+          '<div class="detail">If you prefer the terminal, these are the same setup paths the workbench is using.</div>' +
           '<div class="mono-block">' + escapeHtmlClient((connect && connect.recommendedStartCommand) || "mailclaws dashboard") + "</div>" +
           '<div class="mono-block">' + escapeHtmlClient(loginCommand) + "</div>" +
-          "</div></div>" +
+          '</div></div>' +
           '<div class="panel"><div class="panel-header"><h3>Agent Templates</h3><span class="muted">' + escapeHtmlClient(String(templates.length)) + ' presets</span></div><div class="panel-body">' +
           (templates.length > 0
             ? '<div class="mailbox-feed">' + templates.map(function(template) { return renderAgentTemplateCard(template, connect); }).join("") + "</div>"
@@ -1777,6 +2207,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
             ? '<div class="mailbox-feed">' + directory.map(renderAgentDirectoryCard).join("") + "</div>"
             : '<div class="empty">Apply a template or initialize an agent memory workspace to create durable souls.</div>') +
           "</div></div>" +
+          renderSkillInstallPanel(connect) +
           '<div class="panel"><div class="panel-header"><h3>Skills</h3><span class="muted">' + escapeHtmlClient(String(skills.reduce(function(total, entry) { return total + ((entry.skills || []).length || 0); }, 0))) + ' visible skills</span></div><div class="panel-body">' +
           '<div class="detail">Every durable agent starts with two built-in mail skills. Add markdown skills when you want reusable reading, writing, or review behavior without carrying more transcript.</div>' +
           '<div class="mono-block">mailclaws skills list ' + escapeHtmlClient((connect && connect.templateApplyAccountId) || "[accountId]") + "</div>" +
@@ -1801,6 +2232,141 @@ export function renderOpenClawWorkbenchShellHtml(input: {
               }).join("") + "</div>"
             : '<div class="empty">Headcount recommendations appear after MailClaws can see account or burst-work load.</div>') +
           "</div></div>"
+        );
+      }
+
+      function renderHomeOverview() {
+        const setup = getConnectSetupState();
+        const connect = setup.connect;
+        const accounts = state.data && state.data.accounts ? state.data.accounts : [];
+        const rooms = state.data && state.data.rooms ? state.data.rooms : [];
+        const approvals = state.data && state.data.approvals ? state.data.approvals : [];
+        const directory = connect && Array.isArray(connect.agentDirectory) ? connect.agentDirectory : [];
+        const skills = connect && Array.isArray(connect.skills) ? connect.skills : [];
+        const visibleSkillCount = skills.reduce(function(total, entry) {
+          return total + ((entry.skills || []).length || 0);
+        }, 0);
+        return (
+          '<div class="mail-workbench-main">' +
+          renderWorkspaceHero({
+            eyebrow: "Home",
+            title: "MailClaws workbench",
+            copy: "External email enters by room. Rooms hold working memory, virtual mail, attachments, and shared resources. Agents provide soul and reusable skills around that room kernel.",
+            actions:
+              '<a class="btn primary" href="' + escapeHtmlClient(hrefForRoute({ mode: "rooms", accountId: null, inboxId: null, roomKey: null, mailboxId: null })) + '">Open Room</a>' +
+              '<a class="btn" href="' + escapeHtmlClient(hrefForRoute({ mode: "accounts", accountId: null, inboxId: null, roomKey: null, mailboxId: null })) + '">Connect Mailbox</a>',
+            summaryItems: [
+              { label: "accounts", value: String(accounts.length) },
+              { label: "rooms", value: String(rooms.length) },
+              { label: "agents", value: String(directory.length) },
+              { label: "skills", value: String(visibleSkillCount) }
+            ]
+          }) +
+          renderConnectRuntimePanel(setup) +
+          '<div class="panel"><div class="panel-header"><h3>System Snapshot</h3><span class="muted">core surfaces</span></div><div class="panel-body">' +
+          '<div class="detail-grid">' +
+          renderMetric("requested approvals", approvals.filter(function(entry) { return entry.status === "requested"; }).length) +
+          renderMetric("active rooms", rooms.filter(function(room) { return !["done", "failed"].includes(room.state || ""); }).length) +
+          renderMetric("mail resources", rooms.reduce(function(total, room) { return total + Number(room.resourceCount || 0); }, 0)) +
+          renderMetric("virtual mail", rooms.reduce(function(total, room) { return total + Number(room.messageCount || 0); }, 0)) +
+          '</div>' +
+          '<div class="detail">Use External Accounts to connect real mailboxes, Room to operate the shared work surface, Agent to apply templates and inspect souls, and Skill to install reusable behaviors.</div>' +
+          '</div></div>' +
+          '<div class="panel"><div class="panel-header"><h3>Recent Rooms</h3><span class="muted">' + escapeHtmlClient(Math.min(rooms.length, 6)) + ' shown</span></div><div class="panel-body">' +
+          (rooms.length > 0 ? '<div class="list">' + rooms.slice(0, 6).map(renderRoomCard).join("") + '</div>' : '<div class="empty">No rooms are visible yet.</div>') +
+          '</div></div>' +
+          '</div>'
+        );
+      }
+
+      function renderAgentsHome() {
+        const setup = getConnectSetupState();
+        const connect = setup.connect;
+        const templates = connect && Array.isArray(connect.agentTemplates) ? connect.agentTemplates : [];
+        const directory = connect && Array.isArray(connect.agentDirectory) ? connect.agentDirectory : [];
+        const headcount = connect && Array.isArray(connect.headcountRecommendations) ? connect.headcountRecommendations : [];
+        return (
+          '<div class="mail-workbench-main">' +
+          renderWorkspaceHero({
+            eyebrow: "Agent",
+            title: "Agent templates and souls",
+            copy: "Agents do not carry per-room working context. This page manages reusable templates, durable SOUL.md state, mailbox bindings, and the agent roster that rooms can recruit.",
+            summaryItems: [
+              { label: "templates", value: String(templates.length) },
+              { label: "agents", value: String(directory.length) },
+              { label: "with soul", value: String(directory.filter(function(entry) { return Boolean(entry.soulPath); }).length) },
+              { label: "recommended", value: String(headcount.length) }
+            ]
+          }) +
+          '<div class="panel"><div class="panel-header"><h3>Agent Templates</h3><span class="muted">' + escapeHtmlClient(String(templates.length)) + ' presets</span></div><div class="panel-body">' +
+          (templates.length > 0
+            ? '<div class="mailbox-feed">' + templates.map(function(template) { return renderAgentTemplateCard(template, connect); }).join("") + "</div>"
+            : '<div class="empty">No agent templates are available.</div>') +
+          "</div></div>" +
+          '<div class="panel"><div class="panel-header"><h3>Custom Agent</h3><span class="muted">durable soul + mailbox</span></div><div class="panel-body">' +
+          '<div class="detail">Create one durable agent with its own SOUL.md, internal mailboxes, inbox policy, and directory entry.</div>' +
+          '<div class="detail-grid">' +
+          '<label><div class="section-label">Agent ID</div><input class="console-input" data-custom-agent-field="agentId" placeholder="assistant-ops" /></label>' +
+          '<label><div class="section-label">Display Name</div><input class="console-input" data-custom-agent-field="displayName" placeholder="Assistant Ops" /></label>' +
+          '<label><div class="section-label">Public Mailbox</div><input class="console-input" data-custom-agent-field="publicMailboxId" placeholder="public:assistant-ops" /></label>' +
+          '<label><div class="section-label">Collaborators</div><input class="console-input" data-custom-agent-field="collaboratorAgentIds" placeholder="assistant,research" /></label>' +
+          '</div>' +
+          '<label><div class="section-label">Purpose</div><textarea class="console-textarea" data-custom-agent-field="purpose" placeholder="Own escalations, coordinate approvals, and feed final-ready packets back to the front desk."></textarea></label>' +
+          (((connect && connect.templateApplyAccountId) || "").length > 0
+            ? '<div class="actions-inline"><button class="btn" data-action="create-custom-agent" data-account-id="' + escapeHtmlClient(connect.templateApplyAccountId || "") + '" data-tenant-id="' + escapeHtmlClient((connect && connect.templateApplyTenantId) || connect.templateApplyAccountId || "") + '">Create Agent</button></div>'
+            : '<div class="detail">Connect an account first, then create custom durable agents in that workspace.</div>') +
+          "</div></div>" +
+          '<div class="panel"><div class="panel-header"><h3>Agent Directory</h3><span class="muted">' + escapeHtmlClient(String(directory.length)) + ' durable agents</span></div><div class="panel-body">' +
+          (directory.length > 0
+            ? '<div class="mailbox-feed">' + directory.map(function(entry) { return renderAgentDirectoryCard(entry, connect); }).join("") + "</div>"
+            : '<div class="empty">Apply a template or initialize an agent memory workspace to create durable souls.</div>') +
+          "</div></div>" +
+          '<div class="panel"><div class="panel-header"><h3>Headcount</h3><span class="muted">recommended shapes</span></div><div class="panel-body">' +
+          (headcount.length > 0
+            ? '<div class="mailbox-feed">' + headcount.map(function(entry) {
+                return (
+                  '<div class="timeline-entry">' +
+                  '<div class="meta"><span>' + escapeHtmlClient(entry.displayName || entry.templateId || "template") + '</span><span>' + escapeHtmlClient(entry.confidence || "starter") + "</span></div>" +
+                  '<div class="title">' + escapeHtmlClient(entry.summary || "") + "</div>" +
+                  '<div class="chips">' +
+                  renderPill("persistent " + String(entry.persistentAgents || 0), "") +
+                  renderPill("burst " + String(entry.burstTargets || 0), "") +
+                  "</div>" +
+                  '<div class="detail">' + escapeHtmlClient((entry.reasons || []).join(" | ")) + "</div>" +
+                  "</div>"
+                );
+              }).join("") + "</div>"
+            : '<div class="empty">Headcount recommendations appear after MailClaws can see account or burst-work load.</div>') +
+          "</div></div>" +
+          '</div>'
+        );
+      }
+
+      function renderSkillsHome() {
+        const connect = getConnectSetupState().connect;
+        const skills = connect && Array.isArray(connect.skills) ? connect.skills : [];
+        return (
+          '<div class="mail-workbench-main">' +
+          renderWorkspaceHero({
+            eyebrow: "Skill",
+            title: "Reusable agent skills",
+            copy: "Skills stay outside room working memory. Install them onto durable agents so rooms can recruit the same behavior repeatedly without copying prompts into every thread.",
+            summaryItems: [
+              { label: "agents", value: String(skills.length) },
+              { label: "visible skills", value: String(skills.reduce(function(total, entry) { return total + ((entry.skills || []).length || 0); }, 0)) },
+              { label: "built-in", value: "2" },
+              { label: "installer", value: ((connect && connect.templateApplyAccountId) || "").length > 0 ? "ready" : "waiting" }
+            ]
+          }) +
+          renderSkillInstallPanel(connect) +
+          '<div class="panel"><div class="panel-header"><h3>Skills</h3><span class="muted">' + escapeHtmlClient(String(skills.reduce(function(total, entry) { return total + ((entry.skills || []).length || 0); }, 0))) + ' visible skills</span></div><div class="panel-body">' +
+          '<div class="detail">Default durable agents start with read-email and write-email. Add markdown skills when you want reusable reading, writing, routing, or review behavior.</div>' +
+          '<div class="mono-block">mailclaws skills list ' + escapeHtmlClient((connect && connect.templateApplyAccountId) || "[accountId]") + "</div>" +
+          (skills.length > 0
+            ? '<div class="mailbox-feed">' + skills.map(renderAgentSkillGroup).join("") + "</div>"
+            : '<div class="empty">Connect or create a durable agent to inspect skills.</div>') +
+          "</div></div>" +
+          '</div>'
         );
       }
 
@@ -1829,6 +2395,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         if (!state.data || !state.data.accountDetail) {
           return '<div class="empty">Select an account to inspect provider state, inboxes, rooms, and mailbox projections.</div>';
         }
+        const setup = getConnectSetupState();
         const detail = state.data.accountDetail;
         const account = detail.account || {};
         const inboxes = detail.inboxes || [];
@@ -1847,6 +2414,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
               { label: "inboxes", value: String(account.inboxCount || 0) }
             ]
           }) +
+          renderConnectMailboxPanel(setup) +
           '<div class="panel"><div class="panel-header"><h3>Mailbox Account</h3><span class="muted code">' + escapeHtmlClient(account.accountId || state.route.accountId || "") + '</span></div><div class="panel-body">' +
           '<div class="chips">' +
           renderPill(account.provider || "provider", "") +
@@ -1958,13 +2526,14 @@ export function renderOpenClawWorkbenchShellHtml(input: {
       }
 
       function renderAccountsHome() {
+        const setup = getConnectSetupState();
         const accounts = state.data && state.data.accounts ? state.data.accounts : [];
         return (
           '<div class="mail-workbench-main">' +
           renderWorkspaceHero({
-            eyebrow: "Accounts",
-            title: "Connected mailbox accounts",
-            copy: "Select one connected mailbox account to inspect provider health, public inboxes, recent rooms, and mailbox-local collaboration state.",
+            eyebrow: "External Accounts",
+            title: "Connected external mailboxes",
+            copy: "Connect real IMAP, SMTP, OAuth, or forward-ingest accounts here. External mail lands in new rooms, and replies return through the existing room.",
             summaryItems: [
               { label: "accounts", value: String(accounts.length) },
               { label: "healthy", value: String(accounts.filter(function(account) { return (account.health || "") === "healthy"; }).length) },
@@ -1972,6 +2541,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
               { label: "mailboxes", value: String(accounts.reduce(function(total, account) { return total + Number(account.mailboxCount || 0); }, 0)) }
             ]
           }) +
+          renderConnectMailboxPanel(setup) +
           '<div class="panel"><div class="panel-header"><h3>Accounts</h3><span class="muted">' + escapeHtmlClient(accounts.length) + ' connected</span></div><div class="panel-body">' +
           (accounts.length > 0 ? '<div class="list">' + accounts.map(renderAccountCard).join("") + '</div>' : '<div class="empty">No mailbox accounts have been connected yet.</div>') +
           '</div></div>' +
@@ -1985,13 +2555,13 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           '<div class="mail-workbench-main">' +
           renderWorkspaceHero({
             eyebrow: "Rooms",
-            title: "Durable room timeline",
-            copy: "Rooms are the truth boundary for external mail, internal collaboration, approvals, and gateway projection. Open one room to inspect the full timeline.",
+            title: "Room is the core work surface",
+            copy: "Each new external email creates a new room. Replies stay in the same room. A room holds shared virtual mail, attachments, notes, and recruited agents for the job.",
             summaryItems: [
               { label: "rooms", value: String(rooms.length) },
-              { label: "active", value: String(rooms.filter(function(room) { return (room.state || "") !== "closed"; }).length) },
+              { label: "active", value: String(rooms.filter(function(room) { return !["done", "failed"].includes(room.state || ""); }).length) },
               { label: "approvals", value: String(rooms.reduce(function(total, room) { return total + Number(room.pendingApprovalCount || 0); }, 0)) },
-              { label: "deliveries", value: String(rooms.reduce(function(total, room) { return total + Number(room.mailboxDeliveryCount || 0); }, 0)) }
+              { label: "resources", value: String(rooms.reduce(function(total, room) { return total + Number(room.resourceCount || 0); }, 0)) }
             ]
           }) +
           '<div class="panel"><div class="panel-header"><h3>Rooms</h3><span class="muted">' + escapeHtmlClient(rooms.length) + ' visible</span></div><div class="panel-body">' +
@@ -2101,6 +2671,10 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const virtualMessages = roomDetail.virtualMessages || [];
         const mailboxDeliveries = roomDetail.mailboxDeliveries || [];
         const outboxIntents = roomDetail.outboxIntents || [];
+        const attachments = roomDetail.attachments || [];
+        const roomDocuments = roomDetail.roomNotes && Array.isArray(roomDetail.roomNotes.documents)
+          ? roomDetail.roomNotes.documents
+          : [];
         const hostIntegration = state.data && state.data.workspace ? state.data.workspace.hostIntegration || null : null;
         const integrationApis = hostIntegration && hostIntegration.apis ? hostIntegration.apis : null;
         return (
@@ -2135,6 +2709,37 @@ export function renderOpenClawWorkbenchShellHtml(input: {
               '</div></div>'
             : '') +
           '<div class="section-label">Mailboxes</div><div class="chips">' + ((roomDetail.mailboxes || []).map(function(mailbox) { return renderMailboxChip(mailbox.mailboxId, room.roomKey); }).join("") || '<span class="muted">No mailbox participation recorded.</span>') + '</div>' +
+          '</div></div>' +
+          '<div class="panel"><div class="panel-header"><h3>Shared Resources</h3><span class="muted">' + escapeHtmlClient(Number(room.resourceCount || 0)) + ' tracked</span></div><div class="panel-body">' +
+          '<div class="detail">Attachments and room documents are room-scoped shared resources. They can be referenced from virtual mail without leaving the room boundary.</div>' +
+          '<div class="detail-grid">' +
+          renderMetric("attachments", attachments.length) +
+          renderMetric("documents", roomDocuments.length) +
+          renderMetric("pre snapshots", room.preSnapshotCount || 0) +
+          renderMetric("visible agents", room.visibleAgentCount || 0) +
+          '</div>' +
+          ((attachments.length > 0 || roomDocuments.length > 0)
+            ? '<div class="timeline-list">' +
+              roomDocuments.slice(0, 12).map(function(document) {
+                return (
+                  '<div class="timeline-entry">' +
+                  '<div class="meta"><span>document</span><span>' + escapeHtmlClient(formatTime(document.updatedAt || document.createdAt || null)) + '</span></div>' +
+                  '<div class="title">' + escapeHtmlClient(document.title || document.documentId || "Room document") + '</div>' +
+                  (document.artifactPath ? '<div class="detail code">' + escapeHtmlClient(document.artifactPath) + '</div>' : '') +
+                  '</div>'
+                );
+              }).join("") +
+              attachments.slice(0, 12).map(function(attachment) {
+                return (
+                  '<div class="timeline-entry">' +
+                  '<div class="meta"><span>' + escapeHtmlClient(attachment.mimeType || "attachment") + '</span><span>' + escapeHtmlClient(formatTime(attachment.createdAt)) + '</span></div>' +
+                  '<div class="title">' + escapeHtmlClient(attachment.filename || attachment.attachmentId || "Attachment") + '</div>' +
+                  '<div class="detail code">' + escapeHtmlClient(attachment.artifactPath || attachment.attachmentId || "") + '</div>' +
+                  '</div>'
+                );
+              }).join("") +
+              '</div>'
+            : '<div class="empty">No shared attachments or room documents have been recorded yet.</div>') +
           '</div></div>' +
           '<div class="panel"><div class="panel-header"><h3>Gateway Projection</h3><span class="muted">' + escapeHtmlClient(trace.projectedMessageCount || 0) + ' projected messages</span></div><div class="panel-body">' +
           '<div class="detail-grid">' +
@@ -2253,7 +2858,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         if (!state.data) {
           return '<div class="empty">No workbench payload was returned.</div>';
         }
-        let primary = renderConnectHome();
+        let primary = renderHomeOverview();
         if (state.route.mailboxId) {
           primary = renderMailboxDetail();
         } else if (state.route.inboxId) {
@@ -2268,8 +2873,10 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           primary = renderAccountsHome();
         } else if (state.route.mode === "rooms") {
           primary = renderRoomsHome();
-        } else if (state.route.mode === "approvals") {
-          primary = renderApprovalsHome();
+        } else if (state.route.mode === "agents") {
+          primary = renderAgentsHome();
+        } else if (state.route.mode === "skills") {
+          primary = renderSkillsHome();
         } else if (state.route.accountId) {
           primary = renderAccountDetail();
         }
@@ -2291,7 +2898,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const workspace = state.data && state.data.workspace ? state.data.workspace : null;
         const tabs = workspace && Array.isArray(workspace.tabs) ? workspace.tabs : [];
         navRoot.innerHTML = tabs.map(function(tab) {
-          const icon = ICONS[tab.id] || ICONS.mail;
+          const icon = ICONS[tab.id] || ICONS.home;
           return (
             '<a class="nav-item ' + (tab.active ? 'nav-item--active' : '') + '" href="' + escapeHtmlClient(tab.href) + '">' +
             '<span class="nav-item__icon" aria-hidden="true">' + icon + '</span>' +
@@ -2303,7 +2910,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
 
       function renderHeader() {
         const workspace = state.data && state.data.workspace ? state.data.workspace : null;
-        const activeTab = workspace && workspace.activeTab ? workspace.activeTab : "mail";
+        const activeTab = workspace && workspace.activeTab ? workspace.activeTab : "home";
         const pageTitle = document.getElementById("page-title");
         const pageSub = document.getElementById("page-sub");
         const breadcrumb = document.getElementById("breadcrumb-current");
@@ -2314,10 +2921,11 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         if (pageTitle) {
           pageTitle.textContent =
             activeTab === "rooms" ? "Room Workbench" :
+            activeTab === "accounts" ? "External Accounts" :
+            activeTab === "agents" ? "Agent Directory" :
+            activeTab === "skills" ? "Skill Library" :
             activeTab === "mailboxes" ? "Mailbox Workbench" :
-            activeTab === "accounts" ? "Mailbox Accounts" :
-            activeTab === "approvals" ? "Approvals" :
-            "Mail Workbench";
+            "Home";
         }
         if (pageSub) {
           pageSub.textContent =
@@ -2327,11 +2935,21 @@ export function renderOpenClawWorkbenchShellHtml(input: {
                 ? "Inspect one mailbox feed and the room-local projection visible inside it."
                 : state.route.accountId
                   ? "Inspect provider state, public inboxes, rooms, and mailboxes for one connected account."
-                  : "OpenClaw-style shell with MailClaws runtime data rendered directly in the workbench.";
+                  : activeTab === "agents"
+                    ? "Apply templates, inspect soul files, and manage the durable agent roster."
+                    : activeTab === "skills"
+                      ? "Inspect and install reusable markdown skills onto durable agents."
+                      : activeTab === "accounts"
+                        ? "Connect external mailboxes and inspect account health."
+                        : "Overview of external accounts, rooms, agents, and reusable skills.";
         }
         if (breadcrumb) {
           breadcrumb.textContent =
-            state.route.roomKey || state.route.mailboxId || state.route.inboxId || state.route.accountId || "Mail";
+            state.route.roomKey ||
+            state.route.mailboxId ||
+            state.route.inboxId ||
+            state.route.accountId ||
+            (activeTab === "agents" ? "Agent" : activeTab === "skills" ? "Skill" : activeTab === "accounts" ? "External Accounts" : activeTab === "rooms" ? "Room" : "Home");
         }
         if (pageMeta) {
           const bits = [];
@@ -2346,7 +2964,9 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         }
         if (accountsPill) accountsPill.textContent = "accounts " + String((state.data && state.data.accounts ? state.data.accounts.length : 0));
         if (roomsPill) roomsPill.textContent = "rooms " + String((state.data && state.data.rooms ? state.data.rooms.length : 0));
-        if (approvalsPill) approvalsPill.textContent = "approvals " + String((state.data && state.data.approvals ? state.data.approvals.length : 0));
+        if (approvalsPill) approvalsPill.textContent =
+          "agents " +
+          String((workspace && workspace.connect && workspace.connect.agentDirectory ? workspace.connect.agentDirectory.length : 0));
       }
 
       function render() {
@@ -2371,7 +2991,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         }
         notifyHost("mailclaws.workbench.route", {
           href: href,
-          routeMode: state.route.mode || "connect",
+          routeMode: state.route.mode || "home",
           accountId: state.route.accountId,
           roomKey: state.route.roomKey,
           mailboxId: state.route.mailboxId
@@ -2391,8 +3011,34 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           if (state.route.status) params.set("roomStatuses", state.route.status);
           if (state.route.originKind) params.set("originKinds", state.route.originKind);
           if (state.route.approvalStatus) params.set("approvalStatuses", state.route.approvalStatus);
-          const payload = await requestJson((config.apiBasePath || "/api") + "/console/workbench" + (params.toString() ? "?" + params.toString() : ""));
+          const responses = await Promise.all([
+            requestJson((config.apiBasePath || "/api") + "/console/workbench" + (params.toString() ? "?" + params.toString() : "")),
+            requestJson((config.apiBasePath || "/api") + "/runtime/execution")
+          ]);
+          const payload = responses[0];
+          const runtimePayload = responses[1];
           state.data = payload;
+          state.runtime = runtimePayload;
+          state.connect = {
+            ...(state.connect || {}),
+            ...(payload && payload.workspace && payload.workspace.connect && payload.workspace.connect.defaultPlan
+              ? {
+                  plan: state.connect && state.connect.plan ? state.connect.plan : payload.workspace.connect.defaultPlan,
+                  provider:
+                    state.connect && state.connect.provider
+                      ? state.connect.provider
+                      : payload.workspace.connect.defaultPlan.recommendation
+                        ? payload.workspace.connect.defaultPlan.recommendation.provider
+                        : null,
+                  providerId:
+                    state.connect && typeof state.connect.providerId === "string" && state.connect.providerId.trim().length > 0
+                      ? state.connect.providerId
+                      : payload.workspace.connect.defaultPlan.recommendation && payload.workspace.connect.defaultPlan.recommendation.provider
+                        ? payload.workspace.connect.defaultPlan.recommendation.provider.id
+                        : "imap"
+                }
+              : {})
+          };
           if (payload && payload.selection) {
             if (state.route.accountId) {
               state.route.accountId = payload.selection.accountId || state.route.accountId;
@@ -2409,7 +3055,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           }
           syncUrl(Boolean(replaceUrl));
           notifyHost("mailclaws.workbench.state", {
-            routeMode: state.route.mode || "connect",
+            routeMode: state.route.mode || "home",
             accountCount: payload && payload.accounts ? payload.accounts.length : 0,
             roomCount: payload && payload.rooms ? payload.rooms.length : 0,
             approvalCount: payload && payload.approvals ? payload.approvals.length : 0,
@@ -2428,7 +3074,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
 
       function navigate(nextRoute) {
         state.route = {
-          mode: nextRoute.mode || state.route.mode || "connect",
+          mode: nextRoute.mode || state.route.mode || "home",
           accountId: nextRoute.accountId ?? null,
           inboxId: nextRoute.inboxId ?? null,
           roomKey: nextRoute.roomKey ?? null,
@@ -2441,7 +3087,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           state.route.mode = "mailboxes";
         } else if (state.route.roomKey) {
           state.route.mode = "rooms";
-        } else if (state.route.accountId) {
+        } else if (state.route.accountId && !["agents", "skills"].includes(state.route.mode || "")) {
           state.route.mode = "accounts";
         }
         void refresh(false);
@@ -2469,10 +3115,255 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         };
       }
 
+      function readSkillInstallPayload(target) {
+        const root = target.closest(".panel") || document;
+        function readField(name) {
+          const element = root.querySelector('[data-skill-install-field="' + name + '"]');
+          return element && "value" in element ? String(element.value || "").trim() : "";
+        }
+        return {
+          agentId: readField("agentId"),
+          source: readField("source"),
+          skillId: readField("skillId"),
+          title: readField("title")
+        };
+      }
+
+      function rememberSkillInstallPayload(target, overrides) {
+        const payload = {
+          ...readSkillInstallPayload(target),
+          ...(overrides || {})
+        };
+        state.connect = {
+          ...(state.connect || {}),
+          skillTargetAgentId: payload.agentId,
+          skillSource: payload.source,
+          skillId: payload.skillId,
+          skillTitle: payload.title
+        };
+        return payload;
+      }
+
+      function parseDelimitedInput(value) {
+        return value
+          ? value.split(",").map(function(entry) { return entry.trim(); }).filter(Boolean)
+          : undefined;
+      }
+
+      function parsePortValue(value, fallback) {
+        const parsed = Number.parseInt(String(value || ""), 10);
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+      }
+
       document.addEventListener("click", function(event) {
         const target = event.target instanceof Element ? event.target.closest("[data-action]") : null;
         if (!target) return;
         const action = target.getAttribute("data-action");
+        if (action === "prepare-connect-plan") {
+          event.preventDefault();
+          const draft = rememberConnectFormState(target);
+          if (!draft.emailAddress) {
+            state.connect = {
+              ...(state.connect || {}),
+              status: {
+                tone: "danger",
+                message: "Email address is required before MailClaws can recommend a mailbox path."
+              }
+            };
+            render();
+            return;
+          }
+          state.loading = true;
+          state.error = "";
+          render();
+          const params = new URLSearchParams();
+          params.set("emailAddress", draft.emailAddress);
+          if (draft.providerId) {
+            params.set("provider", draft.providerId);
+          }
+          void requestJson((config.apiBasePath || "/api") + "/connect/onboarding?" + params.toString())
+            .then(function(plan) {
+              const recommended = plan && plan.recommendation ? plan.recommendation.provider : null;
+              state.connect = {
+                ...(state.connect || {}),
+                ...draft,
+                plan: plan,
+                provider: recommended,
+                providerId: recommended && recommended.id ? recommended.id : draft.providerId,
+                autoconfig: plan && plan.autoconfig ? plan.autoconfig : null,
+                accountId:
+                  draft.accountId ||
+                  (plan && plan.input && typeof plan.input.accountIdSuggestion === "string" && plan.input.accountIdSuggestion !== "<accountId>"
+                    ? plan.input.accountIdSuggestion
+                    : ""),
+                displayName:
+                  draft.displayName ||
+                  (plan && plan.input && typeof plan.input.displayNameSuggestion === "string"
+                    ? plan.input.displayNameSuggestion
+                    : ""),
+                smtpFrom: draft.smtpFrom || draft.emailAddress,
+                status: {
+                  tone: "ok",
+                  message:
+                    recommended && recommended.displayName
+                      ? "Loaded " + recommended.displayName + " setup guidance."
+                      : "Loaded mailbox setup guidance."
+                }
+              };
+            })
+            .catch(function(error) {
+              state.connect = {
+                ...(state.connect || {}),
+                ...draft,
+                status: {
+                  tone: "danger",
+                  message: error instanceof Error ? error.message : String(error)
+                }
+              };
+            })
+            .finally(function() {
+              state.loading = false;
+              render();
+            });
+          return;
+        }
+        if (action === "start-oauth-connect") {
+          event.preventDefault();
+          const draft = rememberConnectFormState(target);
+          const providerId = target.getAttribute("data-provider-id") || draft.providerId;
+          if (!providerId || !draft.accountId) {
+            state.connect = {
+              ...(state.connect || {}),
+              ...draft,
+              status: {
+                tone: "danger",
+                message: "Provider and account ID are required before starting OAuth."
+              }
+            };
+            render();
+            return;
+          }
+          state.loading = true;
+          state.error = "";
+          render();
+          void requestJson((config.apiBasePath || "/api") + "/auth/" + encodeURIComponent(providerId) + "/start", {
+            method: "POST",
+            headers: {
+              "content-type": "application/json"
+            },
+            body: JSON.stringify({
+              accountId: draft.accountId,
+              displayName: draft.displayName || undefined,
+              loginHint: draft.emailAddress || undefined,
+              clientId: draft.clientId || undefined,
+              clientSecret: draft.clientSecret || undefined,
+              tenant: draft.tenant || undefined,
+              topicName: draft.topicName || undefined,
+              userId: draft.userId || undefined,
+              labelIds: parseDelimitedInput(draft.labelIds),
+              scopes: parseDelimitedInput(draft.scopes)
+            })
+          })
+            .then(function(result) {
+              if (!result || typeof result.authorizeUrl !== "string" || result.authorizeUrl.trim().length === 0) {
+                throw new Error("OAuth start did not return an authorizeUrl");
+              }
+              window.location.assign(result.authorizeUrl);
+            })
+            .catch(function(error) {
+              state.loading = false;
+              state.connect = {
+                ...(state.connect || {}),
+                ...draft,
+                status: {
+                  tone: "danger",
+                  message: error instanceof Error ? error.message : String(error)
+                }
+              };
+              render();
+            });
+          return;
+        }
+        if (action === "save-password-mailbox") {
+          event.preventDefault();
+          const draft = rememberConnectFormState(target);
+          if (!draft.emailAddress || !draft.accountId || !draft.password || !draft.imapHost || !draft.smtpHost) {
+            state.connect = {
+              ...(state.connect || {}),
+              ...draft,
+              status: {
+                tone: "danger",
+                message: "Email, account ID, password, IMAP host, and SMTP host are required."
+              }
+            };
+            render();
+            return;
+          }
+          state.loading = true;
+          state.error = "";
+          render();
+          void requestJson((config.apiBasePath || "/api") + "/accounts", {
+            method: "POST",
+            headers: {
+              "content-type": "application/json"
+            },
+            body: JSON.stringify({
+              accountId: draft.accountId,
+              provider: "imap",
+              emailAddress: draft.emailAddress,
+              displayName: draft.displayName || undefined,
+              status: "active",
+              settings: {
+                imap: {
+                  host: draft.imapHost,
+                  port: parsePortValue(draft.imapPort, 993),
+                  secure: draft.imapSecure !== "no",
+                  username: draft.emailAddress,
+                  password: draft.password,
+                  mailbox: draft.imapMailbox || "INBOX"
+                },
+                smtp: {
+                  host: draft.smtpHost,
+                  port: parsePortValue(draft.smtpPort, 587),
+                  secure: draft.smtpSecure === "yes",
+                  username: draft.emailAddress,
+                  password: draft.password,
+                  from: draft.smtpFrom || draft.emailAddress
+                }
+              }
+            })
+          })
+            .then(function(account) {
+              state.connect = {
+                ...(state.connect || {}),
+                ...draft,
+                status: {
+                  tone: "ok",
+                  message: "Saved mailbox " + (account && account.emailAddress ? account.emailAddress : draft.emailAddress) + "."
+                }
+              };
+              navigate({
+                accountId: account && account.accountId ? account.accountId : draft.accountId,
+                inboxId: null,
+                roomKey: null,
+                mailboxId: null,
+                mode: "accounts"
+              });
+            })
+            .catch(function(error) {
+              state.loading = false;
+              state.connect = {
+                ...(state.connect || {}),
+                ...draft,
+                status: {
+                  tone: "danger",
+                  message: error instanceof Error ? error.message : String(error)
+                }
+              };
+              render();
+            });
+          return;
+        }
         if (action === "apply-agent-template") {
           event.preventDefault();
           const templateId = target.getAttribute("data-template-id");
@@ -2499,6 +3390,102 @@ export function renderOpenClawWorkbenchShellHtml(input: {
             })
             .catch(function(error) {
               state.error = error instanceof Error ? error.message : String(error);
+            })
+            .finally(function() {
+              state.loading = false;
+              render();
+            });
+          return;
+        }
+        if (action === "prefill-skill-install") {
+          event.preventDefault();
+          const source = target.getAttribute("data-skill-source") || "";
+          const skillId = target.getAttribute("data-skill-id") || "";
+          const title = target.getAttribute("data-skill-title") || skillId;
+          const agentId = target.getAttribute("data-agent-id") || "";
+          state.connect = {
+            ...(state.connect || {}),
+            skillTargetAgentId:
+              state.connect && typeof state.connect.skillTargetAgentId === "string" && state.connect.skillTargetAgentId.trim().length > 0
+                ? state.connect.skillTargetAgentId
+                : agentId,
+            skillSource: source,
+            skillId: skillId,
+            skillTitle: title,
+            skillStatus: {
+              tone: source ? "ok" : "danger",
+              message: source ? "Source copied into the installer form." : "That skill does not expose a reusable source."
+            }
+          };
+          render();
+          return;
+        }
+        if (action === "install-agent-skill") {
+          event.preventDefault();
+          const accountId = target.getAttribute("data-account-id");
+          const tenantId = target.getAttribute("data-tenant-id");
+          const payload = rememberSkillInstallPayload(target);
+          if (!accountId || !payload.agentId || !payload.source) {
+            state.connect = {
+              ...(state.connect || {}),
+              skillStatus: {
+                tone: "danger",
+                message: "Target agent and source are required before installing a skill."
+              }
+            };
+            render();
+            return;
+          }
+          state.loading = true;
+          state.error = "";
+          render();
+          void requestJson((config.apiBasePath || "/api") + "/skills/install", {
+            method: "POST",
+            headers: {
+              "content-type": "application/json"
+            },
+            body: JSON.stringify({
+              accountId: accountId,
+              tenantId: tenantId || accountId,
+              agentId: payload.agentId,
+              source: payload.source,
+              skillId: payload.skillId || undefined,
+              title: payload.title || undefined
+            })
+          })
+            .then(function(installed) {
+              return refresh(true).then(function() {
+                state.connect = {
+                  ...(state.connect || {}),
+                  skillTargetAgentId: payload.agentId,
+                  skillSource: payload.source,
+                  skillId: payload.skillId || (installed && installed.skillId ? installed.skillId : ""),
+                  skillTitle: payload.title || (installed && installed.title ? installed.title : ""),
+                  skillStatus: {
+                    tone: "ok",
+                    message:
+                      "Installed " +
+                      String((installed && installed.skillId) || payload.skillId || "skill") +
+                      " for " +
+                      payload.agentId +
+                      "."
+                  }
+                };
+                render();
+              });
+            })
+            .catch(function(error) {
+              state.connect = {
+                ...(state.connect || {}),
+                skillTargetAgentId: payload.agentId,
+                skillSource: payload.source,
+                skillId: payload.skillId,
+                skillTitle: payload.title,
+                skillStatus: {
+                  tone: "danger",
+                  message: error instanceof Error ? error.message : String(error)
+                }
+              };
             })
             .finally(function() {
               state.loading = false;

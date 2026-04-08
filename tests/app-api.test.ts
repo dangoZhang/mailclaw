@@ -181,7 +181,7 @@ describe("app api", () => {
     };
 
     expect(replayJson.room.state).toBe("done");
-    expect(replayJson.preSnapshots.at(-1)?.summary).toContain("Received your message");
+    expect(replayJson.preSnapshots.at(-1)?.summary).toBe("Hello from the API");
 
     handle.close();
   });
@@ -533,6 +533,8 @@ describe("app api", () => {
     expect(detailJson).toMatchObject({
       id: "gmail",
       accountProvider: "gmail",
+      portalUrl: "https://mail.google.com/",
+      portalLabel: "Open Gmail",
       authApi: expect.objectContaining({
         startPath: "/api/auth/gmail/start",
         callbackPath: "/api/auth/gmail/callback",
@@ -605,6 +607,41 @@ describe("app api", () => {
           inspectRuntime: "mailctl observe runtime"
         }
       }
+    });
+
+    fixture.handle.close();
+  });
+
+  it("exposes QQ as a browser-assisted app-password provider in connect discovery", async () => {
+    const fixture = createFixture();
+    const server = createAppServer({
+      config: fixture.config,
+      mailApi: fixture.runtime
+    });
+
+    servers.push(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+
+    const address = server.address();
+    if (address === null || typeof address === "string") {
+      throw new Error("Expected address info");
+    }
+
+    const response = await fetch(`http://127.0.0.1:${address.port}/api/connect/providers/qq`);
+    const json = (await response.json()) as {
+      id: string;
+      setupKind: string;
+      portalUrl: string;
+      portalLabel: string;
+    };
+
+    expect(response.status).toBe(200);
+    expect(json).toMatchObject({
+      id: "qq",
+      setupKind: "app_password",
+      portalUrl: "https://mail.qq.com/",
+      portalLabel: "Open QQ Mail"
     });
 
     fixture.handle.close();
@@ -999,7 +1036,7 @@ describe("app api", () => {
 
     expect(workbenchResponse.status).toBe(200);
     expect(workbenchJson.workspace).toMatchObject({
-      activeTab: "mailboxes",
+      activeTab: "accounts",
       entrypoints: {
         standalone: "/workbench/mail",
         embedded: "/workbench/mail/tab",
@@ -1459,9 +1496,9 @@ describe("app api", () => {
       },
       tabs: expect.arrayContaining([
         expect.objectContaining({
-          id: "mail",
-          href: "/workbench/mail?mode=connect",
-          embeddedHref: "/workbench/mail/tab?mode=connect"
+          id: "home",
+          href: "/workbench/mail?mode=home",
+          embeddedHref: "/workbench/mail/tab?mode=home"
         }),
         expect.objectContaining({ id: "rooms", active: true, embeddedHref: expect.stringContaining("/workbench/mail/tab") })
       ])
@@ -1613,8 +1650,29 @@ describe("app api", () => {
     expect(connectHtml).toContain("/workbench/mail");
     expect(connectHtml).toContain("OpenClaw Workbench");
     expect(connectHtml).toContain("/console/workbench");
+    expect(connectHtml).toContain("Runtime And LLM");
     expect(connectHtml).not.toContain("<iframe");
     expect(() => new vm.Script(extractModuleScript(connectHtml))).not.toThrow();
+
+    const accountsPageResponse = await fetch(`${baseUrl}/workbench/mail?mode=accounts`);
+    const accountsPageHtml = await accountsPageResponse.text();
+
+    expect(accountsPageResponse.status).toBe(200);
+    expect(accountsPageHtml).toContain('data-action="prepare-connect-plan"');
+    expect(accountsPageHtml).toContain('data-action="save-password-mailbox"');
+    expect(accountsPageHtml).toContain('data-action="start-oauth-connect"');
+    expect(accountsPageHtml).not.toContain("<iframe");
+    expect(() => new vm.Script(extractModuleScript(accountsPageHtml))).not.toThrow();
+
+    const skillsPageResponse = await fetch(`${baseUrl}/workbench/mail?mode=skills`);
+    const skillsPageHtml = await skillsPageResponse.text();
+
+    expect(skillsPageResponse.status).toBe(200);
+    expect(skillsPageHtml).toContain("Install Or Reuse Skill");
+    expect(skillsPageHtml).toContain('data-action="install-agent-skill"');
+    expect(skillsPageHtml).toContain('data-skill-install-field="source"');
+    expect(skillsPageHtml).not.toContain("<iframe");
+    expect(() => new vm.Script(extractModuleScript(skillsPageHtml))).not.toThrow();
 
     const embeddedResponse = await fetch(`${baseUrl}/workbench/mail/tab`);
     const embeddedHtml = await embeddedResponse.text();
@@ -1668,9 +1726,9 @@ describe("app api", () => {
     expect(hostJson.tabs).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          id: "mail",
-          href: "/workbench/mail?mode=connect",
-          embeddedHref: "/workbench/mail/tab?mode=connect"
+          id: "home",
+          href: "/workbench/mail?mode=home",
+          embeddedHref: "/workbench/mail/tab?mode=home"
         }),
         expect.objectContaining({
           id: "accounts",
@@ -1681,6 +1739,16 @@ describe("app api", () => {
           id: "rooms",
           href: "/workbench/mail?mode=rooms",
           embeddedHref: "/workbench/mail/tab?mode=rooms"
+        }),
+        expect.objectContaining({
+          id: "agents",
+          href: "/workbench/mail?mode=agents",
+          embeddedHref: "/workbench/mail/tab?mode=agents"
+        }),
+        expect.objectContaining({
+          id: "skills",
+          href: "/workbench/mail?mode=skills",
+          embeddedHref: "/workbench/mail/tab?mode=skills"
         })
       ])
     );
@@ -1807,6 +1875,82 @@ describe("app api", () => {
     expect(customJson.agentDirectory).toEqual(
       expect.arrayContaining([expect.objectContaining({ agentId: "ops-review", publicMailboxId: "public:ops-review" })])
     );
+
+    const sourcePath = path.join(fixture.config.storage.stateDir, "ops-review-skill.md");
+    fs.writeFileSync(
+      sourcePath,
+      ["# Ops Review Skill", "", "- Recheck the governed outbox before any external reply leaves the room."].join("\n"),
+      "utf8"
+    );
+
+    const installSkillResponse = await fetch(`${baseUrl}/api/skills/install`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify({
+        accountId: "acct-templates",
+        agentId: "ops-review",
+        source: sourcePath
+      })
+    });
+    const installSkillJson = (await installSkillResponse.json()) as {
+      skillId: string;
+      source: string;
+      sourceRef?: string;
+    };
+
+    expect(installSkillResponse.status).toBe(200);
+    expect(installSkillJson).toMatchObject({
+      skillId: "ops-review-skill",
+      source: "managed",
+      sourceRef: sourcePath
+    });
+
+    const installedSkillsResponse = await fetch(
+      `${baseUrl}/api/skills?accountId=acct-templates&agentId=${encodeURIComponent("ops-review")}`
+    );
+    const installedSkillsJson = (await installedSkillsResponse.json()) as Array<{
+      agentId: string;
+      skills: Array<{ skillId: string; source: string; sourceRef?: string }>;
+    }>;
+
+    expect(installedSkillsResponse.status).toBe(200);
+    expect(installedSkillsJson).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          agentId: "ops-review",
+          skills: expect.arrayContaining([
+            expect.objectContaining({
+              skillId: "ops-review-skill",
+              source: "managed",
+              sourceRef: sourcePath
+            })
+          ])
+        })
+      ])
+    );
+
+    const inspectSkillResponse = await fetch(
+      `${baseUrl}/api/skills/${encodeURIComponent("ops-review")}/${encodeURIComponent("ops-review-skill")}?accountId=acct-templates`
+    );
+    const inspectSkillJson = (await inspectSkillResponse.json()) as {
+      skill: { skillId: string; sourceRef?: string };
+      content: string;
+    };
+
+    expect(inspectSkillResponse.status).toBe(200);
+    expect(inspectSkillJson.skill).toMatchObject({
+      skillId: "ops-review-skill",
+      sourceRef: sourcePath
+    });
+    expect(inspectSkillJson.content).toContain("Ops Review Skill");
+
+    const connectAfterInstallResponse = await fetch(`${baseUrl}/workbench/mail`);
+    const connectAfterInstallHtml = await connectAfterInstallResponse.text();
+
+    expect(connectAfterInstallResponse.status).toBe(200);
+    expect(connectAfterInstallHtml).toContain('data-action="prefill-skill-install"');
 
     const edictResponse = await fetch(`${baseUrl}/api/console/agent-templates/three-provinces-six-departments/apply`, {
       method: "POST",
@@ -4502,6 +4646,10 @@ describe("app api", () => {
     expect(html).toContain("Gmail mailbox connected");
     expect(html).toContain("acct-gmail");
     expect(html).toContain("user@gmail.com");
+    expect(html).toContain("Return To Workbench");
+    expect(html).toContain("/workbench/mail/accounts/acct-gmail");
+    expect(html).toContain("MailClaws will return you to the workbench automatically.");
+    expect(html).toContain("window.location.assign");
     expect(forwarded).toEqual([
       {
         state: "oauth-state-1",

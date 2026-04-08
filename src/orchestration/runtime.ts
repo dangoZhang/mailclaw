@@ -1208,6 +1208,7 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
 
     return agentIds.map((agentId) => {
       const templateRecord = templateIndex.get(agentId);
+      const soulPath = path.join(agentRoot, agentId, "SOUL.md");
       const agentMailboxes = accountMailboxes
         .filter(
           (mailbox) =>
@@ -1231,6 +1232,7 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
 
       return {
         ...entry,
+        soulPath: fs.existsSync(soulPath) ? soulPath : null,
         inbox: inboxes.find((inbox) => inbox.agentId === agentId) ?? null,
         virtualMailboxes: Array.from(new Set([...entry.virtualMailboxes, ...agentMailboxes])).sort((left, right) =>
           left.localeCompare(right)
@@ -1407,7 +1409,7 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
     };
   };
   const buildConsoleWorkbenchWorkspace = (input: {
-    mode?: "connect" | "accounts" | "rooms" | "mailboxes" | "approvals";
+    mode?: "home" | "connect" | "accounts" | "rooms" | "agents" | "skills" | "mailboxes" | "approvals";
     selectedAccountId: string | null;
     selectedRoomKey: string | null;
     selectedMailboxId: string | null;
@@ -1419,22 +1421,37 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
     const selectedAccount = input.selectedAccountId
       ? input.accounts.find((account) => account.accountId === input.selectedAccountId) ?? null
       : null;
+    const normalizedMode =
+      input.mode === "connect"
+        ? "home"
+        : input.mode === "mailboxes"
+          ? (input.selectedRoomKey ? "rooms" : "accounts")
+          : input.mode === "approvals"
+            ? "rooms"
+            : input.mode;
     const activeTab =
-      input.mode ??
-      (input.selectedMailboxId
-        ? "mailboxes"
-        : input.selectedRoomKey
+      normalizedMode ??
+      (input.selectedRoomKey
           ? "rooms"
-          : input.approvals.length > 0 && !input.selectedAccountId
-            ? "approvals"
-            : input.accounts.length === 0
-              ? "mail"
-              : "accounts");
+          : input.selectedMailboxId
+            ? (input.selectedAccountId ? "accounts" : "home")
+            : input.selectedAccountId
+              ? "accounts"
+              : "home");
     const connectPlan = buildConnectOnboardingPlan({
       emailAddress: selectedAccount?.emailAddress
     });
     const templateAccountId = input.selectedAccountId ?? input.accounts[0]?.accountId ?? null;
     const templateTenantId = templateAccountId ?? "default";
+    const agentDirectory = listAgentDirectory({
+      tenantId: templateTenantId,
+      accountId: templateAccountId ?? undefined
+    });
+    const skills = listSkillsForAgents({
+      tenantId: templateTenantId,
+      accountId: templateAccountId ?? undefined
+    });
+    const visibleSkillCount = skills.reduce((total, entry) => total + (entry.skills?.length ?? 0), 0);
     const standaloneBasePath = "/workbench/mail";
     const embeddedBasePath = "/workbench/mail/tab";
     const buildTabHref = (
@@ -1491,16 +1508,16 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
       },
       tabs: [
         {
-          id: "mail",
-          label: "Mail",
-          href: buildTabHref(standaloneBasePath, "connect"),
-          embeddedHref: buildTabHref(embeddedBasePath, "connect"),
-          active: activeTab === "mail" || activeTab === "connect",
+          id: "home",
+          label: "Home",
+          href: buildTabHref(standaloneBasePath, "home"),
+          embeddedHref: buildTabHref(embeddedBasePath, "home"),
+          active: activeTab === "home",
           count: null
         },
         {
           id: "accounts",
-          label: "Accounts",
+          label: "External Accounts",
           href: buildTabHref(standaloneBasePath, "accounts", {
             accountId: input.selectedAccountId
           }),
@@ -1512,7 +1529,7 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
         },
         {
           id: "rooms",
-          label: "Rooms",
+          label: "Room",
           href: buildTabHref(standaloneBasePath, "rooms", {
             accountId: input.selectedAccountId,
             roomKey: input.selectedRoomKey
@@ -1525,32 +1542,28 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
           count: input.rooms.length
         },
         {
-          id: "mailboxes",
-          label: "Mailboxes",
-          href: buildTabHref(standaloneBasePath, "mailboxes", {
-            accountId: input.selectedAccountId,
-            mailboxId: input.selectedMailboxId
+          id: "agents",
+          label: "Agent",
+          href: buildTabHref(standaloneBasePath, "agents", {
+            accountId: input.selectedAccountId
           }),
-          embeddedHref: buildTabHref(embeddedBasePath, "mailboxes", {
-            accountId: input.selectedAccountId,
-            mailboxId: input.selectedMailboxId
+          embeddedHref: buildTabHref(embeddedBasePath, "agents", {
+            accountId: input.selectedAccountId
           }),
-          active: activeTab === "mailboxes",
-          count: input.mailboxConsole?.virtualMailboxes?.length ?? 0
+          active: activeTab === "agents",
+          count: agentDirectory.length
         },
         {
-          id: "approvals",
-          label: "Approvals",
-          href: buildTabHref(standaloneBasePath, "approvals", {
-            accountId: input.selectedAccountId,
-            approvalStatus: "requested"
+          id: "skills",
+          label: "Skill",
+          href: buildTabHref(standaloneBasePath, "skills", {
+            accountId: input.selectedAccountId
           }),
-          embeddedHref: buildTabHref(embeddedBasePath, "approvals", {
-            accountId: input.selectedAccountId,
-            approvalStatus: "requested"
+          embeddedHref: buildTabHref(embeddedBasePath, "skills", {
+            accountId: input.selectedAccountId
           }),
-          active: activeTab === "approvals",
-          count: input.approvals.length
+          active: activeTab === "skills",
+          count: visibleSkillCount
         }
       ],
       connect: {
@@ -1568,14 +1581,8 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
           setupKind: guide.setupKind
         })),
         agentTemplates: listConfiguredAgentTemplates(),
-        agentDirectory: listAgentDirectory({
-          tenantId: templateTenantId,
-          accountId: templateAccountId ?? undefined
-        }),
-        skills: listSkillsForAgents({
-          tenantId: templateTenantId,
-          accountId: templateAccountId ?? undefined
-        }),
+        agentDirectory,
+        skills,
         headcountRecommendations: listHeadcountRecommendations(templateAccountId ?? undefined)
       },
       mailboxWorkspace: input.selectedAccountId
@@ -2259,7 +2266,7 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
       };
     },
     getConsoleWorkbench(input: {
-      mode?: "connect" | "accounts" | "rooms" | "mailboxes" | "approvals";
+      mode?: "home" | "connect" | "accounts" | "rooms" | "agents" | "skills" | "mailboxes" | "approvals";
       accountId?: string;
       roomKey?: string;
       mailboxId?: string;
@@ -2294,7 +2301,7 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
           })()
         : null;
       const selectedAccountId =
-        input.mode === "connect" && !input.accountId && !input.roomKey && !input.mailboxId
+        (input.mode === "connect" || input.mode === "home") && !input.accountId && !input.roomKey && !input.mailboxId
           ? null
           : input.accountId ?? roomDetail?.room.accountId ?? accounts[0]?.accountId ?? null;
       const accountDetail = selectedAccountId ? tryGetConsoleAccountDetail(selectedAccountId) : null;
@@ -2358,7 +2365,7 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
     },
     getConsoleWorkbenchHost() {
       const workspace = buildConsoleWorkbenchWorkspace({
-        mode: "connect",
+        mode: "home",
         selectedAccountId: null,
         selectedRoomKey: null,
         selectedMailboxId: null,

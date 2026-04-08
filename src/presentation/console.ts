@@ -74,6 +74,9 @@ export interface ConsoleRoomSummary {
   pendingGatewayDispatchCount: number;
   failedGatewayDispatchCount: number;
   preSnapshotCount: number;
+  attachmentCount: number;
+  resourceCount: number;
+  visibleAgentCount: number;
   latestPreKind: RoomPreSnapshot["kind"] | null;
   latestPreAudience: RoomPreSnapshot["audience"] | null;
   latestPreSummary: string | null;
@@ -521,6 +524,19 @@ function buildConsoleRoomSummary(snapshot: ReturnType<typeof replayRoom>): Conso
       (projection) => projection.dispatchStatus === "failed"
     ).length,
     preSnapshotCount: snapshot.preSnapshots.length,
+    attachmentCount: snapshot.attachments.length,
+    resourceCount:
+      snapshot.attachments.length +
+      snapshot.preSnapshots.length +
+      (snapshot.roomNotes?.documents?.length ?? 0),
+    visibleAgentCount: uniqueStrings([
+      room.frontAgentId ?? "",
+      room.frontAgentAddress ?? "",
+      ...(room.publicAgentIds ?? []),
+      ...(room.publicAgentAddresses ?? []),
+      ...(room.collaboratorAgentIds ?? []),
+      ...(room.collaboratorAgentAddresses ?? [])
+    ]).length,
     latestPreKind: latestPreSnapshot?.kind ?? null,
     latestPreAudience: latestPreSnapshot?.audience ?? null,
     latestPreSummary: latestPreSnapshot?.summary ?? null,
