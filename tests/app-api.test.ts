@@ -1541,10 +1541,18 @@ describe("app api", () => {
     expect(workbenchJson.roomDetail).toMatchObject({
       room: {
         roomKey: inboundJson.ingested.roomKey,
+        displayTitle: expect.any(String),
         mailTaskKind: expect.any(String),
         mailTaskStage: expect.any(String),
         preSnapshotCount: expect.any(Number)
       },
+      taskMail: expect.objectContaining({
+        subject: expect.any(String)
+      }),
+      latestRun: expect.objectContaining({
+        status: expect.any(String),
+        startedAt: expect.any(String)
+      }),
       counts: {
         taskNodes: expect.any(Number),
         preSnapshots: expect.any(Number)
@@ -1560,6 +1568,7 @@ describe("app api", () => {
       ])
     });
     expect(workbenchJson.roomDetail?.tasks.length).toBeGreaterThan(0);
+    expect(Array.isArray(workbenchJson.roomDetail?.publicMails)).toBe(true);
     expect(Array.isArray(workbenchJson.roomDetail?.virtualMessages)).toBe(true);
     expect(Array.isArray(workbenchJson.roomDetail?.mailboxDeliveries)).toBe(true);
     expect(workbenchJson.roomDetail?.outboxIntents.length).toBeGreaterThan(0);
@@ -2644,10 +2653,17 @@ describe("app api", () => {
     expect(workbenchJson.roomDetail).toMatchObject({
       room: {
         roomKey: inboundJson.ingested.roomKey,
+        displayTitle: expect.any(String),
         frontAgentId: "diplomat",
         mailboxCount: expect.any(Number),
         pendingApprovalCount: expect.any(Number)
       },
+      taskMail: expect.objectContaining({
+        subject: expect.any(String)
+      }),
+      latestRun: expect.objectContaining({
+        status: expect.any(String)
+      }),
       attachments: expect.arrayContaining([
         expect.objectContaining({ filename: "pricing.txt" }),
         expect.objectContaining({ filename: "security.txt" })

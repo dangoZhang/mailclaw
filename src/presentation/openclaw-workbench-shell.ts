@@ -1040,6 +1040,75 @@ select {
     0 10px 22px color-mix(in srgb, black 10%, transparent);
 }
 
+.source-mail-list {
+  display: grid;
+  gap: 12px;
+}
+
+.source-mail-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--bg-elevated) 88%, transparent);
+  overflow: hidden;
+}
+
+.source-mail-card[open] {
+  border-color: color-mix(in srgb, var(--accent) 20%, transparent);
+  box-shadow: var(--shadow-sm);
+}
+
+.source-mail-card > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 14px;
+}
+
+.source-mail-card > summary::-webkit-details-marker {
+  display: none;
+}
+
+.source-mail-card__summary {
+  display: grid;
+  gap: 10px;
+}
+
+.source-mail-card__meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.source-mail-card__body {
+  padding: 0 14px 14px;
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+}
+
+.source-mail-card__grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.source-mail-card__field {
+  display: grid;
+  gap: 6px;
+}
+
+.mail-body {
+  margin: 0;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  background: color-mix(in srgb, var(--bg) 34%, transparent);
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font: 400 13px/1.6 var(--font-body);
+}
+
 .list-card.active::before {
   content: "";
   position: absolute;
@@ -1594,8 +1663,49 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           noOutboxIntents: "No outbox intents have been recorded for this room yet.",
           timeline: "Timeline",
           entriesCount: "{count} entries",
-          noTimelineEntries: "No room timeline entries have been recorded yet."
-          ,
+          noTimelineEntries: "No room timeline entries have been recorded yet.",
+          roomFocusCopy: "Focus this room on the creating task mail, the public mail thread, the current agents, and the latest runtime only.",
+          taskMailPanel: "Task Mail",
+          taskMailCopy: "The external email that created this room.",
+          noTaskMail: "No source task mail was recorded for this room.",
+          publicMailPanel: "Public Mail",
+          publicMailCopy: "Later public emails in this thread. Open a card to inspect the original message detail.",
+          noPublicMail: "No additional public mail has been recorded for this room.",
+          currentAgentsPanel: "Current Agents",
+          currentAgentsCopy: "Open an agent to reveal only its room mailboxes. Select a mailbox chip to inspect the correspondence.",
+          noAgentsVisible: "No visible agent has been recorded for this room yet.",
+          latestRuntimePanel: "Latest Runtime",
+          latestRuntimeCopy: "The latest room execution attempt and how long it ran.",
+          noRuntimeYet: "This room has not run yet.",
+          runtimeStatusLabel: "Status",
+          runtimeStartedAtLabel: "Started",
+          runtimeCompletedAtLabel: "Completed",
+          runtimeDurationLabel: "Runtime",
+          runtimeRunning: "Running",
+          runtimeCompleted: "Completed",
+          runtimeFailed: "Failed",
+          durationNotAvailable: "n/a",
+          installAllSkills: "Reuse All Skills",
+          installAllSkillsHelp: "Install every reusable local skill into the selected target agent.",
+          installAllSkillsDone: "Installed {count} skills for {agentId}.",
+          installAllSkillsPartial: "Installed {done}/{total} skills for {agentId} before stopping on {skillId}.",
+          noReusableSkillSources: "No reusable local skill sources are available yet.",
+          batchInstallRequiresTarget: "Target agent and account are required before reusing all skills.",
+          skillInstallRequiresTarget: "Target agent and source are required before installing a skill.",
+          roomCountLabel: "rooms",
+          skillCountLabel: "skills",
+          mailboxCountLabel: "mailboxes",
+          sourceReadyLabel: "source ready",
+          inlineOnlyLabel: "inline only",
+          replyLabel: "reply",
+          rootLabel: "root",
+          bodyLabel: "Body",
+          fromLabel: "From",
+          toLabel: "To",
+          ccLabel: "CC",
+          receivedAtLabel: "Received",
+          createdAtLabel: "Created",
+          openOriginalDetails: "Open original detail",
           virtualMail: "Virtual Mail",
           mailboxDeliveries: "Mailbox Deliveries",
           noSoulInitialized: "SOUL.md has not been initialized yet.",
@@ -1888,6 +1998,48 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           timeline: "时间线",
           entriesCount: "共 {count} 条",
           noTimelineEntries: "这个房间还没有记录时间线条目。",
+          roomFocusCopy: "这个房间只聚焦创建房间的任务邮件、公开邮件线程、当前智能体和最近一次运行时间。",
+          taskMailPanel: "任务邮件",
+          taskMailCopy: "这封外部邮件创建了当前房间。",
+          noTaskMail: "这个房间还没有记录来源任务邮件。",
+          publicMailPanel: "公开邮件",
+          publicMailCopy: "这是当前线程后续的公开邮件。点击卡片可展开查看原始邮件详情。",
+          noPublicMail: "这个房间还没有后续公开邮件。",
+          currentAgentsPanel: "当前智能体",
+          currentAgentsCopy: "点开智能体即可看到它在当前房间里的虚拟邮箱。点邮箱标签可查看往来信件。",
+          noAgentsVisible: "这个房间还没有记录可见智能体。",
+          latestRuntimePanel: "最近运行",
+          latestRuntimeCopy: "展示最近一次房间执行及其运行时长。",
+          noRuntimeYet: "这个房间还没有运行记录。",
+          runtimeStatusLabel: "状态",
+          runtimeStartedAtLabel: "开始时间",
+          runtimeCompletedAtLabel: "完成时间",
+          runtimeDurationLabel: "运行时长",
+          runtimeRunning: "运行中",
+          runtimeCompleted: "已完成",
+          runtimeFailed: "失败",
+          durationNotAvailable: "暂无",
+          installAllSkills: "一键复用全部技能",
+          installAllSkillsHelp: "把全部可复用本地技能安装到当前选中的目标智能体。",
+          installAllSkillsDone: "已为 {agentId} 安装 {count} 个技能。",
+          installAllSkillsPartial: "已为 {agentId} 安装 {done}/{total} 个技能，在 {skillId} 处停止。",
+          noReusableSkillSources: "当前还没有可复用的本地技能来源。",
+          batchInstallRequiresTarget: "一键复用全部技能前，必须先确定账户和目标智能体。",
+          skillInstallRequiresTarget: "安装技能前，必须先提供目标智能体和来源。",
+          roomCountLabel: "房间",
+          skillCountLabel: "技能",
+          mailboxCountLabel: "邮箱",
+          sourceReadyLabel: "来源可用",
+          inlineOnlyLabel: "仅内联",
+          replyLabel: "回复",
+          rootLabel: "首条",
+          bodyLabel: "正文",
+          fromLabel: "发件人",
+          toLabel: "收件人",
+          ccLabel: "抄送",
+          receivedAtLabel: "接收时间",
+          createdAtLabel: "创建时间",
+          openOriginalDetails: "展开原文详情",
           virtualMail: "虚拟邮件",
           mailboxDeliveries: "邮箱投递",
           noSoulInitialized: "SOUL.md 还没有初始化。",
@@ -2180,6 +2332,48 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           timeline: "Timeline",
           entriesCount: "{count} entrées",
           noTimelineEntries: "Aucune entrée de timeline n’a encore été enregistrée pour cette room.",
+          roomFocusCopy: "Cette room se concentre uniquement sur l’email de création, le fil d’emails publics, les agents visibles et le dernier temps d’exécution.",
+          taskMailPanel: "Mail de tâche",
+          taskMailCopy: "L’email externe qui a créé cette room.",
+          noTaskMail: "Aucun mail source n’a été enregistré pour cette room.",
+          publicMailPanel: "Mail public",
+          publicMailCopy: "Les emails publics suivants dans ce fil. Ouvrez une carte pour lire le détail du message original.",
+          noPublicMail: "Aucun mail public supplémentaire n’a été enregistré pour cette room.",
+          currentAgentsPanel: "Agents actuels",
+          currentAgentsCopy: "Ouvrez un agent pour afficher uniquement ses boîtes de room. Sélectionnez une puce de boîte pour consulter la correspondance.",
+          noAgentsVisible: "Aucun agent visible n’a encore été enregistré pour cette room.",
+          latestRuntimePanel: "Dernière exécution",
+          latestRuntimeCopy: "La dernière exécution de room et sa durée.",
+          noRuntimeYet: "Cette room n’a encore aucune exécution.",
+          runtimeStatusLabel: "Statut",
+          runtimeStartedAtLabel: "Début",
+          runtimeCompletedAtLabel: "Fin",
+          runtimeDurationLabel: "Durée",
+          runtimeRunning: "En cours",
+          runtimeCompleted: "Terminée",
+          runtimeFailed: "Échouée",
+          durationNotAvailable: "n/d",
+          installAllSkills: "Réutiliser toutes les compétences",
+          installAllSkillsHelp: "Installer toutes les compétences locales réutilisables dans l’agent cible sélectionné.",
+          installAllSkillsDone: "{count} compétences installées pour {agentId}.",
+          installAllSkillsPartial: "{done}/{total} compétences installées pour {agentId} avant l’arrêt sur {skillId}.",
+          noReusableSkillSources: "Aucune source locale réutilisable n’est disponible pour le moment.",
+          batchInstallRequiresTarget: "Un compte et un agent cible sont requis avant de réutiliser toutes les compétences.",
+          skillInstallRequiresTarget: "Un agent cible et une source sont requis avant d’installer une compétence.",
+          roomCountLabel: "rooms",
+          skillCountLabel: "compétences",
+          mailboxCountLabel: "mailboxes",
+          sourceReadyLabel: "source prête",
+          inlineOnlyLabel: "inline seulement",
+          replyLabel: "réponse",
+          rootLabel: "racine",
+          bodyLabel: "Corps",
+          fromLabel: "De",
+          toLabel: "À",
+          ccLabel: "CC",
+          receivedAtLabel: "Reçu",
+          createdAtLabel: "Créé",
+          openOriginalDetails: "Ouvrir le détail original",
           virtualMail: "Mail virtuel",
           mailboxDeliveries: "Livraisons mailbox",
           noSoulInitialized: "SOUL.md n’a pas encore été initialisé.",
@@ -2371,6 +2565,23 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         }
       }
 
+      function formatDurationMs(value) {
+        if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+          return t("durationNotAvailable");
+        }
+        const totalSeconds = Math.max(0, Math.round(value / 1000));
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        if (hours > 0) {
+          return hours + "h " + minutes + "m";
+        }
+        if (minutes > 0) {
+          return minutes + "m " + seconds + "s";
+        }
+        return seconds + "s";
+      }
+
       function normalizeBasePath(pathname) {
         const bases = [
           "/console",
@@ -2537,6 +2748,147 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           '<div class="summary-item__label">' + escapeHtmlClient(label) + '</div>' +
           '<div class="summary-item__value">' + escapeHtmlClient(value) + '</div>' +
           '</div>'
+        );
+      }
+
+      function getRoomDisplayTitle(room) {
+        if (!room) {
+          return "";
+        }
+        return room.displayTitle || room.latestSubject || room.roomKey || "";
+      }
+
+      function findRoomByKey(roomKey) {
+        const rooms = state.data && Array.isArray(state.data.rooms) ? state.data.rooms : [];
+        return rooms.find(function(room) { return room.roomKey === roomKey; }) || null;
+      }
+
+      function getRoomVisibleAgents(room) {
+        if (!room) {
+          return [];
+        }
+        const agents = [];
+        [
+          room.frontAgentId,
+          room.frontAgentAddress
+        ].concat(
+          room.publicAgentIds || [],
+          room.publicAgentAddresses || [],
+          room.collaboratorAgentIds || [],
+          room.collaboratorAgentAddresses || [],
+          room.summonedRoles || []
+        ).forEach(function(value) {
+          const normalized = String(value || "").trim();
+          if (normalized && !agents.includes(normalized)) {
+            agents.push(normalized);
+          }
+        });
+        return agents;
+      }
+
+      function isAgentVirtualMailbox(mailbox) {
+        const mailboxId = String(mailbox && mailbox.mailboxId ? mailbox.mailboxId : "").trim();
+        const kind = String(mailbox && mailbox.kind ? mailbox.kind : "").trim();
+        if (!mailboxId || kind === "human" || kind === "system") {
+          return false;
+        }
+        return (
+          mailboxId.startsWith("public:") ||
+          mailboxId.startsWith("internal:") ||
+          kind === "public" ||
+          kind === "internal_role" ||
+          kind === "governance"
+        );
+      }
+
+      function getRoomAgentMailboxEntries(roomDetail) {
+        const room = roomDetail && roomDetail.room ? roomDetail.room : null;
+        const connect = getConnectWorkspace();
+        const directory = connect && Array.isArray(connect.agentDirectory) ? connect.agentDirectory : [];
+        const visibleTokenSet = new Set(getRoomVisibleAgents(room).map(function(value) {
+          return String(value || "").trim();
+        }).filter(Boolean));
+        const roomMailboxes = Array.isArray(roomDetail && roomDetail.mailboxes)
+          ? roomDetail.mailboxes.filter(isAgentVirtualMailbox)
+          : [];
+        return directory.map(function(entry) {
+          const entryMailboxIds = Array.isArray(entry && entry.virtualMailboxes) ? entry.virtualMailboxes : [];
+          const matchedRoomMailboxes = roomMailboxes.filter(function(mailbox) {
+            return entryMailboxIds.includes(mailbox.mailboxId);
+          });
+          const visible =
+            [
+              entry && entry.agentId,
+              entry && entry.publicMailboxId,
+              entry && entry.displayName
+            ].concat(entryMailboxIds).some(function(value) {
+              const normalized = String(value || "").trim();
+              return normalized.length > 0 && visibleTokenSet.has(normalized);
+            }) || matchedRoomMailboxes.length > 0;
+          if (!visible) {
+            return null;
+          }
+          return {
+            ...entry,
+            roomMailboxes: matchedRoomMailboxes
+          };
+        }).filter(Boolean);
+      }
+
+      function renderRoomAgentMailboxCard(entry, room) {
+        const roomMailboxes = Array.isArray(entry && entry.roomMailboxes) ? entry.roomMailboxes : [];
+        const roomKey = room && room.roomKey ? room.roomKey : null;
+        const accountId = room && room.accountId ? room.accountId : null;
+        return (
+          '<details class="source-mail-card">' +
+          '<summary class="source-mail-card__summary">' +
+          '<div class="source-mail-card__meta"><div><div class="title">' + escapeHtmlClient(entry.displayName || entry.agentId || "agent") + '</div><div class="card-subtitle code">' + escapeHtmlClient(entry.agentId || "agent") + '</div></div><span class="muted">' + escapeHtmlClient(String(roomMailboxes.length) + " " + t("mailboxCountLabel")) + '</span></div>' +
+          '<div class="detail">' + escapeHtmlClient(roomMailboxes.map(function(mailbox) { return mailbox.mailboxId; }).join(" · ") || t("noMailboxParticipation")) + '</div>' +
+          '</summary>' +
+          '<div class="source-mail-card__body">' +
+          (entry.purpose ? '<div class="detail">' + escapeHtmlClient(entry.purpose) + '</div>' : '') +
+          (roomMailboxes.length > 0
+            ? '<div class="mailbox-feed">' + roomMailboxes.map(function(mailbox) {
+                const latestLine = mailbox.latestSubject
+                  ? t("latestMessage") + ": " + mailbox.latestSubject
+                  : t("noMailboxMessagesProjected");
+                return (
+                  '<div class="feed-entry">' +
+                  '<div class="meta"><span>' + escapeHtmlClient(mailbox.kind || "mailbox") + (mailbox.role ? " / " + escapeHtmlClient(mailbox.role) : "") + '</span><span>' + escapeHtmlClient(formatTime(mailbox.latestMessageAt)) + '</span></div>' +
+                  '<div class="chips">' + renderMailboxChip(mailbox.mailboxId, roomKey, accountId) + '</div>' +
+                  '<div class="detail">' + escapeHtmlClient(latestLine) + '</div>' +
+                  '</div>'
+                );
+              }).join("") + '</div>'
+            : '<div class="empty">' + escapeHtmlClient(t("noMailboxParticipation")) + '</div>') +
+          '</div>' +
+          '</details>'
+        );
+      }
+
+      function renderSourceMailCard(mail, options) {
+        const expanded = options && options.expanded;
+        const summaryLine = mail && mail.excerpt ? mail.excerpt : t("openOriginalDetails");
+        const recipients = Array.isArray(mail && mail.to) && mail.to.length > 0 ? mail.to.join(", ") : "n/a";
+        const ccList = Array.isArray(mail && mail.cc) && mail.cc.length > 0 ? mail.cc.join(", ") : "";
+        const body = mail && mail.textBody ? mail.textBody : summaryLine;
+        return (
+          '<details class="source-mail-card"' + (expanded ? " open" : "") + '>' +
+          '<summary class="source-mail-card__summary">' +
+          '<div class="source-mail-card__meta"><div><div class="title">' + escapeHtmlClient((mail && mail.subject) || "Mail") + '</div><div class="card-subtitle">' + escapeHtmlClient((mail && mail.from) || "n/a") + '</div></div><span class="muted">' + escapeHtmlClient(formatTime(mail && mail.receivedAt)) + '</span></div>' +
+          '<div class="detail">' + escapeHtmlClient(summaryLine) + '</div>' +
+          '</summary>' +
+          '<div class="source-mail-card__body">' +
+          '<div class="source-mail-card__grid">' +
+          '<div class="source-mail-card__field"><div class="section-label">' + escapeHtmlClient(t("fromLabel")) + '</div><div class="detail">' + escapeHtmlClient((mail && mail.from) || "n/a") + '</div></div>' +
+          '<div class="source-mail-card__field"><div class="section-label">' + escapeHtmlClient(t("toLabel")) + '</div><div class="detail">' + escapeHtmlClient(recipients) + '</div></div>' +
+          (ccList ? '<div class="source-mail-card__field"><div class="section-label">' + escapeHtmlClient(t("ccLabel")) + '</div><div class="detail">' + escapeHtmlClient(ccList) + '</div></div>' : '') +
+          '<div class="source-mail-card__field"><div class="section-label">' + escapeHtmlClient(t("receivedAtLabel")) + '</div><div class="detail">' + escapeHtmlClient(formatTime(mail && mail.receivedAt)) + '</div></div>' +
+          '</div>' +
+          '<div class="section-label">' + escapeHtmlClient(t("bodyLabel")) + '</div>' +
+          '<pre class="mail-body">' + escapeHtmlClient(body || "") + '</pre>' +
+          '</div>' +
+          '</details>'
         );
       }
 
@@ -2947,7 +3299,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           '<button class="list-card' + (room.roomKey === state.route.roomKey ? " active" : "") + '" data-action="select-room" data-room-key="' + escapeHtmlClient(room.roomKey) + '" data-account-id="' + escapeHtmlClient(room.accountId || "") + '">' +
           '<div class="card-top">' +
           '<div>' +
-          '<div class="card-title">' + escapeHtmlClient(room.latestSubject || room.roomKey) + "</div>" +
+          '<div class="card-title">' + escapeHtmlClient(getRoomDisplayTitle(room)) + "</div>" +
           '<div class="card-subtitle code">' + escapeHtmlClient(room.roomKey) + "</div>" +
           "</div>" +
           renderPill(room.state || "open", "") +
@@ -3092,8 +3444,13 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         );
       }
 
-      function renderMailboxChip(mailboxId, roomKey) {
-        return '<button class="link-chip' + (mailboxId === state.route.mailboxId ? " active" : "") + '" data-action="select-mailbox" data-account-id="' + escapeHtmlClient((state.route.accountId || (state.data && state.data.selection && state.data.selection.accountId) || "")) + '" data-mailbox-id="' + escapeHtmlClient(mailboxId) + '"' + (roomKey ? ' data-room-key="' + escapeHtmlClient(roomKey) + '"' : "") + ">" + escapeHtmlClient(mailboxId) + "</button>";
+      function renderMailboxChip(mailboxId, roomKey, accountId) {
+        const resolvedAccountId =
+          accountId ||
+          state.route.accountId ||
+          (state.data && state.data.selection && state.data.selection.accountId) ||
+          "";
+        return '<button class="link-chip' + (mailboxId === state.route.mailboxId ? " active" : "") + '" data-action="select-mailbox" data-account-id="' + escapeHtmlClient(resolvedAccountId) + '" data-mailbox-id="' + escapeHtmlClient(mailboxId) + '"' + (roomKey ? ' data-room-key="' + escapeHtmlClient(roomKey) + '"' : "") + ">" + escapeHtmlClient(mailboxId) + "</button>";
       }
 
       function renderAgentTemplateCard(template, connect) {
@@ -3199,7 +3556,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
             : '<div class="detail">' + escapeHtmlClient(t("noSourceReference")) + '</div>') +
           '<div class="chips">' +
           renderPill(skill.source || "managed", skill.source === "managed" ? "pill--ok" : "") +
-          (sourceValue ? renderPill("source ready", "pill--ok") : renderPill("inline only", "")) +
+          (sourceValue ? renderPill(t("sourceReadyLabel"), "pill--ok") : renderPill(t("inlineOnlyLabel"), "")) +
           "</div>" +
           (sourceValue
             ? '<div class="actions-inline"><button class="btn" data-action="prefill-skill-install" data-agent-id="' + escapeHtmlClient(agentId || "") + '" data-skill-source="' + escapeHtmlClient(sourceValue) + '" data-skill-id="' + escapeHtmlClient(skill.skillId || "") + '" data-skill-title="' + escapeHtmlClient(skill.title || skill.skillId || "skill") + '">' + escapeHtmlClient(t("useAsSource")) + '</button></div>'
@@ -3212,7 +3569,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const skills = Array.isArray(entry.skills) ? entry.skills : [];
         return (
           '<div class="timeline-entry">' +
-          '<div class="meta"><span>' + escapeHtmlClient(entry.displayName || entry.agentId || "agent") + '</span><span>' + escapeHtmlClient(String(skills.length) + " skills") + "</span></div>" +
+          '<div class="meta"><span>' + escapeHtmlClient(entry.displayName || entry.agentId || "agent") + '</span><span>' + escapeHtmlClient(String(skills.length) + " " + t("skillCountLabel")) + "</span></div>" +
           '<div class="title code">' + escapeHtmlClient(entry.agentId || "agent") + "</div>" +
           (skills.length > 0
             ? '<div class="chips">' + skills.map(function(skill) {
@@ -3357,38 +3714,38 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           '<div class="mono-block">' + escapeHtmlClient((connect && connect.recommendedStartCommand) || "mailclaws dashboard") + "</div>" +
           '<div class="mono-block">' + escapeHtmlClient(loginCommand) + "</div>" +
           '</div></div>' +
-          '<div class="panel"><div class="panel-header"><h3>Agent Templates</h3><span class="muted">' + escapeHtmlClient(String(templates.length)) + ' presets</span></div><div class="panel-body">' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("agentTemplates")) + '</h3><span class="muted">' + escapeHtmlClient(t("presetsCount", { count: String(templates.length) })) + '</span></div><div class="panel-body">' +
           (templates.length > 0
             ? '<div class="mailbox-feed">' + templates.map(function(template) { return renderAgentTemplateCard(template, connect); }).join("") + "</div>"
-            : '<div class="empty">No agent templates are available.</div>') +
+            : '<div class="empty">' + escapeHtmlClient(t("noAgentTemplatesAvailable")) + '</div>') +
           "</div></div>" +
-          '<div class="panel"><div class="panel-header"><h3>Custom Agent</h3><span class="muted">durable soul + mailbox</span></div><div class="panel-body">' +
-          '<div class="detail">Create one durable agent with its own SOUL.md, internal mailboxes, inbox policy, and directory entry.</div>' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("customAgent")) + '</h3><span class="muted">' + escapeHtmlClient(t("durableSoulMailbox")) + '</span></div><div class="panel-body">' +
+          '<div class="detail">' + escapeHtmlClient(t("createDurableAgentCopy")) + '</div>' +
           '<div class="detail-grid">' +
-          '<label><div class="section-label">Agent ID</div><input class="console-input" data-custom-agent-field="agentId" placeholder="assistant-ops" /></label>' +
-          '<label><div class="section-label">Display Name</div><input class="console-input" data-custom-agent-field="displayName" placeholder="Assistant Ops" /></label>' +
-          '<label><div class="section-label">Public Mailbox</div><input class="console-input" data-custom-agent-field="publicMailboxId" placeholder="public:assistant-ops" /></label>' +
-          '<label><div class="section-label">Collaborators</div><input class="console-input" data-custom-agent-field="collaboratorAgentIds" placeholder="assistant,research" /></label>' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("agentIdLabel")) + '</div><input class="console-input" data-custom-agent-field="agentId" placeholder="assistant-ops" /></label>' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("displayNameLabel")) + '</div><input class="console-input" data-custom-agent-field="displayName" placeholder="Assistant Ops" /></label>' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("publicMailboxLabel")) + '</div><input class="console-input" data-custom-agent-field="publicMailboxId" placeholder="public:assistant-ops" /></label>' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("collaboratorsLabel")) + '</div><input class="console-input" data-custom-agent-field="collaboratorAgentIds" placeholder="assistant,research" /></label>' +
           '</div>' +
-          '<label><div class="section-label">Purpose</div><textarea class="console-textarea" data-custom-agent-field="purpose" placeholder="Own escalations, coordinate approvals, and feed final-ready packets back to the front desk."></textarea></label>' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("purposeLabel")) + '</div><textarea class="console-textarea" data-custom-agent-field="purpose" placeholder="Own escalations, coordinate approvals, and feed final-ready packets back to the front desk."></textarea></label>' +
           (((connect && connect.templateApplyAccountId) || "").length > 0
-            ? '<div class="actions-inline"><button class="btn" data-action="create-custom-agent" data-account-id="' + escapeHtmlClient(connect.templateApplyAccountId || "") + '" data-tenant-id="' + escapeHtmlClient((connect && connect.templateApplyTenantId) || connect.templateApplyAccountId || "") + '">Create Agent</button></div>'
-            : '<div class="detail">Connect an account first, then create custom durable agents in that workspace.</div>') +
+            ? '<div class="actions-inline"><button class="btn" data-action="create-custom-agent" data-account-id="' + escapeHtmlClient(connect.templateApplyAccountId || "") + '" data-tenant-id="' + escapeHtmlClient((connect && connect.templateApplyTenantId) || connect.templateApplyAccountId || "") + '">' + escapeHtmlClient(t("createAgent")) + '</button></div>'
+            : '<div class="detail">' + escapeHtmlClient(t("createCustomAgentAfterConnect")) + '</div>') +
           "</div></div>" +
-          '<div class="panel"><div class="panel-header"><h3>Agent Directory</h3><span class="muted">' + escapeHtmlClient(String(directory.length)) + ' durable agents</span></div><div class="panel-body">' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("agentDirectory")) + '</h3><span class="muted">' + escapeHtmlClient(t("durableAgentsCount", { count: String(directory.length) })) + '</span></div><div class="panel-body">' +
           (directory.length > 0
             ? '<div class="mailbox-feed">' + directory.map(renderAgentDirectoryCard).join("") + "</div>"
-            : '<div class="empty">Apply a template or initialize an agent memory workspace to create durable souls.</div>') +
+            : '<div class="empty">' + escapeHtmlClient(t("noDurableSouls")) + '</div>') +
           "</div></div>" +
           renderSkillInstallPanel(connect) +
-          '<div class="panel"><div class="panel-header"><h3>Skills</h3><span class="muted">' + escapeHtmlClient(String(skills.reduce(function(total, entry) { return total + ((entry.skills || []).length || 0); }, 0))) + ' visible skills</span></div><div class="panel-body">' +
-          '<div class="detail">Every durable agent starts with two built-in mail skills. Add markdown skills when you want reusable reading, writing, or review behavior without carrying more transcript.</div>' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("skillsPanel")) + '</h3><span class="muted">' + escapeHtmlClient(t("visibleSkillsCount", { count: String(skills.reduce(function(total, entry) { return total + ((entry.skills || []).length || 0); }, 0)) })) + '</span></div><div class="panel-body">' +
+          '<div class="detail">' + escapeHtmlClient(t("builtInSkillsNote")) + '</div>' +
           '<div class="mono-block">mailclaws skills list ' + escapeHtmlClient((connect && connect.templateApplyAccountId) || "[accountId]") + "</div>" +
           (skills.length > 0
             ? '<div class="mailbox-feed">' + skills.map(renderAgentSkillGroup).join("") + "</div>"
             : '<div class="empty">' + escapeHtmlClient(t("noDurableAgentSkills")) + '</div>') +
           "</div></div>" +
-          '<div class="panel"><div class="panel-header"><h3>HeadCount</h3><span class="muted">recommended starting shapes</span></div><div class="panel-body">' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("headcount")) + '</h3><span class="muted">' + escapeHtmlClient(t("recommendedShapes")) + '</span></div><div class="panel-body">' +
           (headcount.length > 0
             ? '<div class="mailbox-feed">' + headcount.map(function(entry) {
                 return (
@@ -3403,7 +3760,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
                   "</div>"
                 );
               }).join("") + "</div>"
-            : '<div class="empty">Headcount recommendations appear after MailClaws can see account or burst-work load.</div>') +
+            : '<div class="empty">' + escapeHtmlClient(t("headcountWaiting")) + '</div>') +
           "</div></div>"
         );
       }
@@ -3428,9 +3785,9 @@ export function renderOpenClawWorkbenchShellHtml(input: {
               '<a class="btn" href="' + escapeHtmlClient(hrefForRoute({ mode: "accounts", accountId: null, inboxId: null, roomKey: null, mailboxId: null })) + '">' + escapeHtmlClient(t("connectMailbox")) + '</a>',
             summaryItems: [
               { label: t("accounts"), value: String((state.data && state.data.accounts ? state.data.accounts.length : 0)) },
-              { label: "rooms", value: String(rooms.length) },
-              { label: "agents", value: String(directory.length) },
-              { label: "skills", value: String(visibleSkillCount) }
+              { label: t("rooms"), value: String(rooms.length) },
+              { label: t("agents"), value: String(directory.length) },
+              { label: t("skills"), value: String(visibleSkillCount) }
             ]
           }) +
           renderConnectRuntimePanel(setup) +
@@ -3517,6 +3874,19 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const skills = connect && Array.isArray(connect.skills) ? connect.skills : [];
         const reusableSkills = connect && Array.isArray(connect.reusableSkills) ? connect.reusableSkills : [];
         const sharedSkills = connect && Array.isArray(connect.sharedSkills) ? connect.sharedSkills : [];
+        const reusableSkillSources = reusableSkills.filter(function(skill) {
+          return typeof skill.path === "string" && skill.path.trim().length > 0;
+        });
+        const targetAgentId =
+          state.connect && typeof state.connect.skillTargetAgentId === "string" && state.connect.skillTargetAgentId.trim().length > 0
+            ? state.connect.skillTargetAgentId
+            : (connect && connect.agentDirectory && connect.agentDirectory[0] ? connect.agentDirectory[0].agentId : "");
+        const canInstallAll = Boolean(
+          connect &&
+          connect.templateApplyAccountId &&
+          targetAgentId &&
+          reusableSkillSources.length > 0
+        );
         return (
           '<div class="mail-workbench-main">' +
           renderWorkspaceHero({
@@ -3548,9 +3918,13 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           renderSkillInstallPanel(connect) +
           '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("reusableSkillSources")) + '</h3><span class="muted">' + escapeHtmlClient(String(reusableSkills.length)) + '</span></div><div class="panel-body">' +
           '<div class="detail">' + escapeHtmlClient(t("reusableSkillSourcesCopy")) + '</div>' +
+          '<div class="detail">' + escapeHtmlClient(t("installAllSkillsHelp")) + '</div>' +
+          (canInstallAll
+            ? '<div class="actions-inline"><button class="btn primary" data-action="quick-install-all-reusable-skills" data-account-id="' + escapeHtmlClient(connect.templateApplyAccountId || "") + '" data-tenant-id="' + escapeHtmlClient((connect && connect.templateApplyTenantId) || connect.templateApplyAccountId || "") + '" data-agent-id="' + escapeHtmlClient(targetAgentId || "") + '">' + escapeHtmlClient(t("installAllSkills")) + '</button></div>'
+            : '') +
           (reusableSkills.length > 0
             ? '<div class="mailbox-feed">' + reusableSkills.map(function(skill) { return renderReusableSkillCard(skill, connect); }).join("") + "</div>"
-            : '<div class="empty">' + escapeHtmlClient(t("noSkillsDiscovered")) + '</div>') +
+            : '<div class="empty">' + escapeHtmlClient(t("noReusableSkillSources")) + '</div>') +
           '</div></div>' +
           renderSharedSkillCreatePanel(connect) +
           '</div>' +
@@ -3647,7 +4021,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
             title: inbox.inboxId || state.route.inboxId || "Inbox",
             copy: t("inboxCopy"),
             summaryItems: [
-              { label: "rooms", value: String(items.length) },
+              { label: t("rooms"), value: String(items.length) },
               { label: "ack sla", value: String(inbox.ackSlaSeconds || 0) + "s" },
               { label: "active limit", value: String(inbox.activeRoomLimit || 0) },
               { label: "burst", value: String(inbox.burstCoalesceSeconds || 0) + "s" }
@@ -3663,10 +4037,12 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("inboxItems")) + '</h3><span class="muted">' + escapeHtmlClient(items.length) + ' rooms</span></div><div class="panel-body">' +
           (items.length > 0
             ? '<div class="mailbox-feed">' + items.map(function(item) {
+                const roomSummary = findRoomByKey(item.roomKey);
                 return (
                   '<button class="feed-entry" data-action="select-room" data-room-key="' + escapeHtmlClient(item.roomKey) + '" data-account-id="' + escapeHtmlClient(item.accountId || state.route.accountId || "") + '">' +
                   '<div class="meta"><span>' + escapeHtmlClient(item.state || "new") + " / " + escapeHtmlClient(item.participantRole || "participant") + '</span><span>' + escapeHtmlClient(formatTime(item.newestMessageAt)) + '</span></div>' +
-                  '<div class="title code">' + escapeHtmlClient(item.roomKey) + '</div>' +
+                  '<div class="title">' + escapeHtmlClient(roomSummary ? getRoomDisplayTitle(roomSummary) : item.roomKey) + '</div>' +
+                  '<div class="detail code">' + escapeHtmlClient(item.roomKey) + '</div>' +
                   '<div class="detail">Unread ' + escapeHtmlClient(item.unreadCount || 0) + ", urgency " + escapeHtmlClient(item.urgency || "normal") + ", effort " + escapeHtmlClient(item.estimatedEffort || "medium") + '.</div>' +
                   '<div class="chips">' +
                   renderPill("priority " + escapeHtmlClient(item.priority || 0), "") +
@@ -3695,10 +4071,10 @@ export function renderOpenClawWorkbenchShellHtml(input: {
             title: t("mailboxesAndRoutes"),
             copy: t("mailboxWorkspaceCopy"),
             summaryItems: [
-              { label: "mailboxes", value: String(mailboxes.length) },
+              { label: t("mailboxCountLabel"), value: String(mailboxes.length) },
               { label: "inboxes", value: String(inboxes.length) },
               { label: "active", value: String(mailboxes.filter(function(entry) { return entry.active; }).length) },
-              { label: "rooms", value: String((state.data && state.data.rooms ? state.data.rooms.length : 0)) }
+              { label: t("rooms"), value: String((state.data && state.data.rooms ? state.data.rooms.length : 0)) }
             ]
           }) +
           renderProviderPanel() +
@@ -3734,7 +4110,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
             title: t("roomsTitle"),
             copy: t("roomsCopy"),
             summaryItems: [
-              { label: "rooms", value: String(rooms.length) },
+              { label: t("rooms"), value: String(rooms.length) },
               { label: "active", value: String(rooms.filter(function(room) { return !["done", "failed"].includes(room.state || ""); }).length) },
               { label: "approvals", value: String(rooms.reduce(function(total, room) { return total + Number(room.pendingApprovalCount || 0); }, 0)) },
               { label: "resources", value: String(rooms.reduce(function(total, room) { return total + Number(room.resourceCount || 0); }, 0)) }
@@ -3838,159 +4214,71 @@ export function renderOpenClawWorkbenchShellHtml(input: {
       function renderRoomDetail() {
         const roomDetail = state.data && state.data.roomDetail ? state.data.roomDetail : null;
         if (!roomDetail || !roomDetail.room) {
-          return '<div class="empty">Select a room to inspect its timeline, mailbox participation, approvals, and gateway trace.</div>';
+          return '<div class="empty">' + escapeHtmlClient(t("selectRoomHint")) + '</div>';
         }
         const room = roomDetail.room;
-        const trace = roomDetail.gatewayTrace || {};
-        const tasks = roomDetail.tasks || [];
-        const timeline = roomDetail.timeline || [];
-        const virtualMessages = roomDetail.virtualMessages || [];
-        const mailboxDeliveries = roomDetail.mailboxDeliveries || [];
-        const outboxIntents = roomDetail.outboxIntents || [];
-        const attachments = roomDetail.attachments || [];
-        const roomDocuments = roomDetail.roomNotes && Array.isArray(roomDetail.roomNotes.documents)
-          ? roomDetail.roomNotes.documents
-          : [];
-        const hostIntegration = state.data && state.data.workspace ? state.data.workspace.hostIntegration || null : null;
-        const integrationApis = hostIntegration && hostIntegration.apis ? hostIntegration.apis : null;
+        const taskMail = roomDetail.taskMail || null;
+        const publicMails = Array.isArray(roomDetail.publicMails) ? roomDetail.publicMails : [];
+        const latestRun = roomDetail.latestRun || null;
+        const visibleAgents = getRoomVisibleAgents(room);
+        const roomAgentEntries = getRoomAgentMailboxEntries(roomDetail);
+        const currentAgentCount = roomAgentEntries.length > 0 ? roomAgentEntries.length : visibleAgents.length;
         return (
           '<div class="mail-workbench-main">' +
           renderWorkspaceHero({
             eyebrow: t("roomTitleDetail"),
-            title: room.latestSubject || room.roomKey,
-            copy: t("roomCopyDetail"),
+            title: getRoomDisplayTitle(room),
+            copy: t("roomFocusCopy"),
             summaryItems: [
-              { label: "revision", value: String(room.revision || 0) },
-              { label: "tasks", value: String(roomDetail.counts && roomDetail.counts.taskNodes ? roomDetail.counts.taskNodes : 0) },
-              { label: "messages", value: String(roomDetail.counts && roomDetail.counts.virtualMessages ? roomDetail.counts.virtualMessages : 0) },
-              { label: "deliveries", value: String(roomDetail.counts && roomDetail.counts.mailboxDeliveries ? roomDetail.counts.mailboxDeliveries : 0) }
+              { label: t("taskMailPanel"), value: taskMail ? "1" : "0" },
+              { label: t("publicMailPanel"), value: String(publicMails.length) },
+              { label: t("agents"), value: String(currentAgentCount) },
+              { label: t("runtimeDurationLabel"), value: latestRun ? formatDurationMs(latestRun.durationMs) : t("durationNotAvailable") }
             ]
           }) +
           '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("roomSummary")) + '</h3><span class="muted code">' + escapeHtmlClient(room.roomKey) + '</span></div><div class="panel-body">' +
-          '<div class="chips">' +
-          renderPill(room.state || "open", "") +
-          renderPill("account " + (room.accountId || ""), "") +
-          (room.mailTaskKind ? renderPill("task " + room.mailTaskKind, "") : "") +
-          (room.mailTaskStage ? renderPill("stage " + room.mailTaskStage, "") : "") +
-          renderPill(String(room.pendingApprovalCount || 0) + " approvals", Number(room.pendingApprovalCount || 0) > 0 ? "pill--warn" : "") +
-          '</div>' +
-          '<div class="detail">' + escapeHtmlClient(t("frontAgent")) + ' ' + escapeHtmlClient(room.frontAgentId || room.frontAgentAddress || "n/a") + '</div>' +
-          ((room.publicAgentAddresses || []).length > 0 || (room.publicAgentIds || []).length > 0 || (room.collaboratorAgentAddresses || []).length > 0 || (room.collaboratorAgentIds || []).length > 0 || (room.summonedRoles || []).length > 0
-            ? '<div><div class="section-label">' + escapeHtmlClient(t("routing")) + '</div><div class="chips">' +
-              (room.publicAgentIds || []).map(function(agentId) { return renderPill("public " + agentId, ""); }).join("") +
-              (room.publicAgentAddresses || []).map(function(address) { return renderPill("public " + address, ""); }).join("") +
-              (room.collaboratorAgentIds || []).map(function(agentId) { return renderPill("collab " + agentId, ""); }).join("") +
-              (room.collaboratorAgentAddresses || []).map(function(address) { return renderPill("collab " + address, ""); }).join("") +
-              (room.summonedRoles || []).map(function(role) { return renderPill("role " + role, ""); }).join("") +
-              '</div></div>'
-            : '') +
-          '<div class="section-label">' + escapeHtmlClient(t("mailboxesLabel")) + '</div><div class="chips">' + ((roomDetail.mailboxes || []).map(function(mailbox) { return renderMailboxChip(mailbox.mailboxId, room.roomKey); }).join("") || '<span class="muted">' + escapeHtmlClient(t("noMailboxParticipation")) + '</span>') + '</div>' +
-          '</div></div>' +
-          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("sharedResources")) + '</h3><span class="muted">' + escapeHtmlClient(t("tracked", { count: Number(room.resourceCount || 0) })) + '</span></div><div class="panel-body">' +
-          '<div class="detail">' + escapeHtmlClient(t("sharedResourcesCopy")) + '</div>' +
+          '<div class="detail">' + escapeHtmlClient(t("roomFocusCopy")) + '</div>' +
           '<div class="detail-grid">' +
-          renderMetric(t("attachmentsLabel"), attachments.length) +
-          renderMetric(t("documentsLabel"), roomDocuments.length) +
-          renderMetric(t("preSnapshots"), room.preSnapshotCount || 0) +
-          renderMetric(t("visibleAgentsLabel"), room.visibleAgentCount || 0) +
+          renderMetric(t("runtimeStatusLabel"), latestRun ? t(latestRun.status === "running" ? "runtimeRunning" : latestRun.status === "failed" ? "runtimeFailed" : "runtimeCompleted") : t("durationNotAvailable")) +
+          renderMetric(t("runtimeDurationLabel"), latestRun ? formatDurationMs(latestRun.durationMs) : t("durationNotAvailable")) +
+          renderMetric(t("agents"), currentAgentCount) +
+          renderMetric(t("publicMailPanel"), publicMails.length) +
           '</div>' +
-          ((attachments.length > 0 || roomDocuments.length > 0)
-            ? '<div class="timeline-list">' +
-              roomDocuments.slice(0, 12).map(function(document) {
-                return (
-                  '<div class="timeline-entry">' +
-                  '<div class="meta"><span>document</span><span>' + escapeHtmlClient(formatTime(document.updatedAt || document.createdAt || null)) + '</span></div>' +
-                  '<div class="title">' + escapeHtmlClient(document.title || document.documentId || "Room document") + '</div>' +
-                  (document.artifactPath ? '<div class="detail code">' + escapeHtmlClient(document.artifactPath) + '</div>' : '') +
-                  '</div>'
-                );
-              }).join("") +
-              attachments.slice(0, 12).map(function(attachment) {
-                return (
-                  '<div class="timeline-entry">' +
-                  '<div class="meta"><span>' + escapeHtmlClient(attachment.mimeType || "attachment") + '</span><span>' + escapeHtmlClient(formatTime(attachment.createdAt)) + '</span></div>' +
-                  '<div class="title">' + escapeHtmlClient(attachment.filename || attachment.attachmentId || "Attachment") + '</div>' +
-                  '<div class="detail code">' + escapeHtmlClient(attachment.artifactPath || attachment.attachmentId || "") + '</div>' +
-                  '</div>'
-                );
-              }).join("") +
+          '</div></div>' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("taskMailPanel")) + '</h3></div><div class="panel-body">' +
+          '<div class="detail">' + escapeHtmlClient(t("taskMailCopy")) + '</div>' +
+          (taskMail
+            ? renderSourceMailCard(taskMail, { expanded: true })
+            : '<div class="empty">' + escapeHtmlClient(t("noTaskMail")) + '</div>') +
+          '</div></div>' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("publicMailPanel")) + '</h3><span class="muted">' + escapeHtmlClient(String(publicMails.length)) + '</span></div><div class="panel-body">' +
+          '<div class="detail">' + escapeHtmlClient(t("publicMailCopy")) + '</div>' +
+          (publicMails.length > 0
+            ? '<div class="source-mail-list">' + publicMails.map(function(mail) {
+                return renderSourceMailCard(mail, { expanded: false });
+              }).join("") + '</div>'
+            : '<div class="empty">' + escapeHtmlClient(t("noPublicMail")) + '</div>') +
+          '</div></div>' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("currentAgentsPanel")) + '</h3></div><div class="panel-body">' +
+          '<div class="detail">' + escapeHtmlClient(t("currentAgentsCopy")) + '</div>' +
+          (roomAgentEntries.length > 0
+            ? '<div class="source-mail-list">' + roomAgentEntries.map(function(entry) {
+                return renderRoomAgentMailboxCard(entry, room);
+              }).join("") + '</div>'
+            : visibleAgents.length > 0
+              ? '<div class="chips">' + visibleAgents.map(function(agent) { return renderPill(agent, ""); }).join("") + '</div>'
+            : '<div class="empty">' + escapeHtmlClient(t("noAgentsVisible")) + '</div>') +
+          '</div></div>' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("latestRuntimePanel")) + '</h3></div><div class="panel-body">' +
+          '<div class="detail">' + escapeHtmlClient(t("latestRuntimeCopy")) + '</div>' +
+          (latestRun
+            ? '<div class="detail-grid">' +
+              renderMetric(t("runtimeStatusLabel"), t(latestRun.status === "running" ? "runtimeRunning" : latestRun.status === "failed" ? "runtimeFailed" : "runtimeCompleted")) +
+              renderMetric(t("runtimeDurationLabel"), formatDurationMs(latestRun.durationMs)) +
+              renderMetric(t("runtimeStartedAtLabel"), formatTime(latestRun.startedAt)) +
+              renderMetric(t("runtimeCompletedAtLabel"), latestRun.completedAt ? formatTime(latestRun.completedAt) : t("durationNotAvailable")) +
               '</div>'
-            : '<div class="empty">' + escapeHtmlClient(t("noSharedResources")) + '</div>') +
-          '</div></div>' +
-          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("gatewayProjection")) + '</h3><span class="muted">' + escapeHtmlClient(t("projectedMessages", { count: trace.projectedMessageCount || 0 })) + '</span></div><div class="panel-body">' +
-          '<div class="detail-grid">' +
-          renderMetric(t("controlPlanes"), (trace.controlPlanes || []).length) +
-          renderMetric(t("sessionKeys"), (trace.sessionKeys || []).length) +
-          renderMetric(t("projectedDeliveries"), trace.projectedDeliveryCount || 0) +
-          renderMetric(t("projectedOutcomes"), trace.projectedOutcomeCount || 0) +
-          '</div>' +
-          '<div class="chips">' +
-          (trace.controlPlanes || []).map(function(value) { return renderPill(value, ""); }).join("") +
-          (trace.outcomeModes || []).map(function(value) { return renderPill(value, ""); }).join("") +
-          ((trace.pendingDispatchCount || 0) > 0 ? renderPill("pending " + trace.pendingDispatchCount, "pill--warn") : "") +
-          ((trace.failedDispatchCount || 0) > 0 ? renderPill("failed " + trace.failedDispatchCount, "pill--danger") : "") +
-          '</div>' +
-          ((trace.outcomeProjections || []).length > 0
-            ? '<div class="timeline-list">' + trace.outcomeProjections.map(function(entry) {
-                return (
-                  '<div class="timeline-entry">' +
-                  '<div class="meta"><span>' + escapeHtmlClient(entry.mode || "mode") + '</span><span>' + escapeHtmlClient(formatTime(entry.projectedAt)) + '</span></div>' +
-                  '<div class="title code">' + escapeHtmlClient(entry.messageId || "") + '</div>' +
-                  '<div class="chips">' + renderPill(entry.dispatchStatus || "queued", "") + '</div>' +
-                  '<div class="detail">session ' + escapeHtmlClient(entry.sessionKey || "") + '</div>' +
-                  '</div>'
-                );
-              }).join("") + '</div>'
-            : '<div class="detail">' + escapeHtmlClient(t("noGatewayProjection")) + '</div>') +
-          '</div></div>' +
-          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("gatewayAndMailSync")) + '</h3><span class="muted">' + escapeHtmlClient(t("governedBridge")) + '</span></div><div class="panel-body">' +
-          '<div class="detail">' + escapeHtmlClient(t("gatewaySyncCopy")) + '</div>' +
-          '<div class="detail-grid">' +
-          renderMetric(t("gatewayIngress"), hostIntegration && hostIntegration.capabilities && hostIntegration.capabilities.gatewayIngress ? "enabled" : "off") +
-          renderMetric(t("emailSync"), hostIntegration && hostIntegration.capabilities && hostIntegration.capabilities.outboundMailSync ? "enabled" : "off") +
-          renderMetric(t("gatewayDispatch"), roomDetail.boundaries && roomDetail.boundaries.automaticGatewayRoundTrip ? "automatic" : "manual") +
-          renderMetric(t("approvalGate"), Number(room.pendingApprovalCount || 0) > 0 ? "pending" : "ready") +
-          '</div>' +
-          (integrationApis
-            ? '<div class="detail code">' + escapeHtmlClient('POST ' + integrationApis.gatewayHistoryImport + ' | POST ' + String(integrationApis.roomMessageEmailSync || '').replace(':roomKey', room.roomKey).replace(':messageId', '<messageId>')) + '</div>'
-            : '') +
-          '<div class="detail code">mailctl gateway import-history &lt;sessionKey&gt; ' + escapeHtmlClient(room.roomKey) + ' history.json</div>' +
-          '<div class="detail code">mailctl gateway sync-mail ' + escapeHtmlClient(room.roomKey) + ' &lt;messageId&gt;</div>' +
-          '</div></div>' +
-          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("mailTasks")) + '</h3><span class="muted">' + escapeHtmlClient(t("tracked", { count: tasks.length })) + '</span></div><div class="panel-body">' +
-          (tasks.length > 0
-            ? '<div class="timeline-list">' + tasks.map(function(task) {
-                return (
-                  '<div class="timeline-entry">' +
-                  '<div class="meta"><span>r' + escapeHtmlClient(task.revision || 0) + '</span><span>' + escapeHtmlClient(task.status || "open") + '</span></div>' +
-                  '<div class="title">' + escapeHtmlClient(task.title || task.kind || "Task") + '</div>' +
-                  '<div class="chips">' + renderPill(task.kind || "task", "") + renderPill(task.stage || "stage", "") + '</div>' +
-                  (task.summary ? '<div class="detail">' + escapeHtmlClient(task.summary) + '</div>' : '') +
-                  '</div>'
-                );
-              }).join("") + '</div>'
-            : '<div class="empty">' + escapeHtmlClient(t("noMailTasks")) + '</div>') +
-          '</div></div>' +
-          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("virtualMail")) + '</h3><span class="muted">' + escapeHtmlClient(virtualMessages.length) + ' messages</span></div><div class="panel-body">' +
-          '<div class="detail">' + escapeHtmlClient(t("virtualMailCopy")) + '</div>' +
-          (virtualMessages.length > 0
-            ? '<div class="timeline-list">' + virtualMessages.slice(0, 24).map(renderVirtualMessageEntry).join("") + '</div>'
-            : '<div class="empty">' + escapeHtmlClient(t("noVirtualMail")) + '</div>') +
-          '</div></div>' +
-          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("mailboxDeliveries")) + '</h3><span class="muted">' + escapeHtmlClient(mailboxDeliveries.length) + ' deliveries</span></div><div class="panel-body">' +
-          '<div class="detail">' + escapeHtmlClient(t("mailboxDeliveriesCopy")) + '</div>' +
-          (mailboxDeliveries.length > 0
-            ? '<div class="timeline-list">' + mailboxDeliveries.slice(0, 24).map(renderDeliveryEntry).join("") + '</div>'
-            : '<div class="empty">' + escapeHtmlClient(t("noMailboxDeliveries")) + '</div>') +
-          '</div></div>' +
-          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("governedOutbox")) + '</h3><span class="muted">' + escapeHtmlClient(outboxIntents.length) + ' intents</span></div><div class="panel-body">' +
-          '<div class="detail">' + escapeHtmlClient(t("governedOutboxCopy")) + '</div>' +
-          (outboxIntents.length > 0
-            ? '<div class="timeline-list">' + outboxIntents.slice(0, 12).map(renderOutboxEntry).join("") + '</div>'
-            : '<div class="empty">' + escapeHtmlClient(t("noOutboxIntents")) + '</div>') +
-          '</div></div>' +
-          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("timeline")) + '</h3><span class="muted">' + escapeHtmlClient(t("entriesCount", { count: timeline.length })) + '</span></div><div class="panel-body">' +
-          (timeline.length > 0 ? '<div class="timeline-list">' + timeline.slice(0, 30).map(renderTimelineEntry).join("") + '</div>' : '<div class="empty">' + escapeHtmlClient(t("noTimelineEntries")) + '</div>') +
+            : '<div class="empty">' + escapeHtmlClient(t("noRuntimeYet")) + '</div>') +
           '</div></div>' +
           '</div>'
         );
@@ -4820,6 +5108,86 @@ export function renderOpenClawWorkbenchShellHtml(input: {
             });
           return;
         }
+        if (action === "quick-install-all-reusable-skills") {
+          event.preventDefault();
+          const accountId = target.getAttribute("data-account-id") || "";
+          const tenantId = target.getAttribute("data-tenant-id") || accountId;
+          const agentId = target.getAttribute("data-agent-id") || "";
+          const connect = getConnectWorkspace();
+          const reusableSkills = connect && Array.isArray(connect.reusableSkills) ? connect.reusableSkills : [];
+          const installable = reusableSkills.filter(function(skill) {
+            return typeof skill.path === "string" && skill.path.trim().length > 0;
+          });
+          if (!accountId || !agentId || installable.length === 0) {
+            state.connect = {
+              ...(state.connect || {}),
+              skillStatus: {
+                tone: "danger",
+                message: t("batchInstallRequiresTarget")
+              }
+            };
+            render();
+            return;
+          }
+          state.loading = true;
+          render();
+          void (async function() {
+            let installedCount = 0;
+            try {
+              for (const skill of installable) {
+                await requestJson((config.apiBasePath || "/api") + "/skills/install", {
+                  method: "POST",
+                  headers: {
+                    "content-type": "application/json"
+                  },
+                  body: JSON.stringify({
+                    accountId: accountId,
+                    tenantId: tenantId,
+                    agentId: agentId,
+                    source: skill.path,
+                    skillId: skill.skillId || undefined,
+                    title: skill.title || undefined
+                  })
+                });
+                installedCount += 1;
+              }
+              state.connect = {
+                ...(state.connect || {}),
+                skillTargetAgentId: agentId,
+                skillStatus: {
+                  tone: "ok",
+                  message: t("installAllSkillsDone", {
+                    count: installedCount,
+                    agentId: agentId
+                  })
+                }
+              };
+              await refresh(true);
+            } catch (error) {
+              const failedSkill = installable[installedCount];
+              state.connect = {
+                ...(state.connect || {}),
+                skillTargetAgentId: agentId,
+                skillStatus: {
+                  tone: "danger",
+                  message:
+                    error instanceof Error
+                      ? t("installAllSkillsPartial", {
+                          done: installedCount,
+                          total: installable.length,
+                          agentId: agentId,
+                          skillId: (failedSkill && (failedSkill.skillId || failedSkill.title)) || "skill"
+                        }) + " " + error.message
+                      : String(error)
+                }
+              };
+            } finally {
+              state.loading = false;
+              render();
+            }
+          })();
+          return;
+        }
         if (action === "install-agent-skill") {
           event.preventDefault();
           const accountId = target.getAttribute("data-account-id");
@@ -4830,7 +5198,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
               ...(state.connect || {}),
               skillStatus: {
                 tone: "danger",
-                message: "Target agent and source are required before installing a skill."
+                message: t("skillInstallRequiresTarget")
               }
             };
             render();

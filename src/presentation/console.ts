@@ -14,6 +14,7 @@ import type {
   VirtualMessageOriginKind
 } from "../core/types.js";
 import { listMailAccounts } from "../storage/repositories/mail-accounts.js";
+import { listMailMessagesForRoom } from "../storage/repositories/mail-messages.js";
 import {
   type ApprovalRequestRecord,
   type OutboxIntentRecord
@@ -49,6 +50,7 @@ export interface ConsoleRoomSummary {
   roomKey: string;
   accountId: string;
   stableThreadId: string;
+  displayTitle: string;
   state: ThreadRoom["state"];
   attention: "stable" | "watch" | "critical";
   revision: number;
@@ -106,6 +108,9 @@ export interface ConsoleRoomDetail {
   terminology: typeof consoleTerminology;
   boundaries: typeof consoleBoundaries;
   room: ConsoleRoomSummary;
+  taskMail: ConsoleSourceMailSummary | null;
+  publicMails: ConsoleSourceMailSummary[];
+  latestRun: ConsoleRoomRunSummary | null;
   tasks: ConsoleMailTaskSummary[];
   preSnapshots: RoomPreSnapshot[];
   roomNotes: ReturnType<typeof replayRoom>["roomNotes"];
@@ -134,6 +139,29 @@ export interface ConsoleRoomDetail {
       delivery: number;
     };
   };
+}
+
+export interface ConsoleSourceMailSummary {
+  dedupeKey: string;
+  providerMessageId: string | null;
+  internetMessageId: string;
+  subject: string;
+  from: string | null;
+  to: string[];
+  cc: string[];
+  receivedAt: string;
+  createdAt: string;
+  excerpt: string | null;
+  textBody: string | null;
+}
+
+export interface ConsoleRoomRunSummary {
+  runId: string;
+  revision: number;
+  status: "running" | "completed" | "failed";
+  startedAt: string;
+  completedAt: string | null;
+  durationMs: number | null;
 }
 
 export interface ConsoleTimelineEntry {
@@ -301,11 +329,15 @@ export function getConsoleRoom(db: DatabaseSync, roomKey: string): ConsoleRoomDe
     return null;
   }
   const timeline = buildRoomTimeline(snapshot);
+  const sourceMails = buildConsoleSourceMailSummaries(db, snapshot);
 
   return {
     terminology: consoleTerminology,
     boundaries: consoleBoundaries,
     room: buildConsoleRoomSummary(snapshot),
+    taskMail: sourceMails[0] ?? null,
+    publicMails: sourceMails.slice(1).reverse(),
+    latestRun: buildLatestRoomRunSummary(snapshot),
     tasks: buildRoomTaskSummaries(snapshot),
     preSnapshots: snapshot.preSnapshots,
     roomNotes: snapshot.roomNotes,
@@ -465,11 +497,19 @@ function buildConsoleRoomSummary(snapshot: ReturnType<typeof replayRoom>): Conso
   )[0];
   const roomTasks = buildRoomTaskSummaries(snapshot);
   const currentMailTask = roomTasks.find((task) => task.revision === room.revision) ?? roomTasks[0] ?? null;
+  const displayTitle = resolveRoomDisplayTitle({
+    roomKey: room.roomKey,
+    latestSubject: latestMessage?.subject ?? latestOutbox?.subject ?? null,
+    latestPreSummary: latestPreSnapshot?.summary ?? null,
+    taskTitle: currentMailTask?.title ?? null,
+    taskSummary: currentMailTask?.summary ?? null
+  });
 
   return {
     roomKey: room.roomKey,
     accountId: room.accountId,
     stableThreadId: room.stableThreadId,
+    displayTitle,
     state: room.state,
     attention: classifyRoomAttention({
       state: room.state,
@@ -549,6 +589,90 @@ function buildConsoleRoomSummary(snapshot: ReturnType<typeof replayRoom>): Conso
     mailTaskStatus: currentMailTask?.status ?? null,
     nextAction: currentMailTask?.nextAction ?? null
   };
+}
+
+function buildConsoleSourceMailSummaries(db: DatabaseSync, snapshot: ReturnType<typeof replayRoom>): ConsoleSourceMailSummary[] {
+  if (!snapshot.room) {
+    return [];
+  }
+
+  return listMailMessagesForRoom(db, {
+    accountId: snapshot.room.accountId,
+    stableThreadId: snapshot.room.stableThreadId
+  }).map((message) => ({
+    dedupeKey: message.dedupeKey,
+    providerMessageId: message.providerMessageId ?? null,
+    internetMessageId: message.internetMessageId,
+    subject: message.rawSubject ?? message.normalizedSubject,
+    from: message.from ?? null,
+    to: [...(message.to ?? [])],
+    cc: [...(message.cc ?? [])],
+    receivedAt: message.receivedAt,
+    createdAt: message.createdAt,
+    excerpt: summarizeMailBody(message.textBody),
+    textBody: typeof message.textBody === "string" && message.textBody.trim().length > 0 ? message.textBody.trim() : null
+  }));
+}
+
+function buildLatestRoomRunSummary(snapshot: ReturnType<typeof replayRoom>): ConsoleRoomRunSummary | null {
+  const latestRun = [...snapshot.runs].sort((left, right) => compareDescending(left.startedAt, right.startedAt))[0];
+  if (!latestRun) {
+    return null;
+  }
+
+  const startedAtMs = Date.parse(latestRun.startedAt);
+  const completedAtMs = latestRun.completedAt ? Date.parse(latestRun.completedAt) : Date.now();
+  const durationMs =
+    Number.isFinite(startedAtMs) && Number.isFinite(completedAtMs) && completedAtMs >= startedAtMs
+      ? completedAtMs - startedAtMs
+      : null;
+
+  return {
+    runId: latestRun.runId,
+    revision: latestRun.revision,
+    status: latestRun.status,
+    startedAt: latestRun.startedAt,
+    completedAt: latestRun.completedAt ?? null,
+    durationMs
+  };
+}
+
+function resolveRoomDisplayTitle(input: {
+  roomKey: string;
+  latestSubject: string | null;
+  latestPreSummary: string | null;
+  taskTitle: string | null;
+  taskSummary: string | null;
+}) {
+  return (
+    normalizeTitleCandidate(input.taskTitle) ??
+    normalizeTitleCandidate(input.taskSummary) ??
+    normalizeTitleCandidate(input.latestPreSummary) ??
+    normalizeTitleCandidate(input.latestSubject) ??
+    input.roomKey
+  );
+}
+
+function normalizeTitleCandidate(value: string | null | undefined) {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (!normalized) {
+    return null;
+  }
+  return normalized.length > 120 ? `${normalized.slice(0, 117)}...` : normalized;
+}
+
+function summarizeMailBody(value: string | null | undefined) {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (!normalized) {
+    return null;
+  }
+  return normalized.length > 220 ? `${normalized.slice(0, 217)}...` : normalized;
 }
 
 function buildRoomTaskSummaries(snapshot: ReturnType<typeof replayRoom>): ConsoleMailTaskSummary[] {
