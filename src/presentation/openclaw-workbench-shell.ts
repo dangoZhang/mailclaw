@@ -1311,6 +1311,13 @@ select {
   display: none;
 }
 
+.card-title--clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
 .title {
   color: var(--text-strong);
   font-weight: 600;
@@ -1886,6 +1893,13 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           noReusableSkillSources: "No reusable local skill sources are available yet.",
           batchInstallRequiresTarget: "Target agent and account are required before reusing all skills.",
           skillInstallRequiresTarget: "Target agent and source are required before installing a skill.",
+          agentCountLabel: "agents",
+          messageCountLabel: "messages",
+          roomStateOpen: "Open",
+          durableAgentsLabel: "durable",
+          burstWorkersLabel: "burst",
+          subagentLabel: "subagents",
+          complexTaskLabel: "complex tasks",
           roomCountLabel: "rooms",
           skillCountLabel: "skills",
           mailboxCountLabel: "mailboxes",
@@ -2279,6 +2293,13 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           noReusableSkillSources: "当前还没有可复用的本地技能来源。",
           batchInstallRequiresTarget: "一键复用全部技能前，必须先确定账户和目标智能体。",
           skillInstallRequiresTarget: "安装技能前，必须先提供目标智能体和来源。",
+          agentCountLabel: "智能体",
+          messageCountLabel: "邮件",
+          roomStateOpen: "进行中",
+          durableAgentsLabel: "常驻",
+          burstWorkersLabel: "弹性",
+          subagentLabel: "子代理",
+          complexTaskLabel: "复杂任务",
           roomCountLabel: "房间",
           skillCountLabel: "技能",
           mailboxCountLabel: "邮箱",
@@ -2672,6 +2693,13 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           noReusableSkillSources: "Aucune source locale réutilisable n’est disponible pour le moment.",
           batchInstallRequiresTarget: "Un compte et un agent cible sont requis avant de réutiliser toutes les compétences.",
           skillInstallRequiresTarget: "Un agent cible et une source sont requis avant d’installer une compétence.",
+          agentCountLabel: "agents",
+          messageCountLabel: "messages",
+          roomStateOpen: "Ouverte",
+          durableAgentsLabel: "durables",
+          burstWorkersLabel: "burst",
+          subagentLabel: "sous-agents",
+          complexTaskLabel: "tâches complexes",
           roomCountLabel: "rooms",
           skillCountLabel: "compétences",
           mailboxCountLabel: "mailboxes",
@@ -2981,8 +3009,10 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         if (segments[0] === "connect") {
           parsed.mode = "home";
         }
-        if (segments[0] === "accounts" && segments[1]) {
-          parsed.accountId = decodeURIComponent(segments[1]);
+        if (segments[0] === "accounts") {
+          if (segments[1]) {
+            parsed.accountId = decodeURIComponent(segments[1]);
+          }
           parsed.mode = "accounts";
         }
         if (segments[0] === "agents") {
@@ -2991,8 +3021,10 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         if (segments[0] === "skills") {
           parsed.mode = "skills";
         }
-        if (segments[0] === "rooms" && segments[1]) {
-          parsed.roomKey = decodeURIComponent(segments[1]);
+        if (segments[0] === "rooms") {
+          if (segments[1]) {
+            parsed.roomKey = decodeURIComponent(segments[1]);
+          }
           parsed.mode = "rooms";
         }
         if (segments[0] === "inboxes" && segments[1] && segments[2]) {
@@ -3995,7 +4027,6 @@ export function renderOpenClawWorkbenchShellHtml(input: {
             : t("passwordPlaceholder");
         return (
           '<div class="setup-stack">' +
-          '<div class="detail">' + escapeHtmlClient(t("passwordPathCopy")) + '</div>' +
           (secretAutomationReason ? '<div class="field-note">' + escapeHtmlClient(secretAutomationReason) + '</div>' : '') +
           '<label><div class="section-label">' + escapeHtmlClient(secretLabel) + '</div><input class="console-input" data-connect-field="password" type="password" placeholder="' + escapeHtmlClient(secretPlaceholder) + '" value="' + escapeHtmlClient(setup.password || "") + '" /></label>' +
           '<div class="actions-inline">' +
@@ -4091,25 +4122,51 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         return 36;
       }
 
+      function getRoomStatusLabel(room) {
+        if (!room) {
+          return "open";
+        }
+        if (room.state === "done") {
+          return t("runtimeCompleted");
+        }
+        if (room.state === "failed") {
+          return t("runtimeFailed");
+        }
+        if (room.state === "idle") {
+          return t("roomStateOpen");
+        }
+        if (isWorkingRoom(room)) {
+          return t("runtimeRunning");
+        }
+        return room.state || "open";
+      }
+
+      function getRuntimeStatusLabel(run, room) {
+        if (run) {
+          return t(run.status === "running" ? "runtimeRunning" : run.status === "failed" ? "runtimeFailed" : "runtimeCompleted");
+        }
+        return getRoomStatusLabel(room);
+      }
+
       function renderRoomCard(room) {
         const working = isWorkingRoom(room);
         const cardClass = "list-card" + (working ? " list-card--working" : "") + (room.roomKey === state.route.roomKey ? " active" : "");
         const statusMarkup =
           '<span class="status-row">' +
           (room.state === "done" ? '<span class="status-dot status-dot--done" aria-hidden="true"></span>' : "") +
-          renderPill(room.state || "open", "") +
+          renderPill(getRoomStatusLabel(room), room.state === "done" ? "pill--ok" : working ? "pill--warn" : "") +
           '</span>';
         return (
           '<button class="' + cardClass + '" data-action="select-room" data-room-key="' + escapeHtmlClient(room.roomKey) + '" data-account-id="' + escapeHtmlClient(room.accountId || "") + '">' +
           '<div class="card-top">' +
           '<div>' +
-          '<div class="card-title">' + escapeHtmlClient(getRoomDisplayTitle(room)) + "</div>" +
+          '<div class="card-title card-title--clamp">' + escapeHtmlClient(getRoomDisplayTitle(room)) + "</div>" +
           "</div>" +
           statusMarkup +
           "</div>" +
           '<div class="chips">' +
-          renderPill(String(room.visibleAgentCount || 0) + " " + t("agents"), "") +
-          renderPill(String(room.messageCount || 0) + " mail", "") +
+          renderPill(String(room.visibleAgentCount || 0) + " " + t("agentCountLabel"), "") +
+          renderPill(String(room.messageCount || 0) + " " + t("messageCountLabel"), "") +
           (Number(room.pendingApprovalCount || 0) > 0
             ? renderPill(String(room.pendingApprovalCount || 0) + " approvals", "pill--warn")
             : "") +
@@ -4244,20 +4301,81 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         return '<button class="link-chip' + (mailboxId === state.route.mailboxId ? " active" : "") + '" data-action="select-mailbox" data-account-id="' + escapeHtmlClient(resolvedAccountId) + '" data-mailbox-id="' + escapeHtmlClient(mailboxId) + '"' + (roomKey ? ' data-room-key="' + escapeHtmlClient(roomKey) + '"' : "") + ">" + escapeHtmlClient(mailboxId) + "</button>";
       }
 
+      function isComplexAgentTemplate(template) {
+        const persistentCount = template && template.headcount ? Number(template.headcount.persistentAgents || 0) : 0;
+        const burstCount = template && template.headcount ? Number(template.headcount.burstTargets || 0) : 0;
+        return persistentCount >= 5 || burstCount >= 2;
+      }
+
+      function getTemplatePresentation(template) {
+        const fallbackAgents = (template.persistentAgents || []).map(function(agent) {
+          return agent.displayName || agent.agentId;
+        }).filter(Boolean).join(", ");
+
+        if (state.locale !== "zh-CN") {
+          return {
+            displayName: template.displayName || template.templateId || "template",
+            summary: template.summary || "",
+            inspiration: template.inspiration || "",
+            agentLine: fallbackAgents
+          };
+        }
+
+        if (template.templateId === "diplomat-front-desk") {
+          return {
+            displayName: "外交前台",
+            summary: "默认对外编组，由外交前台接收外部邮件、创建房间、招募协作者，并发送受控回复。",
+            inspiration: "邮件前台",
+            agentLine: "外交前台、研究台、运营台"
+          };
+        }
+
+        if (template.templateId === "one-person-company") {
+          return {
+            displayName: "单人公司",
+            summary: "一个前台操作员配合常驻专业角色和弹性工作单元，在同一收件箱后完成分工。",
+            inspiration: "单人运营公司",
+            agentLine: "创始人前台、研究负责人、运营台"
+          };
+        }
+
+        if (template.templateId === "three-provinces-six-departments") {
+          return {
+            displayName: "三省六部",
+            summary: "把太子、三省、六部映射为常驻收件角色，适合高复杂度、强治理、多工种协作任务。",
+            inspiration: "三省六部",
+            agentLine: "太子、中书省、门下省、尚书省等 10 个角色"
+          };
+        }
+
+        return {
+          displayName: template.displayName || template.templateId || "template",
+          summary: template.summary || "",
+          inspiration: template.inspiration || "",
+          agentLine: fallbackAgents
+        };
+      }
+
       function renderAgentTemplateCard(template, connect) {
         const accountId = connect && connect.templateApplyAccountId ? connect.templateApplyAccountId : "";
         const tenantId = connect && connect.templateApplyTenantId ? connect.templateApplyTenantId : "";
         const canApply = accountId.length > 0;
+        const persistentCount = Number((template.headcount && template.headcount.persistentAgents) || 0);
+        const burstCount = Number((template.headcount && template.headcount.burstTargets) || 0);
+        const subagentCount = Array.isArray(template.subagentTargets) ? template.subagentTargets.length : 0;
+        const presentation = getTemplatePresentation(template);
         return (
           '<div class="timeline-entry">' +
-          '<div class="meta"><span>' + escapeHtmlClient(template.displayName || template.templateId || "template") + '</span><span>' + escapeHtmlClient(String((template.headcount && template.headcount.persistentAgents) || 0) + " " + t("agents")) + "</span></div>" +
-          '<div class="title">' + escapeHtmlClient(template.summary || "") + "</div>" +
-          '<div class="detail">' + escapeHtmlClient(template.inspiration || "") + "</div>" +
+          '<div class="meta"><span>' + escapeHtmlClient(presentation.displayName) + '</span><span>' + escapeHtmlClient(String(persistentCount) + " " + t("agentCountLabel")) + "</span></div>" +
+          '<div class="title">' + escapeHtmlClient(presentation.summary) + "</div>" +
+          '<div class="detail">' + escapeHtmlClient(presentation.inspiration) + "</div>" +
           '<div class="chips">' +
-          renderPill(template.templateId || "template", "") +
-          renderPill("burst " + String((template.headcount && template.headcount.burstTargets) || 0), "") +
+          (isComplexAgentTemplate(template) ? renderPill(t("complexTaskLabel"), "pill--warn") : "") +
+          renderPill(t("durableAgentsLabel") + " " + String(persistentCount), "") +
+          (burstCount > 0 ? renderPill(t("burstWorkersLabel") + " " + String(burstCount), "") : "") +
+          (subagentCount > 0 ? renderPill(t("subagentLabel") + " " + String(subagentCount), "") : "") +
           "</div>" +
-          '<div class="detail">' + escapeHtmlClient(((template.persistentAgents || []).map(function(agent) { return agent.displayName || agent.agentId; }).join(", ")) || t("agents")) + "</div>" +
+          '<div class="detail">' + escapeHtmlClient(presentation.agentLine || t("agents")) + "</div>" +
           (canApply
             ? '<div class="actions-inline"><button class="btn" data-action="apply-agent-template" data-template-id="' + escapeHtmlClient(template.templateId || "") + '" data-account-id="' + escapeHtmlClient(accountId) + '" data-tenant-id="' + escapeHtmlClient(tenantId || accountId) + '">' + escapeHtmlClient(t("applyTemplate")) + '</button></div>'
             : '<div class="detail">' + escapeHtmlClient(t("templateNeedsAccount")) + '</div>') +
@@ -4288,7 +4406,9 @@ export function renderOpenClawWorkbenchShellHtml(input: {
               (entry.soulPath ? renderPill(t("soulLabel"), "pill--ok") : "") +
               '</div>'
             : "") +
-          '<div class="timeline-entry__actions"><button class="btn" data-action="select-agent" data-agent-id="' + escapeHtmlClient(entry.agentId || "") + '">' + escapeHtmlClient(selected ? t("selectedAgent") : t("manageAgent")) + '</button></div>' +
+          (!selected
+            ? '<div class="timeline-entry__actions"><button class="btn" data-action="select-agent" data-agent-id="' + escapeHtmlClient(entry.agentId || "") + '">' + escapeHtmlClient(t("manageAgent")) + '</button></div>'
+            : "") +
           "</div>"
         );
       }
@@ -4347,8 +4467,10 @@ export function renderOpenClawWorkbenchShellHtml(input: {
             : profileStatus.tone === "danger"
               ? "setup-note setup-note--danger"
               : "setup-note setup-note--ok";
+        const selectedSkillsCount = selectedSkills.length;
         return (
           '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(selected.displayName || selectedAgentId) + '</h3></div><div class="panel-body">' +
+          '<details class="advanced-settings" open><summary>' + escapeHtmlClient(t("agentProfileLabel")) + '</summary>' +
           '<div class="detail-grid">' +
           '<label><div class="section-label">' + escapeHtmlClient(t("displayNameLabel")) + '</div><input class="console-input" data-agent-profile-field="displayName" value="' + escapeHtmlClient(profileDisplayName) + '" /></label>' +
           '</div>' +
@@ -4357,10 +4479,13 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           '<div class="actions-inline">' +
           '<button class="btn primary" data-action="save-agent-profile" data-agent-id="' + escapeHtmlClient(selectedAgentId) + '" data-tenant-id="' + escapeHtmlClient(selectedTenantId) + '" data-account-id="' + escapeHtmlClient(selectedAccountId) + '">' + escapeHtmlClient(t("saveAgentProfile")) + '</button>' +
           '</div>' +
-          '<div class="section-label">' + escapeHtmlClient(t("installedSkills")) + '</div>' +
+          '</details>' +
+          '<details class="advanced-settings"><summary>' + escapeHtmlClient(t("installedSkills")) + ' · ' + escapeHtmlClient(String(selectedSkillsCount)) + '</summary>' +
           (selectedSkills.length > 0
             ? '<div class="mailbox-feed">' + selectedSkills.map(function(skill) { return renderAgentSkillCard(selectedAgentId, skill, { agentLabel: selected.displayName || selectedAgentId, selectable: false }); }).join("") + '</div>'
             : '<div class="detail">' + escapeHtmlClient(t("noSkillsDiscovered")) + '</div>') +
+          '</details>' +
+          '<details class="advanced-settings"><summary>' + escapeHtmlClient(t("soulLabel")) + '</summary>' +
           (soulStatus ? '<div class="' + noteClass + '">' + escapeHtmlClient(soulStatus.message) + '</div>' : '') +
           '<label><div class="section-label">' + escapeHtmlClient(t("soulLabel")) + '</div><textarea class="console-textarea" data-agent-soul-field="content" placeholder="' + escapeHtmlClient(t("soulPlaceholder")) + '">' + escapeHtmlClient(soulContent) + '</textarea></label>' +
           '<div class="actions-inline">' +
@@ -4368,6 +4493,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           '<button class="btn primary" data-action="save-agent-soul" data-agent-id="' + escapeHtmlClient(selectedAgentId) + '">' + escapeHtmlClient(t("saveSoul")) + '</button>' +
           '<button class="btn danger" data-action="delete-agent" data-agent-id="' + escapeHtmlClient(selectedAgentId) + '">' + escapeHtmlClient(t("deleteAgent")) + '</button>' +
           '</div>' +
+          '</details>' +
           '</div></div>'
         );
       }
@@ -4485,6 +4611,12 @@ export function renderOpenClawWorkbenchShellHtml(input: {
       function renderSharedSkillCreatePanel(connect) {
         const stored = state.connect || {};
         const status = stored.sharedSkillStatus || null;
+        const createOpen = Boolean(
+          status ||
+          (stored.sharedSkillId && String(stored.sharedSkillId).trim().length > 0) ||
+          (stored.sharedSkillTitle && String(stored.sharedSkillTitle).trim().length > 0) ||
+          (stored.sharedSkillContent && String(stored.sharedSkillContent).trim().length > 0)
+        );
         const noteClass =
           !status
             ? "setup-note"
@@ -4492,7 +4624,8 @@ export function renderOpenClawWorkbenchShellHtml(input: {
               ? "setup-note setup-note--danger"
               : "setup-note setup-note--ok";
         return (
-          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("createSkill")) + '</h3><span class="muted">' + escapeHtmlClient(t("sharedLibrary")) + '</span></div><div class="panel-body">' +
+          '<div class="panel"><div class="panel-body">' +
+          '<details class="advanced-settings"' + (createOpen ? " open" : "") + '><summary>' + escapeHtmlClient(t("createSkill")) + '</summary>' +
           (status ? '<div class="' + noteClass + '">' + escapeHtmlClient(status.message || "") + '</div>' : '') +
           '<div class="detail-grid">' +
           '<label><div class="section-label">' + escapeHtmlClient(t("skillIdLabel")) + '</div><input class="console-input" data-shared-skill-field="skillId" placeholder="follow-up-skill" value="' + escapeHtmlClient(stored.sharedSkillId || "") + '" /></label>' +
@@ -4502,6 +4635,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           (connect && connect.templateApplyTenantId
             ? '<div class="actions-inline"><button class="btn primary" data-action="create-shared-skill" data-tenant-id="' + escapeHtmlClient(connect.templateApplyTenantId || "default") + '" data-account-id="' + escapeHtmlClient(connect.templateApplyAccountId || "") + '">' + escapeHtmlClient(t("saveSkill")) + '</button></div>'
             : '<div class="detail">' + escapeHtmlClient(t("connectAccountFirst")) + '</div>') +
+          '</details>' +
           '</div></div>'
         );
       }
@@ -4741,12 +4875,12 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           "</div></div>" +
           '</div>' +
           '<div class="workspace-split__side">' +
-          selectedAgentPanel +
           '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("agentTemplates")) + '</h3><span class="muted">' + escapeHtmlClient(t("presetsCount", { count: String(templates.length) })) + '</span></div><div class="panel-body">' +
           (templates.length > 0
             ? '<div class="mailbox-feed">' + templates.map(function(template) { return renderAgentTemplateCard(template, connect); }).join("") + "</div>"
             : '<div class="empty">' + escapeHtmlClient(t("noAgentTemplatesAvailable")) + '</div>') +
           "</div></div>" +
+          selectedAgentPanel +
           '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("customAgent")) + '</h3><span class="muted">' + escapeHtmlClient(t("durableSoulMailbox")) + '</span></div><div class="panel-body">' +
           '<div class="detail">' + escapeHtmlClient(t("createDurableAgentCopy")) + '</div>' +
           '<div class="detail-grid">' +
@@ -4803,7 +4937,6 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           '<div class="workspace-split">' +
           '<div class="workspace-split__main">' +
           '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("availableSkills")) + '</h3><span class="muted">' + escapeHtmlClient(t("visibleSkillsCount", { count: String(skills.reduce(function(total, entry) { return total + ((entry.skills || []).length || 0); }, 0)) })) + '</span></div><div class="panel-body">' +
-          '<div class="detail">' + escapeHtmlClient(t("builtInSkillsNote")) + '</div>' +
           (skills.length > 0
             ? '<div class="mailbox-feed">' + skills.map(renderAgentSkillGroup).join("") + "</div>"
             : '<div class="empty">' + escapeHtmlClient(t("noDurableAgentSkills")) + '</div>') +
@@ -5106,6 +5239,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const publicMails = Array.isArray(roomDetail.publicMails) ? roomDetail.publicMails : [];
         const threadMails = (taskMail ? [taskMail] : []).concat(publicMails);
         const latestRun = roomDetail.latestRun || null;
+        const statusLabel = getRuntimeStatusLabel(latestRun, room);
         const visibleAgents = getRoomVisibleAgents(room);
         const roomAgentEntries = getRoomAgentMailboxEntries(roomDetail);
         const currentAgentCount = roomAgentEntries.length > 0 ? roomAgentEntries.length : visibleAgents.length;
@@ -5121,20 +5255,10 @@ export function renderOpenClawWorkbenchShellHtml(input: {
             summaryItems: [
               { label: t("threadMailPanel"), value: String(threadMails.length) },
               { label: t("agents"), value: String(currentAgentCount) },
-              { label: t("runtimeDurationLabel"), value: latestRun ? formatDurationMs(latestRun.durationMs) : t("durationNotAvailable") }
+              { label: t("runtimeStatusLabel"), value: statusLabel }
             ]
           }) +
-          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("roomSummary")) + '</h3><span class="muted code">' + escapeHtmlClient(room.roomKey) + '</span></div><div class="panel-body">' +
-          '<div class="detail">' + escapeHtmlClient(t("roomFocusCopy")) + '</div>' +
-          '<div class="detail-grid">' +
-          renderMetric(t("runtimeStatusLabel"), latestRun ? t(latestRun.status === "running" ? "runtimeRunning" : latestRun.status === "failed" ? "runtimeFailed" : "runtimeCompleted") : t("durationNotAvailable")) +
-          renderMetric(t("runtimeDurationLabel"), latestRun ? formatDurationMs(latestRun.durationMs) : t("durationNotAvailable")) +
-          renderMetric(t("agents"), currentAgentCount) +
-          renderMetric(t("threadMailPanel"), threadMails.length) +
-          '</div>' +
-          '</div></div>' +
           '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("threadMailPanel")) + '</h3><span class="muted">' + escapeHtmlClient(String(threadMails.length)) + '</span></div><div class="panel-body">' +
-          '<div class="detail">' + escapeHtmlClient(t("threadMailCopy")) + '</div>' +
           (threadMails.length > 0
             ? '<div class="source-mail-list">' + threadMails.map(function(mail, index) {
                 return renderSourceMailCard(mail, {
@@ -5145,7 +5269,6 @@ export function renderOpenClawWorkbenchShellHtml(input: {
             : '<div class="empty">' + escapeHtmlClient(t("noThreadMail")) + '</div>') +
           '</div></div>' +
           '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("currentAgentsPanel")) + '</h3></div><div class="panel-body">' +
-          '<div class="detail">' + escapeHtmlClient(t("currentAgentsCopy")) + '</div>' +
           (roomAgentEntries.length > 0
             ? '<div class="source-mail-list">' + roomAgentEntries.map(function(entry) {
                 return renderRoomAgentMailboxCard(entry, room);
@@ -5155,7 +5278,6 @@ export function renderOpenClawWorkbenchShellHtml(input: {
             : '<div class="empty">' + escapeHtmlClient(t("noAgentsVisible")) + '</div>') +
           '</div></div>' +
           '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("latestRuntimePanel")) + '</h3></div><div class="panel-body">' +
-          '<div class="detail">' + escapeHtmlClient(t("latestRuntimeCopy")) + '</div>' +
           (latestRun
             ? '<div class="detail-grid">' +
               renderMetric(t("runtimeStatusLabel"), t(latestRun.status === "running" ? "runtimeRunning" : latestRun.status === "failed" ? "runtimeFailed" : "runtimeCompleted")) +
@@ -5260,7 +5382,10 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           pageSub.textContent = "";
         }
         if (breadcrumb) {
+          const roomDetail = state.data && state.data.roomDetail && state.data.roomDetail.room ? state.data.roomDetail.room : null;
+          const roomLabel = roomDetail ? getRoomDisplayTitle(roomDetail) : "";
           breadcrumb.textContent =
+            roomLabel ||
             state.route.roomKey ||
             state.route.mailboxId ||
             state.route.inboxId ||
