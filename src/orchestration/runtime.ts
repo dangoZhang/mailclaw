@@ -104,6 +104,8 @@ import {
   recommendAgentHeadcount
 } from "../agents/templates.js";
 import {
+  createSharedSkill as createSharedSkillFile,
+  deleteAgentWorkspace,
   approveAgentMemoryDraft,
   createAgentMemoryDraftFromLatestRoomSnapshot,
   ensureAgentWorkspace,
@@ -111,11 +113,15 @@ import {
   getAgentWorkspaceSkill,
   getTenantStateDir,
   installAgentWorkspaceSkill,
+  listReusableSkillSources,
+  listSharedSkills,
   listAgentMemoryDrafts,
   listAgentWorkspaceSkills,
+  readAgentSoul as readAgentSoulFile,
   rejectAgentMemoryDraft,
   resolveAgentMemoryDraftNamespaces,
-  reviewAgentMemoryDraft
+  reviewAgentMemoryDraft,
+  writeAgentSoul as writeAgentSoulFile
 } from "../memory/agent-memory.js";
 import {
   consoleBoundaries,
@@ -231,6 +237,7 @@ import {
 } from "../inbox/projector.js";
 import { schedulePublicAgentInbox } from "../inbox/scheduler.js";
 import {
+  deleteSubAgentTargetsForAccountMailbox,
   getSubAgentTarget,
   getSubAgentTargetByMailboxId,
   listSubAgentTargetsForAccount,
@@ -239,12 +246,16 @@ import {
 import { listSubAgentRunsForRoom } from "../storage/repositories/subagent-runs.js";
 import { listProjectAggregates } from "../storage/repositories/project-aggregates.js";
 import {
+  deletePublicAgentInboxForAccountAgent,
   getPublicAgentInbox,
   listPublicAgentInboxesForAccount,
   savePublicAgentInbox
 } from "../storage/repositories/public-agent-inboxes.js";
 import { getInboxItem, getInboxItemForRoom, listInboxItemsForInbox } from "../storage/repositories/inbox-items.js";
-import { listVirtualMailboxesForAccount } from "../storage/repositories/virtual-mailboxes.js";
+import {
+  deleteVirtualMailboxesForAccountPrincipal,
+  listVirtualMailboxesForAccount
+} from "../storage/repositories/virtual-mailboxes.js";
 import {
   getOAuthLoginSession,
   getOAuthLoginSessionByState,
@@ -1451,6 +1462,8 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
       tenantId: templateTenantId,
       accountId: templateAccountId ?? undefined
     });
+    const reusableSkills = listReusableSkillSources(deps.config, templateTenantId);
+    const sharedSkills = listSharedSkills(deps.config, templateTenantId);
     const visibleSkillCount = skills.reduce((total, entry) => total + (entry.skills?.length ?? 0), 0);
     const standaloneBasePath = "/workbench/mail";
     const embeddedBasePath = "/workbench/mail/tab";
@@ -1583,6 +1596,8 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
         agentTemplates: listConfiguredAgentTemplates(),
         agentDirectory,
         skills,
+        reusableSkills,
+        sharedSkills,
         headcountRecommendations: listHeadcountRecommendations(templateAccountId ?? undefined)
       },
       mailboxWorkspace: input.selectedAccountId
@@ -2652,6 +2667,77 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
       now?: string;
     }) {
       return installAgentWorkspaceSkill(deps.config, input);
+    },
+    listReusableSkills(input: {
+      tenantId: string;
+    }) {
+      return {
+        shared: listSharedSkills(deps.config, input.tenantId),
+        reusable: listReusableSkillSources(deps.config, input.tenantId)
+      };
+    },
+    createSharedSkill(input: {
+      tenantId: string;
+      skillId?: string;
+      title?: string;
+      content: string;
+    }) {
+      return createSharedSkillFile(deps.config, input);
+    },
+    readAgentSoul(input: {
+      tenantId: string;
+      agentId: string;
+    }) {
+      return {
+        agentId: input.agentId,
+        content: readAgentSoulFile(deps.config, input.tenantId, input.agentId)
+      };
+    },
+    writeAgentSoul(input: {
+      tenantId: string;
+      agentId: string;
+      content: string;
+    }) {
+      return writeAgentSoulFile(deps.config, input);
+    },
+    deleteAgent(input: {
+      tenantId: string;
+      accountId: string;
+      agentId: string;
+    }) {
+      const normalizedAgentId = normalizeAgentId(input.agentId);
+      if (!normalizedAgentId) {
+        throw new RuntimeApiError("agentId is required", 400);
+      }
+      const linkedRooms = listThreadRooms(deps.db).filter(
+        (room) =>
+          room.accountId === input.accountId &&
+          (normalizeAgentId(room.frontAgentId) === normalizedAgentId ||
+            (room.publicAgentIds ?? []).some((entry) => normalizeAgentId(entry) === normalizedAgentId) ||
+            (room.collaboratorAgentIds ?? []).some((entry) => normalizeAgentId(entry) === normalizedAgentId))
+      );
+      if (linkedRooms.length > 0) {
+        throw new RuntimeApiError(`agent is still linked to ${linkedRooms.length} room(s)`, 409);
+      }
+      deletePublicAgentInboxForAccountAgent(deps.db, input.accountId, normalizedAgentId);
+      deleteVirtualMailboxesForAccountPrincipal(deps.db, input.accountId, `principal:${normalizedAgentId}`);
+      deleteSubAgentTargetsForAccountMailbox(deps.db, input.accountId, `subagent:${normalizedAgentId}`);
+      deleteAgentWorkspace(deps.config, input.tenantId, normalizedAgentId);
+      const account = getMailAccount(deps.db, input.accountId);
+      if (account) {
+        upsertMailAccount(deps.db, {
+          ...account,
+          settings: stripAgentRoutingFromAccountSettings(account.settings, normalizedAgentId),
+          updatedAt: new Date().toISOString()
+        });
+      }
+      return {
+        agentId: normalizedAgentId,
+        agentDirectory: listAgentDirectory({
+          tenantId: input.tenantId,
+          accountId: input.accountId
+        })
+      };
     },
     projectRoomOutcomeToGateway(input: Parameters<typeof projectRoomOutcomeToGateway>[1]) {
       try {
@@ -4148,6 +4234,47 @@ function mergeAgentRoutingIntoAccountSettings(
       durableAgentIds: uniqueAgentIds(input.durableAgentIds),
       collaboratorAgentIds: uniqueAgentIds(input.collaboratorAgentIds),
       updatedAt: input.updatedAt
+    }
+  } satisfies Record<string, unknown>;
+}
+
+function stripAgentRoutingFromAccountSettings(currentSettings: Record<string, unknown>, agentId: string) {
+  const settings =
+    typeof currentSettings === "object" && currentSettings !== null
+      ? { ...currentSettings }
+      : {};
+  const priorRouting =
+    typeof settings.agentRouting === "object" && settings.agentRouting !== null
+      ? (settings.agentRouting as Record<string, unknown>)
+      : {};
+  const normalized = normalizeAgentId(agentId);
+  if (!normalized) {
+    return settings;
+  }
+  const nextDefaultFrontAgentId =
+    normalizeAgentId(typeof priorRouting.defaultFrontAgentId === "string" ? priorRouting.defaultFrontAgentId : undefined) === normalized
+      ? undefined
+      : normalizeAgentId(typeof priorRouting.defaultFrontAgentId === "string" ? priorRouting.defaultFrontAgentId : undefined);
+  const nextDurableAgentIds = uniqueAgentIds(
+    Array.isArray(priorRouting.durableAgentIds)
+      ? priorRouting.durableAgentIds.filter((value): value is string => typeof value === "string" && normalizeAgentId(value) !== normalized)
+      : []
+  );
+  const nextCollaboratorAgentIds = uniqueAgentIds(
+    Array.isArray(priorRouting.collaboratorAgentIds)
+      ? priorRouting.collaboratorAgentIds.filter((value): value is string => typeof value === "string" && normalizeAgentId(value) !== normalized)
+      : []
+  );
+
+  return {
+    ...settings,
+    agentRouting: {
+      ...priorRouting,
+      ...(typeof priorRouting.templateId === "string" ? { templateId: priorRouting.templateId } : {}),
+      defaultFrontAgentId: nextDefaultFrontAgentId,
+      durableAgentIds: nextDurableAgentIds,
+      collaboratorAgentIds: nextCollaboratorAgentIds,
+      updatedAt: new Date().toISOString()
     }
   } satisfies Record<string, unknown>;
 }

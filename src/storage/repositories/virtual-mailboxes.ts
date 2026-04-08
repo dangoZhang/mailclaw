@@ -133,6 +133,15 @@ export function listVirtualMailboxesForAccount(db: DatabaseSync, accountId: stri
   return rows.map(mapVirtualMailboxRow);
 }
 
+export function deleteVirtualMailboxesForAccountPrincipal(db: DatabaseSync, accountId: string, principalId: string) {
+  db.prepare(
+    `
+      DELETE FROM virtual_mailboxes
+      WHERE account_id = ? AND principal_id = ?;
+    `
+  ).run(accountId, principalId);
+}
+
 interface VirtualMailboxRow {
   mailbox_id: string;
   account_id: string;

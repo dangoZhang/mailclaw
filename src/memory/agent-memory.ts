@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
@@ -61,6 +62,20 @@ export interface AgentSkillDescriptor {
   sourceRef?: string;
 }
 
+export interface SharedSkillDescriptor {
+  skillId: string;
+  title: string;
+  path: string;
+  source: "shared";
+}
+
+export interface ReusableSkillSourceDescriptor {
+  skillId: string;
+  title: string;
+  path: string;
+  origin: "shared" | "openclaw";
+}
+
 export interface AgentWorkspaceProfile {
   displayName?: string;
   purpose?: string;
@@ -85,8 +100,45 @@ export function getTenantAgentDirectoryPath(config: AppConfig, tenantId: string)
   return path.join(getTenantStateDir(config, tenantId), "AGENT_DIRECTORY.md");
 }
 
+export function getTenantSharedSkillsDir(config: AppConfig, tenantId: string) {
+  return path.join(getTenantStateDir(config, tenantId), "skills");
+}
+
 export function getAgentStateDir(config: AppConfig, tenantId: string, agentId: string) {
   return path.join(getTenantStateDir(config, tenantId), "agents", toSafeStoragePathSegment(agentId, "agent"));
+}
+
+export function readAgentSoul(config: AppConfig, tenantId: string, agentId: string) {
+  const workspace = ensureAgentWorkspace(config, tenantId, agentId);
+  return fs.readFileSync(workspace.soulPath, "utf8");
+}
+
+export function writeAgentSoul(
+  config: AppConfig,
+  input: {
+    tenantId: string;
+    agentId: string;
+    content: string;
+  }
+) {
+  const workspace = ensureAgentWorkspace(config, input.tenantId, input.agentId);
+  const content = input.content.trim();
+  if (!content) {
+    throw new Error("soul content is required");
+  }
+  fs.writeFileSync(workspace.soulPath, content.endsWith("\n") ? content : `${content}\n`, "utf8");
+  return {
+    agentId: input.agentId,
+    soulPath: workspace.soulPath,
+    content: fs.readFileSync(workspace.soulPath, "utf8")
+  };
+}
+
+export function deleteAgentWorkspace(config: AppConfig, tenantId: string, agentId: string) {
+  const agentDir = getAgentStateDir(config, tenantId, agentId);
+  if (fs.existsSync(agentDir)) {
+    fs.rmSync(agentDir, { recursive: true, force: true });
+  }
 }
 
 export function ensureAgentWorkspace(
@@ -226,7 +278,7 @@ export async function installAgentWorkspaceSkill(
   const metadata = {
     skillId,
     title,
-    sourceRef: source,
+    sourceRef: resolved.source,
     installedAt
   };
 
@@ -234,6 +286,108 @@ export async function installAgentWorkspaceSkill(
   fs.writeFileSync(destinationPath, contents, "utf8");
 
   return describeSkillMarkdown(destinationPath, "managed");
+}
+
+export function listSharedSkills(config: AppConfig, tenantId: string): SharedSkillDescriptor[] {
+  const skillsDir = getTenantSharedSkillsDir(config, tenantId);
+  if (!fs.existsSync(skillsDir)) {
+    return [];
+  }
+  return fs
+    .readdirSync(skillsDir)
+    .filter((entry) => entry.endsWith(".md"))
+    .sort((left, right) => left.localeCompare(right))
+    .map((entry) => {
+      const fullPath = path.join(skillsDir, entry);
+      const content = fs.readFileSync(fullPath, "utf8");
+      const metadata = parseManagedSkillMetadata(content);
+      const skillId =
+        normalizeManagedSkillId(typeof metadata?.skillId === "string" ? metadata.skillId : undefined) ??
+        normalizeManagedSkillId(path.basename(fullPath, path.extname(fullPath))) ??
+        "skill";
+      const title = deriveSkillTitle(typeof metadata?.title === "string" ? metadata.title : undefined, content, skillId);
+      return {
+        skillId,
+        title,
+        path: fullPath,
+        source: "shared" as const
+      };
+    });
+}
+
+export function createSharedSkill(
+  config: AppConfig,
+  input: {
+    tenantId: string;
+    skillId?: string;
+    title?: string;
+    content: string;
+  }
+) {
+  const skillsDir = getTenantSharedSkillsDir(config, input.tenantId);
+  fs.mkdirSync(skillsDir, { recursive: true });
+  const trimmed = input.content.trim();
+  if (!trimmed) {
+    throw new Error("skill content is required");
+  }
+  const skillId = normalizeManagedSkillId(input.skillId ?? deriveSkillIdFromSource("shared", trimmed));
+  if (!skillId) {
+    throw new Error("skillId is required");
+  }
+  const title = deriveSkillTitle(input.title, trimmed, skillId);
+  const destinationPath = path.join(skillsDir, toSafeStorageFileName(skillId, ".md", "skill"));
+  const contents = wrapManagedSkillMarkdown(
+    {
+      skillId,
+      title,
+      sourceRef: destinationPath,
+      installedAt: new Date().toISOString()
+    },
+    trimmed
+  );
+  fs.writeFileSync(destinationPath, contents, "utf8");
+  return {
+    skillId,
+    title,
+    path: destinationPath,
+    source: "shared" as const
+  };
+}
+
+export function listReusableSkillSources(
+  config: AppConfig,
+  tenantId: string
+): ReusableSkillSourceDescriptor[] {
+  const shared = listSharedSkills(config, tenantId).map((entry) => ({
+    skillId: entry.skillId,
+    title: entry.title,
+    path: entry.path,
+    origin: "shared" as const
+  }));
+  const seen = new Set(shared.map((entry) => entry.path));
+  const discovered: ReusableSkillSourceDescriptor[] = [...shared];
+  for (const root of resolveOpenClawSkillRoots()) {
+    for (const skillPath of walkSkillMarkdownFiles(root, 5)) {
+      if (seen.has(skillPath)) {
+        continue;
+      }
+      seen.add(skillPath);
+      const content = fs.readFileSync(skillPath, "utf8");
+      const metadata = parseManagedSkillMetadata(content);
+      const skillId =
+        normalizeManagedSkillId(typeof metadata?.skillId === "string" ? metadata.skillId : undefined) ??
+        normalizeManagedSkillId(path.basename(path.dirname(skillPath))) ??
+        normalizeManagedSkillId(path.basename(skillPath, path.extname(skillPath))) ??
+        "skill";
+      discovered.push({
+        skillId,
+        title: deriveSkillTitle(typeof metadata?.title === "string" ? metadata.title : undefined, content, skillId),
+        path: skillPath,
+        origin: "openclaw"
+      });
+    }
+  }
+  return discovered.sort((left, right) => left.title.localeCompare(right.title));
 }
 
 export function createAgentMemoryDraft(
@@ -610,14 +764,22 @@ function wrapManagedSkillMarkdown(
 
 async function loadSkillSource(source: string) {
   if (source.startsWith("http://") || source.startsWith("https://")) {
-    const response = await fetch(source);
+    const resolvedSource = normalizeRemoteSkillSource(source);
+    const response = await fetch(resolvedSource);
     if (!response.ok) {
-      throw new Error(`failed to download skill from ${source}: ${response.status} ${response.statusText}`);
+      throw new Error(`failed to download skill from ${resolvedSource}: ${response.status} ${response.statusText}`);
+    }
+
+    const content = await response.text();
+    if (looksLikeHtmlDocument(content)) {
+      throw new Error(
+        `downloaded skill source resolved to HTML instead of markdown: ${resolvedSource}`
+      );
     }
 
     return {
-      source,
-      content: await response.text()
+      source: resolvedSource,
+      content
     };
   }
 
@@ -633,6 +795,26 @@ async function loadSkillSource(source: string) {
     source: resolvedPath,
     content: fs.readFileSync(resolvedPath, "utf8")
   };
+}
+
+function normalizeRemoteSkillSource(source: string) {
+  try {
+    const parsed = new URL(source);
+    parsed.hash = "";
+
+    if ((parsed.hostname === "github.com" || parsed.hostname === "www.github.com") && parsed.pathname.includes("/blob/")) {
+      parsed.pathname = parsed.pathname.replace("/blob/", "/raw/");
+    }
+
+    return parsed.toString();
+  } catch {
+    return source;
+  }
+}
+
+function looksLikeHtmlDocument(content: string) {
+  const normalized = content.trimStart().toLowerCase();
+  return normalized.startsWith("<!doctype html") || normalized.startsWith("<html");
 }
 
 function deriveSkillIdFromSource(source: string, content: string) {
@@ -841,6 +1023,46 @@ function ensureMarkdownFile(filePath: string, contents: string) {
   if (!fs.existsSync(filePath)) {
     fs.writeFileSync(filePath, contents, "utf8");
   }
+}
+
+function resolveOpenClawSkillRoots() {
+  const home = os.homedir();
+  return [
+    path.join(home, "openclaw"),
+    path.join(home, "OpenClaw"),
+    path.join(home, ".codex", "skills"),
+    path.join(home, ".codex", "plugins", "cache", "openai-curated")
+  ].filter((entry, index, array) => array.indexOf(entry) === index && fs.existsSync(entry));
+}
+
+function walkSkillMarkdownFiles(rootDir: string, maxDepth: number): string[] {
+  const results: string[] = [];
+  const walk = (currentDir: string, depth: number) => {
+    if (depth > maxDepth) {
+      return;
+    }
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(currentDir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const fullPath = path.join(currentDir, entry.name);
+      if (entry.isDirectory()) {
+        walk(fullPath, depth + 1);
+        continue;
+      }
+      if (
+        entry.isFile() &&
+        (entry.name === "SKILL.md" || entry.name.endsWith("-skill.md") || entry.name.endsWith(".skill.md"))
+      ) {
+        results.push(fullPath);
+      }
+    }
+  };
+  walk(rootDir, 0);
+  return results;
 }
 
 function ensureGeneratedMarkdownFile(filePath: string, contents: string) {

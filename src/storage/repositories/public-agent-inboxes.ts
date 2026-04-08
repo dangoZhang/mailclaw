@@ -108,6 +108,15 @@ export function listPublicAgentInboxesForAccount(db: DatabaseSync, accountId: st
   return rows.map(mapRow);
 }
 
+export function deletePublicAgentInboxForAccountAgent(db: DatabaseSync, accountId: string, agentId: string) {
+  db.prepare(
+    `
+      DELETE FROM public_agent_inboxes
+      WHERE account_id = ? AND agent_id = ?;
+    `
+  ).run(accountId, agentId);
+}
+
 interface PublicAgentInboxRow {
   inbox_id: string;
   account_id: string;

@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { loadConfig } from "../src/config.js";
 import {
@@ -29,6 +29,7 @@ import { toSafeStorageFileName, toSafeStoragePathSegment } from "../src/storage/
 const tempDirs: string[] = [];
 
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const tempDir of tempDirs.splice(0)) {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
@@ -317,6 +318,41 @@ describe("agent memory workspace", () => {
       ])
     );
     expect(inspected.content).toContain("Follow-up Skill");
+  });
+
+  it("normalizes common GitHub blob URLs before downloading managed skills", async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "mailclaws-agent-skills-remote-"));
+    tempDirs.push(tempDir);
+
+    const config = loadConfig({
+      MAILCLAW_STATE_DIR: tempDir,
+      MAILCLAW_SQLITE_PATH: path.join(tempDir, "mailclaws.sqlite")
+    });
+
+    ensureAgentWorkspace(config, "tenant-remote-skills", "assistant");
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      expect(String(input)).toBe("https://github.com/openclaw/skills/raw/main/reply/follow-up.md");
+      return new Response("# Downloaded Skill\n\n- Reuse the existing durable room state.\n", {
+        status: 200,
+        headers: {
+          "content-type": "text/markdown"
+        }
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const installed = await installAgentWorkspaceSkill(config, {
+      tenantId: "tenant-remote-skills",
+      agentId: "assistant",
+      source: "https://github.com/openclaw/skills/blob/main/reply/follow-up.md"
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(installed).toMatchObject({
+      skillId: "downloaded-skill",
+      source: "managed",
+      sourceRef: "https://github.com/openclaw/skills/raw/main/reply/follow-up.md"
+    });
   });
 
   it("renders richer SOUL and AGENTS files when a durable roster is known", () => {

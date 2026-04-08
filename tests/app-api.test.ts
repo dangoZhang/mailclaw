@@ -525,6 +525,10 @@ describe("app api", () => {
     const detailJson = (await detailResponse.json()) as {
       id: string;
       accountProvider: string;
+      credentialMode: string;
+      secretAutomation: string;
+      helpUrl?: string;
+      helpLabel?: string;
       inboundModes: string[];
       requiredEnvVars: string[];
     };
@@ -533,6 +537,8 @@ describe("app api", () => {
     expect(detailJson).toMatchObject({
       id: "gmail",
       accountProvider: "gmail",
+      credentialMode: "oauth_redirect",
+      secretAutomation: "supported",
       portalUrl: "https://mail.google.com/",
       portalLabel: "Open Gmail",
       authApi: expect.objectContaining({
@@ -632,16 +638,26 @@ describe("app api", () => {
     const json = (await response.json()) as {
       id: string;
       setupKind: string;
+      credentialMode: string;
+      secretAutomation: string;
+      secretAutomationReason: string;
       portalUrl: string;
       portalLabel: string;
+      helpUrl: string;
+      helpLabel: string;
     };
 
     expect(response.status).toBe(200);
     expect(json).toMatchObject({
       id: "qq",
       setupKind: "app_password",
+      credentialMode: "manual_authorization_code",
+      secretAutomation: "not_supported",
+      secretAutomationReason: expect.stringContaining("does not scrape or auto-read"),
       portalUrl: "https://mail.qq.com/",
-      portalLabel: "Open QQ Mail"
+      portalLabel: "Open QQ Mail",
+      helpUrl: "https://hiflow.tencent.com/docs/applications/qq-mail/",
+      helpLabel: "QQ Mail auth-code docs"
     });
 
     fixture.handle.close();
@@ -1651,6 +1667,8 @@ describe("app api", () => {
     expect(connectHtml).toContain("OpenClaw Workbench");
     expect(connectHtml).toContain("/console/workbench");
     expect(connectHtml).toContain("Runtime And LLM");
+    expect(connectHtml).toContain('data-locale="zh-CN"');
+    expect(connectHtml).toContain('data-locale="fr"');
     expect(connectHtml).not.toContain("<iframe");
     expect(() => new vm.Script(extractModuleScript(connectHtml))).not.toThrow();
 

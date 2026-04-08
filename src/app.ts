@@ -384,6 +384,17 @@ async function handleRequest(options: {
       return;
     }
 
+    if (mailApi && request.method === "GET" && requestUrl.pathname === "/api/skills/library") {
+      writeJson(
+        response,
+        200,
+        mailApi.listReusableSkills({
+          tenantId: requestUrl.searchParams.get("tenantId") ?? requestUrl.searchParams.get("accountId") ?? "default"
+        })
+      );
+      return;
+    }
+
     const skillMatch = mailApi ? requestUrl.pathname.match(/^\/api\/skills\/([^/]+)\/([^/]+)$/) : null;
     if (mailApi && request.method === "GET" && skillMatch) {
       writeJson(
@@ -393,6 +404,37 @@ async function handleRequest(options: {
           tenantId: requestUrl.searchParams.get("tenantId") ?? requestUrl.searchParams.get("accountId") ?? "default",
           agentId: decodeURIComponent(skillMatch[1] ?? ""),
           skillId: decodeURIComponent(skillMatch[2] ?? "")
+        })
+      );
+      return;
+    }
+
+    const agentSoulMatch = mailApi ? requestUrl.pathname.match(/^\/api\/console\/agents\/([^/]+)\/soul$/) : null;
+    if (mailApi && request.method === "GET" && agentSoulMatch) {
+      writeJson(
+        response,
+        200,
+        mailApi.readAgentSoul({
+          tenantId: requestUrl.searchParams.get("tenantId") ?? requestUrl.searchParams.get("accountId") ?? "default",
+          agentId: decodeURIComponent(agentSoulMatch[1] ?? "")
+        })
+      );
+      return;
+    }
+
+    if (mailApi && request.method === "PUT" && agentSoulMatch) {
+      const body = (await readJsonBody(request)) as {
+        tenantId?: string;
+        accountId?: string;
+        content?: string;
+      };
+      writeJson(
+        response,
+        200,
+        mailApi.writeAgentSoul({
+          tenantId: body.tenantId ?? body.accountId ?? requestUrl.searchParams.get("tenantId") ?? requestUrl.searchParams.get("accountId") ?? "default",
+          agentId: decodeURIComponent(agentSoulMatch[1] ?? ""),
+          content: requireStringBody(body.content, "content")
         })
       );
       return;
@@ -577,6 +619,41 @@ async function handleRequest(options: {
           source: typeof body.source === "string" ? body.source : "",
           skillId: typeof body.skillId === "string" ? body.skillId : undefined,
           title: typeof body.title === "string" ? body.title : undefined
+        })
+      );
+      return;
+    }
+
+    if (mailApi && request.method === "POST" && requestUrl.pathname === "/api/skills/library") {
+      const body = (await readJsonBody(request)) as {
+        tenantId?: string;
+        accountId?: string;
+        skillId?: string;
+        title?: string;
+        content?: string;
+      };
+      writeJson(
+        response,
+        200,
+        mailApi.createSharedSkill({
+          tenantId: body.tenantId ?? body.accountId ?? "default",
+          skillId: typeof body.skillId === "string" ? body.skillId : undefined,
+          title: typeof body.title === "string" ? body.title : undefined,
+          content: requireStringBody(body.content, "content")
+        })
+      );
+      return;
+    }
+
+    const deleteAgentMatch = mailApi ? requestUrl.pathname.match(/^\/api\/console\/agents\/([^/]+)$/) : null;
+    if (mailApi && request.method === "DELETE" && deleteAgentMatch) {
+      writeJson(
+        response,
+        200,
+        mailApi.deleteAgent({
+          accountId: requestUrl.searchParams.get("accountId") ?? "",
+          tenantId: requestUrl.searchParams.get("tenantId") ?? requestUrl.searchParams.get("accountId") ?? "default",
+          agentId: decodeURIComponent(deleteAgentMatch[1] ?? "")
         })
       );
       return;
@@ -907,6 +984,7 @@ async function handleRequest(options: {
         );
         return;
       }
+
     }
 
     if (mailApi && request.method === "POST" && requestUrl.pathname === "/api/outbox/deliver") {

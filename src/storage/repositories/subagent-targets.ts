@@ -156,6 +156,15 @@ export function listSubAgentTargetsForAccount(db: DatabaseSync, accountId: strin
   return rows.map(mapSubAgentTargetRow);
 }
 
+export function deleteSubAgentTargetsForAccountMailbox(db: DatabaseSync, accountId: string, mailboxId: string) {
+  db.prepare(
+    `
+      DELETE FROM subagent_targets
+      WHERE account_id = ? AND mailbox_id = ?;
+    `
+  ).run(accountId, mailboxId);
+}
+
 interface SubAgentTargetRow {
   target_id: string;
   account_id: string;
