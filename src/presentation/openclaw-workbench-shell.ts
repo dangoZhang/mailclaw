@@ -1129,6 +1129,28 @@ select {
   padding: 12px 14px;
 }
 
+.advanced-settings {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--bg-content) 82%, transparent);
+  padding: 12px 14px;
+}
+
+.advanced-settings > summary {
+  cursor: pointer;
+  color: var(--text-strong);
+  font-weight: 600;
+  list-style: none;
+}
+
+.advanced-settings > summary::-webkit-details-marker {
+  display: none;
+}
+
+.advanced-settings[open] > summary {
+  margin-bottom: 12px;
+}
+
 .setup-note--ok {
   border-color: color-mix(in srgb, var(--ok) 24%, transparent);
   background: color-mix(in srgb, var(--ok) 10%, var(--bg-content) 90%);
@@ -1669,6 +1691,13 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           targetLabel: "target",
           installLabel: "Install",
           connectAccountFirst: "Connect an account first.",
+          advancedSettings: "Advanced settings",
+          advancedSettingsCopy: "Only open this when the provider preset is wrong or you need to override IMAP/SMTP.",
+          availableSkills: "Available Skills",
+          sharedSkillsPanel: "Shared Skills",
+          reusableSkillSources: "One-Click Reuse",
+          reusableSkillSourcesCopy: "Pick an existing local skill source on the right and install it into a MailClaws agent in one step.",
+          noSharedSkillsYet: "No shared MailClaws skills yet.",
           providerHelp: "Provider Help",
           providerMail: "Open Provider Mail",
           oauthStartsHere: "Browser OAuth starts from this workbench. Leave client credentials blank when the server already has them in env.",
@@ -1954,6 +1983,13 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           targetLabel: "目标",
           installLabel: "安装",
           connectAccountFirst: "先连接一个账户。",
+          advancedSettings: "高级配置",
+          advancedSettingsCopy: "只有当 provider 预设不对，或者你需要手动覆盖 IMAP/SMTP 时才展开这里。",
+          availableSkills: "已有技能",
+          sharedSkillsPanel: "共享技能",
+          reusableSkillSources: "一键复用",
+          reusableSkillSourcesCopy: "右侧选择已有本地技能来源，一步安装到 MailClaws 智能体。",
+          noSharedSkillsYet: "当前还没有共享的 MailClaws 技能。",
           providerHelp: "提供方帮助",
           providerMail: "打开提供方邮箱",
           oauthStartsHere: "浏览器 OAuth 会直接从这个工作台发起。如果服务端环境变量里已经有 client 凭证，这里可以留空。",
@@ -2239,6 +2275,13 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           targetLabel: "cible",
           installLabel: "Installer",
           connectAccountFirst: "Connectez d’abord un compte.",
+          advancedSettings: "Réglages avancés",
+          advancedSettingsCopy: "Ouvrez ceci seulement si le preset provider est incorrect ou si vous devez forcer IMAP/SMTP.",
+          availableSkills: "Compétences disponibles",
+          sharedSkillsPanel: "Compétences partagées",
+          reusableSkillSources: "Réutilisation en un clic",
+          reusableSkillSourcesCopy: "Choisissez à droite une source locale existante et installez-la en une étape dans un agent MailClaws.",
+          noSharedSkillsYet: "Aucune compétence MailClaws partagée pour le moment.",
           providerHelp: "Aide provider",
           providerMail: "Ouvrir la mailbox provider",
           oauthStartsHere: "L’OAuth navigateur démarre depuis ce workbench. Laissez les identifiants client vides si le serveur les possède déjà dans l’environnement.",
@@ -2643,12 +2686,25 @@ export function renderOpenClawWorkbenchShellHtml(input: {
 
       function readConnectFormState(target) {
         const root = (target && target.closest(".connect-config-panel")) || document;
+        const defaults = getConnectSetupState();
         const stored = state.connect || {};
         return {
           emailAddress: readConnectField(root, "emailAddress"),
-          providerId: readConnectField(root, "providerId") || (typeof stored.providerId === "string" ? stored.providerId : ""),
-          accountId: readConnectField(root, "accountId") || (typeof stored.accountId === "string" ? stored.accountId : ""),
-          displayName: readConnectField(root, "displayName") || (typeof stored.displayName === "string" ? stored.displayName : ""),
+          providerId:
+            readConnectField(root, "providerId") ||
+            (typeof stored.providerId === "string" ? stored.providerId : "") ||
+            defaults.providerId ||
+            "",
+          accountId:
+            readConnectField(root, "accountId") ||
+            (typeof stored.accountId === "string" ? stored.accountId : "") ||
+            defaults.accountId ||
+            "",
+          displayName:
+            readConnectField(root, "displayName") ||
+            (typeof stored.displayName === "string" ? stored.displayName : "") ||
+            defaults.displayName ||
+            "",
           password: readConnectField(root, "password"),
           imapHost: readConnectField(root, "imapHost"),
           imapPort: readConnectField(root, "imapPort"),
@@ -2837,8 +2893,8 @@ export function renderOpenClawWorkbenchShellHtml(input: {
               '</div>'
             : '') +
           '<label><div class="section-label">' + escapeHtmlClient(secretLabel) + '</div><input class="console-input" data-connect-field="password" type="password" placeholder="' + escapeHtmlClient(secretPlaceholder) + '" value="' + escapeHtmlClient(setup.password || "") + '" /></label>' +
-          (!(setup.autoconfig && setup.autoconfig.imapHost && setup.autoconfig.smtpHost)
-            ? '<div class="detail-grid">' +
+          '<details class="advanced-settings"><summary>' + escapeHtmlClient(t("advancedSettings")) + '</summary><div class="field-note">' + escapeHtmlClient(t("advancedSettingsCopy")) + '</div>' +
+          '<div class="detail-grid">' +
           '<label><div class="section-label">' + escapeHtmlClient(t("imapHostLabel")) + '</div><input class="console-input" data-connect-field="imapHost" placeholder="imap.example.com" value="' + escapeHtmlClient(setup.imapHost || "") + '" /></label>' +
           '<label><div class="section-label">' + escapeHtmlClient(t("imapPortLabel")) + '</div><input class="console-input" data-connect-field="imapPort" inputmode="numeric" placeholder="993" value="' + escapeHtmlClient(setup.imapPort || "") + '" /></label>' +
           '<label><div class="section-label">' + escapeHtmlClient(t("imapSecureLabel")) + '</div><select class="console-input" data-connect-field="imapSecure"><option value="yes"' + (setup.imapSecure === "yes" ? ' selected' : '') + '>yes</option><option value="no"' + (setup.imapSecure === "no" ? ' selected' : '') + '>no</option></select></label>' +
@@ -2847,8 +2903,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           '<label><div class="section-label">' + escapeHtmlClient(t("smtpPortLabel")) + '</div><input class="console-input" data-connect-field="smtpPort" inputmode="numeric" placeholder="587" value="' + escapeHtmlClient(setup.smtpPort || "") + '" /></label>' +
           '<label><div class="section-label">' + escapeHtmlClient(t("smtpSecureLabel")) + '</div><select class="console-input" data-connect-field="smtpSecure"><option value="yes"' + (setup.smtpSecure === "yes" ? ' selected' : '') + '>yes</option><option value="no"' + (setup.smtpSecure === "no" ? ' selected' : '') + '>no</option></select></label>' +
           '<label><div class="section-label">' + escapeHtmlClient(t("smtpFromLabel")) + '</div><input class="console-input" data-connect-field="smtpFrom" placeholder="user@example.com" value="' + escapeHtmlClient(setup.smtpFrom || "") + '" /></label>' +
-          '</div>'
-            : '') +
+          '</div></details>' +
           '<div class="actions-inline"><button class="btn primary" data-action="save-password-mailbox">' + escapeHtmlClient(t("saveMailboxConfig")) + '</button></div>' +
           '</div>'
         );
@@ -3093,7 +3148,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
       function renderSelectedAgentPanel(connect) {
         const selected = getSelectedAgentEntry(connect);
         if (!selected) {
-          return '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("agentPanel")) + '</h3></div><div class="panel-body"><div class="empty">' + escapeHtmlClient(t("noVisibleAgentYet")) + '</div></div></div>';
+          return "";
         }
         const selectedAgentId = selected.agentId || "";
         const soulLoaded = state.connect && state.connect.agentSoulAgentId === selectedAgentId;
@@ -3260,6 +3315,16 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         );
       }
 
+      function renderSharedSkillCard(skill) {
+        return (
+          '<div class="timeline-entry">' +
+          '<div class="meta"><span>' + escapeHtmlClient(skill.title || skill.skillId || "skill") + '</span><span>' + escapeHtmlClient("mailclaws") + '</span></div>' +
+          '<div class="title code">' + escapeHtmlClient(skill.skillId || "skill") + '</div>' +
+          '<div class="detail code">' + escapeHtmlClient(skill.path || "") + '</div>' +
+          '</div>'
+        );
+      }
+
       function renderConnectHome() {
         const setup = getConnectSetupState();
         const connect = setup.connect;
@@ -3382,6 +3447,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const templates = connect && Array.isArray(connect.agentTemplates) ? connect.agentTemplates : [];
         const directory = connect && Array.isArray(connect.agentDirectory) ? connect.agentDirectory : [];
         const headcount = connect && Array.isArray(connect.headcountRecommendations) ? connect.headcountRecommendations : [];
+        const selectedAgentPanel = renderSelectedAgentPanel(connect);
         return (
           '<div class="mail-workbench-main">' +
           renderWorkspaceHero({
@@ -3404,7 +3470,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           "</div></div>" +
           '</div>' +
           '<div class="workspace-split__side">' +
-          renderSelectedAgentPanel(connect) +
+          selectedAgentPanel +
           '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("agentTemplates")) + '</h3><span class="muted">' + escapeHtmlClient(t("presetsCount", { count: String(templates.length) })) + '</span></div><div class="panel-body">' +
           (templates.length > 0
             ? '<div class="mailbox-feed">' + templates.map(function(template) { return renderAgentTemplateCard(template, connect); }).join("") + "</div>"
@@ -3458,28 +3524,34 @@ export function renderOpenClawWorkbenchShellHtml(input: {
             title: t("skillsTitle"),
             copy: t("skillsCopy"),
             summaryItems: [
-              { label: "agents", value: String(skills.length) },
-              { label: t("skills"), value: String(reusableSkills.length) },
+              { label: t("agents"), value: String(skills.length) },
+              { label: t("skills"), value: String(skills.reduce(function(total, entry) { return total + ((entry.skills || []).length || 0); }, 0)) },
               { label: t("builtInLabel"), value: "2" },
-              { label: "shared", value: String(sharedSkills.length) }
+              { label: t("sharedLabel"), value: String(sharedSkills.length) }
             ]
           }) +
           '<div class="workspace-split">' +
           '<div class="workspace-split__main">' +
-          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("reusableSkills")) + '</h3><span class="muted">' + escapeHtmlClient(String(reusableSkills.length)) + '</span></div><div class="panel-body">' +
-          (reusableSkills.length > 0
-            ? '<div class="mailbox-feed">' + reusableSkills.map(function(skill) { return renderReusableSkillCard(skill, connect); }).join("") + "</div>"
-            : '<div class="empty">' + escapeHtmlClient(t("noSkillsDiscovered")) + '</div>') +
-          "</div></div>" +
-          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("installedSkills")) + '</h3><span class="muted">' + escapeHtmlClient(t("visibleSkillsCount", { count: String(skills.reduce(function(total, entry) { return total + ((entry.skills || []).length || 0); }, 0)) })) + '</span></div><div class="panel-body">' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("availableSkills")) + '</h3><span class="muted">' + escapeHtmlClient(t("visibleSkillsCount", { count: String(skills.reduce(function(total, entry) { return total + ((entry.skills || []).length || 0); }, 0)) })) + '</span></div><div class="panel-body">' +
           '<div class="detail">' + escapeHtmlClient(t("builtInSkillsNote")) + '</div>' +
           (skills.length > 0
             ? '<div class="mailbox-feed">' + skills.map(renderAgentSkillGroup).join("") + "</div>"
             : '<div class="empty">' + escapeHtmlClient(t("noDurableAgentSkills")) + '</div>') +
           '</div></div>' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("sharedSkillsPanel")) + '</h3><span class="muted">' + escapeHtmlClient(String(sharedSkills.length)) + '</span></div><div class="panel-body">' +
+          (sharedSkills.length > 0
+            ? '<div class="mailbox-feed">' + sharedSkills.map(renderSharedSkillCard).join("") + "</div>"
+            : '<div class="empty">' + escapeHtmlClient(t("noSharedSkillsYet")) + '</div>') +
+          '</div></div>' +
           '</div>' +
           '<div class="workspace-split__side">' +
           renderSkillInstallPanel(connect) +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("reusableSkillSources")) + '</h3><span class="muted">' + escapeHtmlClient(String(reusableSkills.length)) + '</span></div><div class="panel-body">' +
+          '<div class="detail">' + escapeHtmlClient(t("reusableSkillSourcesCopy")) + '</div>' +
+          (reusableSkills.length > 0
+            ? '<div class="mailbox-feed">' + reusableSkills.map(function(skill) { return renderReusableSkillCard(skill, connect); }).join("") + "</div>"
+            : '<div class="empty">' + escapeHtmlClient(t("noSkillsDiscovered")) + '</div>') +
+          '</div></div>' +
           renderSharedSkillCreatePanel(connect) +
           '</div>' +
           '</div>' +
