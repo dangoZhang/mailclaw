@@ -1,4 +1,5 @@
 import http from "node:http";
+import fs from "node:fs";
 
 import type { AppConfig } from "./config.js";
 import { discoverMailboxProfile } from "./auth/mailbox-autoconfig.js";
@@ -244,6 +245,13 @@ async function handleRequest(options: {
       return;
     }
 
+    if (mailApi && request.method === "GET" && requestUrl.pathname === "/api/runtime/model-profiles") {
+      writeJson(response, 200, {
+        profiles: mailApi.listRuntimeModelProfiles()
+      });
+      return;
+    }
+
     if (mailApi && request.method === "GET" && requestUrl.pathname === "/api/runtime/embedded-sessions") {
       writeJson(
         response,
@@ -395,6 +403,19 @@ async function handleRequest(options: {
       return;
     }
 
+    const sharedSkillMatch = mailApi ? requestUrl.pathname.match(/^\/api\/skills\/library\/([^/]+)$/) : null;
+    if (mailApi && request.method === "GET" && sharedSkillMatch) {
+      writeJson(
+        response,
+        200,
+        mailApi.inspectSharedSkill({
+          tenantId: requestUrl.searchParams.get("tenantId") ?? requestUrl.searchParams.get("accountId") ?? "default",
+          skillId: decodeURIComponent(sharedSkillMatch[1] ?? "")
+        })
+      );
+      return;
+    }
+
     const skillMatch = mailApi ? requestUrl.pathname.match(/^\/api\/skills\/([^/]+)\/([^/]+)$/) : null;
     if (mailApi && request.method === "GET" && skillMatch) {
       writeJson(
@@ -435,6 +456,28 @@ async function handleRequest(options: {
           tenantId: body.tenantId ?? body.accountId ?? requestUrl.searchParams.get("tenantId") ?? requestUrl.searchParams.get("accountId") ?? "default",
           agentId: decodeURIComponent(agentSoulMatch[1] ?? ""),
           content: requireStringBody(body.content, "content")
+        })
+      );
+      return;
+    }
+
+    const agentProfileMatch = mailApi ? requestUrl.pathname.match(/^\/api\/console\/agents\/([^/]+)\/profile$/) : null;
+    if (mailApi && request.method === "PUT" && agentProfileMatch) {
+      const body = (await readJsonBody(request)) as {
+        tenantId?: string;
+        accountId?: string;
+        displayName?: string;
+        purpose?: string;
+      };
+      writeJson(
+        response,
+        200,
+        mailApi.writeAgentProfile({
+          tenantId: body.tenantId ?? body.accountId ?? requestUrl.searchParams.get("tenantId") ?? requestUrl.searchParams.get("accountId") ?? "default",
+          accountId: body.accountId ?? requestUrl.searchParams.get("accountId") ?? undefined,
+          agentId: decodeURIComponent(agentProfileMatch[1] ?? ""),
+          displayName: typeof body.displayName === "string" ? body.displayName : undefined,
+          purpose: typeof body.purpose === "string" ? body.purpose : undefined
         })
       );
       return;
@@ -645,6 +688,47 @@ async function handleRequest(options: {
       return;
     }
 
+    if (mailApi && request.method === "PUT" && sharedSkillMatch) {
+      const body = (await readJsonBody(request)) as {
+        tenantId?: string;
+        accountId?: string;
+        content?: string;
+        now?: string;
+      };
+      writeJson(
+        response,
+        200,
+        mailApi.writeSharedSkill({
+          tenantId: body.tenantId ?? body.accountId ?? requestUrl.searchParams.get("tenantId") ?? requestUrl.searchParams.get("accountId") ?? "default",
+          skillId: decodeURIComponent(sharedSkillMatch[1] ?? ""),
+          content: requireStringBody(body.content, "content"),
+          now: typeof body.now === "string" ? body.now : undefined
+        })
+      );
+      return;
+    }
+
+    if (mailApi && request.method === "PUT" && skillMatch) {
+      const body = (await readJsonBody(request)) as {
+        tenantId?: string;
+        accountId?: string;
+        content?: string;
+        now?: string;
+      };
+      writeJson(
+        response,
+        200,
+        mailApi.writeAgentSkill({
+          tenantId: body.tenantId ?? body.accountId ?? requestUrl.searchParams.get("tenantId") ?? requestUrl.searchParams.get("accountId") ?? "default",
+          agentId: decodeURIComponent(skillMatch[1] ?? ""),
+          skillId: decodeURIComponent(skillMatch[2] ?? ""),
+          content: requireStringBody(body.content, "content"),
+          now: typeof body.now === "string" ? body.now : undefined
+        })
+      );
+      return;
+    }
+
     const deleteAgentMatch = mailApi ? requestUrl.pathname.match(/^\/api\/console\/agents\/([^/]+)$/) : null;
     if (mailApi && request.method === "DELETE" && deleteAgentMatch) {
       writeJson(
@@ -672,6 +756,21 @@ async function handleRequest(options: {
     }
 
     if (mailApi && request.method === "GET" && requestUrl.pathname.startsWith("/api/rooms/")) {
+      const roomAttachmentMatch = requestUrl.pathname.match(/^\/api\/rooms\/(.+)\/attachments\/([^/]+)\/content$/);
+      if (roomAttachmentMatch) {
+        const attachment = mailApi.getRoomAttachmentContent({
+          roomKey: decodeURIComponent(roomAttachmentMatch[1] ?? ""),
+          attachmentId: decodeURIComponent(roomAttachmentMatch[2] ?? "")
+        });
+        const payload = fs.readFileSync(attachment.path);
+        response.writeHead(200, {
+          "content-type": attachment.mimeType,
+          "content-length": String(payload.byteLength),
+          "content-disposition": `inline; filename*=UTF-8''${encodeURIComponent(attachment.filename)}`
+        });
+        response.end(payload);
+        return;
+      }
       const match = requestUrl.pathname.match(/^\/api\/rooms\/(.+)\/replay$/);
       if (match) {
         const roomKey = decodeURIComponent(match[1] ?? "");
@@ -985,6 +1084,30 @@ async function handleRequest(options: {
         return;
       }
 
+      if (requestUrl.pathname === "/api/console/rooms/self-email") {
+        const body = (await readJsonBody(request)) as {
+          accountId?: string;
+          subject?: string;
+          body?: string;
+          mailboxAddress?: string;
+          deliverNow?: boolean;
+          now?: string;
+        };
+        writeJson(
+          response,
+          200,
+          await mailApi.createRoomFromSelfEmail({
+            accountId: requireStringBody(body.accountId, "accountId"),
+            subject: requireStringBody(body.subject, "subject"),
+            body: requireStringBody(body.body, "body"),
+            mailboxAddress: typeof body.mailboxAddress === "string" ? body.mailboxAddress : undefined,
+            deliverNow: typeof body.deliverNow === "boolean" ? body.deliverNow : undefined,
+            now: typeof body.now === "string" ? body.now : undefined
+          })
+        );
+        return;
+      }
+
     }
 
     if (mailApi && request.method === "POST" && requestUrl.pathname === "/api/outbox/deliver") {
@@ -1044,6 +1167,78 @@ async function handleRequest(options: {
       }
     }
 
+    const agentRuntimePreferenceMatch =
+      mailApi && request.method === "POST"
+        ? requestUrl.pathname.match(/^\/api\/console\/agents\/([^/]+)\/runtime$/)
+        : null;
+    if (mailApi && agentRuntimePreferenceMatch) {
+      const body = (await readJsonBody(request)) as {
+        tenantId?: string;
+        profileId?: string;
+        modelOverride?: string;
+        now?: string;
+      };
+      writeJson(
+        response,
+        200,
+        mailApi.saveAgentRuntimePreference({
+          tenantId: requireStringBody(body.tenantId, "tenantId"),
+          agentId: decodeURIComponent(agentRuntimePreferenceMatch[1] ?? ""),
+          profileId: typeof body.profileId === "string" ? body.profileId : undefined,
+          modelOverride: typeof body.modelOverride === "string" ? body.modelOverride : undefined,
+          now: typeof body.now === "string" ? body.now : undefined
+        })
+      );
+      return;
+    }
+
+    if (mailApi && request.method === "POST" && requestUrl.pathname === "/api/runtime/model-profiles") {
+      const body = (await readJsonBody(request)) as {
+        profileId?: string;
+        label?: string;
+        sourceKind?: "openclaw_login" | "api_key";
+        model?: string;
+        baseUrl?: string;
+        publicBaseUrl?: string;
+        openClawAgentId?: string;
+        loginUrl?: string;
+        gatewayToken?: string;
+        apiKey?: string;
+        enabled?: boolean;
+        defaultSelected?: boolean;
+        now?: string;
+      };
+      const payload = mailApi.upsertRuntimeModelProfile({
+        profileId: typeof body.profileId === "string" ? body.profileId : undefined,
+        label: requireStringBody(body.label, "label"),
+        sourceKind:
+          body.sourceKind === "openclaw_login" || body.sourceKind === "api_key"
+            ? body.sourceKind
+            : (() => {
+                throw new RuntimeApiError("sourceKind must be openclaw_login or api_key", 400);
+              })(),
+        model: requireStringBody(body.model, "model"),
+        baseUrl: typeof body.baseUrl === "string" ? body.baseUrl : undefined,
+        publicBaseUrl: typeof body.publicBaseUrl === "string" ? body.publicBaseUrl : undefined,
+        openClawAgentId: typeof body.openClawAgentId === "string" ? body.openClawAgentId : undefined,
+        loginUrl: typeof body.loginUrl === "string" ? body.loginUrl : undefined,
+        gatewayToken: typeof body.gatewayToken === "string" ? body.gatewayToken : undefined,
+        apiKey: typeof body.apiKey === "string" ? body.apiKey : undefined,
+        enabled: typeof body.enabled === "boolean" ? body.enabled : undefined,
+        now: typeof body.now === "string" ? body.now : undefined
+      });
+      if (body.defaultSelected === true) {
+        writeJson(
+          response,
+          200,
+          mailApi.setDefaultRuntimeModelProfile(payload.profileId, typeof body.now === "string" ? body.now : undefined)
+        );
+        return;
+      }
+      writeJson(response, 200, payload);
+      return;
+    }
+
     if (mailApi && request.method === "GET" && requestUrl.pathname === "/api/accounts") {
       writeJson(response, 200, mailApi.listPublicAccounts());
       return;
@@ -1088,6 +1283,23 @@ async function handleRequest(options: {
         return;
       }
 
+      const agentRuntimePreferenceMatch = requestUrl.pathname.match(/^\/api\/console\/agents\/([^/]+)\/runtime$/);
+      if (agentRuntimePreferenceMatch) {
+        const tenantId = requestUrl.searchParams.get("tenantId");
+        if (!tenantId) {
+          throw new RuntimeApiError("tenantId is required", 400);
+        }
+        writeJson(
+          response,
+          200,
+          mailApi.getAgentRuntimePreference({
+            tenantId,
+            agentId: decodeURIComponent(agentRuntimePreferenceMatch[1] ?? "")
+          })
+        );
+        return;
+      }
+
       const mailboxFeedMatch = requestUrl.pathname.match(/^\/api\/accounts\/([^/]+)\/mailboxes\/([^/]+)\/feed$/);
       if (mailboxFeedMatch) {
         writeJson(
@@ -1119,6 +1331,38 @@ async function handleRequest(options: {
         mailApi.listPublicAccounts().find((account) => account.accountId === body.accountId) ?? {
           accountId: body.accountId
         }
+      );
+      return;
+    }
+
+    const runtimeDefaultMatch =
+      mailApi && request.method === "POST"
+        ? requestUrl.pathname.match(/^\/api\/runtime\/model-profiles\/([^/]+)\/default$/)
+        : null;
+    if (mailApi && runtimeDefaultMatch) {
+      const body = (await readJsonBody(request)) as {
+        now?: string;
+      };
+      writeJson(
+        response,
+        200,
+        mailApi.setDefaultRuntimeModelProfile(
+          decodeURIComponent(runtimeDefaultMatch[1] ?? ""),
+          typeof body.now === "string" ? body.now : undefined
+        )
+      );
+      return;
+    }
+
+    const runtimeDeleteMatch =
+      mailApi && request.method === "DELETE"
+        ? requestUrl.pathname.match(/^\/api\/runtime\/model-profiles\/([^/]+)$/)
+        : null;
+    if (mailApi && runtimeDeleteMatch) {
+      writeJson(
+        response,
+        200,
+        mailApi.deleteRuntimeModelProfile(decodeURIComponent(runtimeDeleteMatch[1] ?? ""))
       );
       return;
     }

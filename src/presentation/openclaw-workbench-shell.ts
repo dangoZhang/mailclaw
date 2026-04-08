@@ -396,8 +396,7 @@ select {
 }
 
 .sidebar-shell__footer {
-  padding: 12px 0 0;
-  border-top: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  display: none;
 }
 
 .sidebar-brand {
@@ -614,16 +613,11 @@ select {
 }
 
 .page-sub {
-  color: var(--muted);
-  font-size: 13px;
-  margin-top: 4px;
+  display: none;
 }
 
 .page-meta {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  display: none;
 }
 
 .pill {
@@ -774,11 +768,7 @@ select {
 }
 
 .workspace-hero__eyebrow {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  display: none;
 }
 
 .workspace-hero__eyebrow-btn {
@@ -797,7 +787,7 @@ select {
 }
 
 .workspace-hero__title {
-  margin-top: 8px;
+  margin-top: 0;
   color: var(--text-strong);
   font-size: 28px;
   line-height: 1.05;
@@ -807,11 +797,7 @@ select {
 }
 
 .workspace-hero__copy {
-  max-width: 58ch;
-  margin-top: 10px;
-  color: color-mix(in srgb, var(--text) 82%, var(--muted) 18%);
-  font-size: 14px;
-  line-height: 1.6;
+  display: none;
 }
 
 .workspace-hero__actions {
@@ -947,6 +933,10 @@ select {
   color: var(--text-strong);
 }
 
+.panel-header .muted {
+  display: none;
+}
+
 .panel-body {
   padding: 16px;
   display: grid;
@@ -1069,6 +1059,97 @@ select {
   overflow: hidden;
 }
 
+.agent-room-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--bg-elevated) 88%, transparent);
+  overflow: hidden;
+}
+
+.agent-room-card__header {
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+}
+
+.agent-room-card__mailboxes,
+.attachment-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.agent-room-card__mailbox,
+.attachment-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  background: color-mix(in srgb, var(--bg) 22%, transparent);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.attachment-link:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-hover);
+}
+
+.agent-room-card__body {
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+}
+
+.agent-mailbox-block {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--bg) 18%, transparent);
+}
+
+.agent-mailbox-block__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.agent-mailbox-block__messages {
+  display: grid;
+  gap: 12px;
+}
+
+.agent-message-card {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(180px, 20%) minmax(0, 1fr);
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--bg) 24%, transparent);
+}
+
+.agent-message-card__side,
+.agent-message-card__main,
+.agent-message-card__people {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.agent-message-card__subject {
+  color: var(--text-strong);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  word-break: break-word;
+}
+
 .source-mail-card[open] {
   border-color: color-mix(in srgb, var(--accent) 20%, transparent);
   box-shadow: var(--shadow-sm);
@@ -1087,7 +1168,7 @@ select {
 .source-mail-card__summary {
   display: grid;
   gap: 14px;
-  grid-template-columns: minmax(220px, 0.72fr) minmax(0, 1.8fr);
+  grid-template-columns: 1fr;
 }
 
 .source-mail-card__meta {
@@ -1100,7 +1181,8 @@ select {
   padding: 0 14px 14px;
   display: grid;
   gap: 14px;
-  grid-template-columns: minmax(220px, 0.72fr) minmax(0, 1.8fr);
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+  align-items: start;
   border-top: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
 }
 
@@ -1140,16 +1222,19 @@ select {
 .mail-body {
   margin: 0;
   padding: 14px;
+  min-height: 120px;
   border-radius: var(--radius-md);
   border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
   background: color-mix(in srgb, var(--bg) 34%, transparent);
   color: var(--text);
   white-space: pre-wrap;
   word-break: break-word;
+  overflow: auto;
   font: 400 13px/1.6 var(--font-body);
 }
 
 @media (max-width: 820px) {
+  .agent-message-card,
   .source-mail-card__summary,
   .source-mail-card__body {
     grid-template-columns: 1fr;
@@ -1167,23 +1252,27 @@ select {
   background: var(--accent);
 }
 
-.list-card--working::after {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: var(--room-progress, 42%);
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--ok) 18%, transparent),
-    color-mix(in srgb, var(--ok) 8%, transparent)
-  );
-  border-right: 1px solid color-mix(in srgb, var(--ok) 22%, transparent);
-  pointer-events: none;
+.list-card--working {
+  border-color: color-mix(in srgb, var(--ok) 22%, var(--border) 78%);
 }
 
-.list-card--working > * {
-  position: relative;
-  z-index: 1;
+.status-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  display: inline-block;
+  flex: 0 0 auto;
+}
+
+.status-dot--done {
+  background: var(--ok);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 18%, transparent);
 }
 
 .card-top,
@@ -1195,8 +1284,7 @@ select {
 }
 
 .card-subtitle {
-  color: var(--muted);
-  font-size: 12px;
+  display: none;
 }
 
 .title {
@@ -1584,6 +1672,17 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           pageMailboxes: "Mailbox Workbench",
           homeTitle: "MailClaws workbench",
           homeCopy: "External email enters by room. Rooms hold working memory, virtual mail, attachments, and shared resources. Agents provide soul and reusable skills around that room kernel.",
+          createRoomFromHome: "Create Room From Home",
+          createRoomFromHomeCopy: "Create a room by sending one virtual mail to the selected mailbox itself. Future MailClaws tests should use this path.",
+          createRoomFromHomeEmpty: "Connect a mailbox first, then create a room from home.",
+          targetMailboxLabel: "Target mailbox",
+          selfRecipientLabel: "Self recipient",
+          subjectLabel: "Subject",
+          createAndSendRoom: "Create Room And Send",
+          createRoomValidationError: "Mailbox, subject, and body are required.",
+          roomCreatedAndSent: "Room created and mailed to {email}.",
+          roomSubjectDefault: "MailClaws room bootstrap",
+          roomBodyDefault: "hello world",
           openRooms: "Open Room",
           connectMailbox: "Connect Mailbox",
           systemSnapshot: "System Snapshot",
@@ -1736,7 +1835,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           noThreadMail: "No thread mail has been recorded for this room.",
           taskMailBadge: "Created room",
           currentAgentsPanel: "Current Agents",
-          currentAgentsCopy: "Open an agent to reveal only its room mailboxes. Select a mailbox chip to inspect the correspondence.",
+          currentAgentsCopy: "See each agent's room mailbox, profile, and internal mail directly here.",
           noAgentsVisible: "No visible agent has been recorded for this room yet.",
           latestRuntimePanel: "Latest Runtime",
           latestRuntimeCopy: "The latest room execution attempt and how long it ran.",
@@ -1841,8 +1940,13 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           sharedLabel: "shared",
           applyTemplate: "Apply Template",
           templateNeedsAccount: "Connect an account first, then apply this template into that workspace.",
-          manageAgent: "Manage",
-          selectedAgent: "Selected",
+          manageAgent: "Edit",
+          selectedAgent: "Editing",
+          agentProfileLabel: "Profile",
+          saveAgentProfile: "Save Profile",
+          profileSavedMessage: "Profile saved.",
+          soulReadyLabel: "Soul",
+          profileReadyLabel: "Profile",
           agentPanel: "Agent",
           noVisibleAgentYet: "No durable agent is visible yet.",
           soulLabel: "SOUL.md",
@@ -1854,6 +1958,9 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           useAsSource: "Use As Source",
           reusableSkills: "Reusable Skills",
           installedSkills: "Installed Skills",
+          editSkill: "Edit",
+          editSkillPanel: "Skill Editor",
+          selectSkillToEdit: "Select a skill to view and edit its markdown.",
           createSkill: "Create Skill",
           sharedLibrary: "shared library",
           markdownLabel: "Markdown",
@@ -1890,6 +1997,8 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           mailboxSaved: "Saved mailbox {email}.",
           soulLoadedMessage: "Soul loaded.",
           soulSavedMessage: "Soul saved.",
+          skillLoadedMessage: "Skill loaded.",
+          skillSavedMessage: "Skill saved.",
           agentDeletedMessage: "Agent deleted.",
           sourceCopiedMessage: "Source copied into the installer form.",
           sourceNotReusableMessage: "That skill does not expose a reusable source.",
@@ -1899,7 +2008,47 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           authorizationCodeOrAppPassword: "Authorization code or app password",
           passwordOrAppPassword: "Password or app password",
           authorizationCodePlaceholder: "paste the provider-issued authorization code",
-          passwordPlaceholder: "required for IMAP/SMTP"
+          passwordPlaceholder: "required for IMAP/SMTP",
+          availableBaseModels: "Available Base Models",
+          baseModelsCopy: "Keep reusable runtime/model entries here. Set one default for the whole workspace, then override it per agent when needed.",
+          defaultBaseModelLabel: "Default base model",
+          defaultBaseModelBadge: "default",
+          availableBaseModelBadge: "available",
+          customBaseModelBadge: "custom",
+          noBaseModelsConfigured: "No base models are visible yet.",
+          profileLabel: "Profile label",
+          runtimeSourceLabel: "Runtime source",
+          baseModelLabel: "Base model",
+          baseUrlLabel: "Base URL",
+          publicBaseUrlLabel: "Public URL",
+          loginUrlLabel: "Login URL",
+          gatewayTokenLabel: "Gateway token",
+          apiKeyLabel: "API key",
+          openClawAgentLabel: "OpenClaw agent",
+          saveBaseModel: "Save Base Model",
+          addBaseModel: "Add Base Model",
+          clearBaseModelDraft: "Clear Draft",
+          editBaseModel: "Edit",
+          deleteBaseModel: "Delete",
+          setDefaultBaseModel: "Set Default",
+          loginAtProvider: "Open Login",
+          leaveBlankToKeepSecret: "leave blank to keep current secret",
+          runtimeSecretsSummary: "API key: {apiKey} · Gateway token: {gatewayToken}",
+          baseModelSaved: "Base model saved.",
+          baseModelDeleted: "Base model deleted.",
+          defaultBaseModelUpdated: "Default base model updated.",
+          baseModelValidationError: "Profile label and base model are required.",
+          runtimeSourceEmbedded: "Embedded deterministic",
+          runtimeSourceReuseOpenClaw: "Reuse OpenClaw",
+          runtimeSourceOpenClawLogin: "OpenClaw web login",
+          runtimeSourceApiKey: "API key",
+          agentBaseModel: "Agent base model",
+          inheritDefaultBaseModel: "Inherit workspace default",
+          modelOverrideLabel: "Model override",
+          saveAgentBaseModel: "Save Agent Model",
+          clearAgentBaseModel: "Clear Override",
+          agentBaseModelSaved: "Agent base model saved.",
+          agentBaseModelCleared: "Agent base model cleared."
         },
         "zh-CN": {
           workbench: "工作台",
@@ -1916,6 +2065,17 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           pageMailboxes: "邮箱工作台",
           homeTitle: "MailClaws 工作台",
           homeCopy: "外部邮件按房间进入。房间保存工作记忆、虚拟邮件、附件和共享资源。智能体提供 soul 和可复用技能，围绕房间内核协作。",
+          createRoomFromHome: "主页创建房间",
+          createRoomFromHomeCopy: "通过给所选邮箱自己发一封虚拟邮件来创建房间。之后 MailClaws 的测试都走这条路径。",
+          createRoomFromHomeEmpty: "先连接一个邮箱，再从主页创建房间。",
+          targetMailboxLabel: "目标邮箱",
+          selfRecipientLabel: "自发自收地址",
+          subjectLabel: "主题",
+          createAndSendRoom: "创建并发送",
+          createRoomValidationError: "邮箱、主题和正文都必填。",
+          roomCreatedAndSent: "房间已创建，并已发送到 {email}。",
+          roomSubjectDefault: "MailClaws 房间引导",
+          roomBodyDefault: "hello world",
           openRooms: "进入房间",
           connectMailbox: "连接邮箱",
           systemSnapshot: "系统概览",
@@ -2068,7 +2228,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           noThreadMail: "这个房间还没有记录线程邮件。",
           taskMailBadge: "创建房间",
           currentAgentsPanel: "当前智能体",
-          currentAgentsCopy: "点开智能体即可看到它在当前房间里的虚拟邮箱。点邮箱标签可查看往来信件。",
+          currentAgentsCopy: "这里直接展示每个智能体在当前房间的虚拟邮箱、简介和内部邮件。",
           noAgentsVisible: "这个房间还没有记录可见智能体。",
           latestRuntimePanel: "最近运行",
           latestRuntimeCopy: "展示最近一次房间执行及其运行时长。",
@@ -2173,8 +2333,13 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           sharedLabel: "共享",
           applyTemplate: "应用模板",
           templateNeedsAccount: "先连接一个账户，再把这个模板应用到对应工作区。",
-          manageAgent: "管理",
-          selectedAgent: "已选中",
+          manageAgent: "编辑",
+          selectedAgent: "编辑中",
+          agentProfileLabel: "Profile",
+          saveAgentProfile: "保存 Profile",
+          profileSavedMessage: "Profile 已保存。",
+          soulReadyLabel: "Soul",
+          profileReadyLabel: "Profile",
           agentPanel: "智能体",
           noVisibleAgentYet: "当前还没有可见的常驻智能体。",
           soulLabel: "SOUL.md",
@@ -2186,6 +2351,9 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           useAsSource: "作为来源",
           reusableSkills: "可复用技能",
           installedSkills: "已安装技能",
+          editSkill: "编辑",
+          editSkillPanel: "技能编辑",
+          selectSkillToEdit: "选择一个技能后即可查看和编辑它的 Markdown 内容。",
           createSkill: "创建技能",
           sharedLibrary: "共享技能库",
           markdownLabel: "Markdown",
@@ -2222,6 +2390,8 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           mailboxSaved: "已保存邮箱 {email}。",
           soulLoadedMessage: "Soul 已加载。",
           soulSavedMessage: "Soul 已保存。",
+          skillLoadedMessage: "技能已加载。",
+          skillSavedMessage: "技能已保存。",
           agentDeletedMessage: "智能体已删除。",
           sourceCopiedMessage: "已把来源复制进安装表单。",
           sourceNotReusableMessage: "这个技能没有暴露可复用来源。",
@@ -2231,7 +2401,47 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           authorizationCodeOrAppPassword: "授权码或应用专用密码",
           passwordOrAppPassword: "密码或应用专用密码",
           authorizationCodePlaceholder: "粘贴服务商提供的授权码",
-          passwordPlaceholder: "IMAP/SMTP 必填"
+          passwordPlaceholder: "IMAP/SMTP 必填",
+          availableBaseModels: "可用基模",
+          baseModelsCopy: "在这里维护可复用的运行时/模型配置。先设置工作区默认项，再按 Agent 覆盖。",
+          defaultBaseModelLabel: "默认基模",
+          defaultBaseModelBadge: "默认",
+          availableBaseModelBadge: "可用",
+          customBaseModelBadge: "自定义",
+          noBaseModelsConfigured: "当前还没有可见基模。",
+          profileLabel: "配置名",
+          runtimeSourceLabel: "运行时来源",
+          baseModelLabel: "基模",
+          baseUrlLabel: "基础 URL",
+          publicBaseUrlLabel: "公开 URL",
+          loginUrlLabel: "登录 URL",
+          gatewayTokenLabel: "Gateway Token",
+          apiKeyLabel: "API Key",
+          openClawAgentLabel: "OpenClaw Agent",
+          saveBaseModel: "保存基模",
+          addBaseModel: "添加基模",
+          clearBaseModelDraft: "清空草稿",
+          editBaseModel: "编辑",
+          deleteBaseModel: "删除",
+          setDefaultBaseModel: "设为默认",
+          loginAtProvider: "打开登录页",
+          leaveBlankToKeepSecret: "留空则保留当前密钥",
+          runtimeSecretsSummary: "API Key：{apiKey} · Gateway Token：{gatewayToken}",
+          baseModelSaved: "基模已保存。",
+          baseModelDeleted: "基模已删除。",
+          defaultBaseModelUpdated: "默认基模已更新。",
+          baseModelValidationError: "配置名和基模都是必填项。",
+          runtimeSourceEmbedded: "内置 deterministic",
+          runtimeSourceReuseOpenClaw: "复用 OpenClaw",
+          runtimeSourceOpenClawLogin: "OpenClaw 网页登录",
+          runtimeSourceApiKey: "API Key",
+          agentBaseModel: "Agent 基模",
+          inheritDefaultBaseModel: "继承工作区默认项",
+          modelOverrideLabel: "模型覆盖",
+          saveAgentBaseModel: "保存 Agent 基模",
+          clearAgentBaseModel: "清除覆盖",
+          agentBaseModelSaved: "Agent 基模已保存。",
+          agentBaseModelCleared: "Agent 基模覆盖已清除。"
         },
         fr: {
           workbench: "Workbench",
@@ -2248,6 +2458,17 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           pageMailboxes: "Workbench Mailbox",
           homeTitle: "Workbench MailClaws",
           homeCopy: "L’email externe entre par room. Les rooms portent la mémoire de travail, le virtual mail, les pièces jointes et les ressources partagées. Les agents apportent le soul et les compétences réutilisables autour de ce noyau room.",
+          createRoomFromHome: "Créer Une Room Depuis L’Accueil",
+          createRoomFromHomeCopy: "Créez une room en envoyant un mail virtuel à la boîte sélectionnée elle-même. Les futurs tests MailClaws doivent passer par ce chemin.",
+          createRoomFromHomeEmpty: "Connectez d’abord une boîte, puis créez une room depuis l’accueil.",
+          targetMailboxLabel: "Boîte cible",
+          selfRecipientLabel: "Destinataire interne",
+          subjectLabel: "Sujet",
+          createAndSendRoom: "Créer Et Envoyer",
+          createRoomValidationError: "Boîte, sujet et corps sont requis.",
+          roomCreatedAndSent: "Room créée et envoyée à {email}.",
+          roomSubjectDefault: "Bootstrap de room MailClaws",
+          roomBodyDefault: "hello world",
           openRooms: "Ouvrir Room",
           connectMailbox: "Connecter Boîte Mail",
           systemSnapshot: "Vue système",
@@ -2400,7 +2621,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           noThreadMail: "Aucun email du fil n’a été enregistré pour cette room.",
           taskMailBadge: "Création de room",
           currentAgentsPanel: "Agents actuels",
-          currentAgentsCopy: "Ouvrez un agent pour afficher uniquement ses boîtes de room. Sélectionnez une puce de boîte pour consulter la correspondance.",
+          currentAgentsCopy: "Consultez ici directement la mailbox de room, le profil et les mails internes de chaque agent.",
           noAgentsVisible: "Aucun agent visible n’a encore été enregistré pour cette room.",
           latestRuntimePanel: "Dernière exécution",
           latestRuntimeCopy: "La dernière exécution de room et sa durée.",
@@ -2505,8 +2726,13 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           sharedLabel: "partagé",
           applyTemplate: "Appliquer le template",
           templateNeedsAccount: "Connectez d’abord un compte, puis appliquez ce template dans cet espace.",
-          manageAgent: "Gérer",
-          selectedAgent: "Sélectionné",
+          manageAgent: "Modifier",
+          selectedAgent: "Modification",
+          agentProfileLabel: "Profil",
+          saveAgentProfile: "Enregistrer Le Profil",
+          profileSavedMessage: "Profil enregistré.",
+          soulReadyLabel: "Soul",
+          profileReadyLabel: "Profil",
           agentPanel: "Agent",
           noVisibleAgentYet: "Aucun agent durable visible pour le moment.",
           soulLabel: "SOUL.md",
@@ -2518,6 +2744,9 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           useAsSource: "Utiliser comme source",
           reusableSkills: "Compétences réutilisables",
           installedSkills: "Compétences installées",
+          editSkill: "Modifier",
+          editSkillPanel: "Éditeur de compétence",
+          selectSkillToEdit: "Sélectionnez une compétence pour afficher et modifier son contenu Markdown.",
           createSkill: "Créer une compétence",
           sharedLibrary: "bibliothèque partagée",
           markdownLabel: "Markdown",
@@ -2554,6 +2783,8 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           mailboxSaved: "Mailbox {email} enregistrée.",
           soulLoadedMessage: "Soul chargée.",
           soulSavedMessage: "Soul enregistrée.",
+          skillLoadedMessage: "Compétence chargée.",
+          skillSavedMessage: "Compétence enregistrée.",
           agentDeletedMessage: "Agent supprimé.",
           sourceCopiedMessage: "La source a été copiée dans le formulaire d’installation.",
           sourceNotReusableMessage: "Cette compétence n’expose pas de source réutilisable.",
@@ -2563,7 +2794,47 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           authorizationCodeOrAppPassword: "Code d’autorisation ou mot de passe d’application",
           passwordOrAppPassword: "Mot de passe ou mot de passe d’application",
           authorizationCodePlaceholder: "collez le code d’autorisation fourni par le provider",
-          passwordPlaceholder: "requis pour IMAP/SMTP"
+          passwordPlaceholder: "requis pour IMAP/SMTP",
+          availableBaseModels: "Modèles de base disponibles",
+          baseModelsCopy: "Conservez ici les entrées runtime/modèle réutilisables. Définissez un défaut pour l’espace de travail, puis surchargez-le par agent si nécessaire.",
+          defaultBaseModelLabel: "Modèle par défaut",
+          defaultBaseModelBadge: "défaut",
+          availableBaseModelBadge: "disponible",
+          customBaseModelBadge: "personnalisé",
+          noBaseModelsConfigured: "Aucun modèle de base visible pour le moment.",
+          profileLabel: "Nom du profil",
+          runtimeSourceLabel: "Source runtime",
+          baseModelLabel: "Modèle de base",
+          baseUrlLabel: "URL de base",
+          publicBaseUrlLabel: "URL publique",
+          loginUrlLabel: "URL de connexion",
+          gatewayTokenLabel: "Jeton gateway",
+          apiKeyLabel: "Clé API",
+          openClawAgentLabel: "Agent OpenClaw",
+          saveBaseModel: "Enregistrer le modèle",
+          addBaseModel: "Ajouter un modèle",
+          clearBaseModelDraft: "Effacer le brouillon",
+          editBaseModel: "Modifier",
+          deleteBaseModel: "Supprimer",
+          setDefaultBaseModel: "Définir par défaut",
+          loginAtProvider: "Ouvrir la connexion",
+          leaveBlankToKeepSecret: "laissez vide pour conserver le secret actuel",
+          runtimeSecretsSummary: "Clé API : {apiKey} · Jeton gateway : {gatewayToken}",
+          baseModelSaved: "Modèle de base enregistré.",
+          baseModelDeleted: "Modèle de base supprimé.",
+          defaultBaseModelUpdated: "Modèle par défaut mis à jour.",
+          baseModelValidationError: "Le nom du profil et le modèle de base sont requis.",
+          runtimeSourceEmbedded: "Embedded déterministe",
+          runtimeSourceReuseOpenClaw: "Réutiliser OpenClaw",
+          runtimeSourceOpenClawLogin: "Connexion web OpenClaw",
+          runtimeSourceApiKey: "Clé API",
+          agentBaseModel: "Modèle de l’agent",
+          inheritDefaultBaseModel: "Hériter du défaut workspace",
+          modelOverrideLabel: "Surcharge du modèle",
+          saveAgentBaseModel: "Enregistrer le modèle agent",
+          clearAgentBaseModel: "Effacer la surcharge",
+          agentBaseModelSaved: "Modèle agent enregistré.",
+          agentBaseModelCleared: "Surcharge du modèle agent effacée."
         }
       };
 
@@ -2826,6 +3097,14 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         return room.displayTitle || room.latestSubject || room.roomKey || "";
       }
 
+      function looksLikeMailboxAddressToken(value) {
+        const normalized = String(value || "").trim();
+        if (!normalized) {
+          return false;
+        }
+        return normalized.includes("@") || /%40/i.test(normalized);
+      }
+
       function findRoomByKey(roomKey) {
         const rooms = state.data && Array.isArray(state.data.rooms) ? state.data.rooms : [];
         return rooms.find(function(room) { return room.roomKey === roomKey; }) || null;
@@ -2838,16 +3117,13 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const agents = [];
         [
           room.frontAgentId,
-          room.frontAgentAddress
         ].concat(
           room.publicAgentIds || [],
-          room.publicAgentAddresses || [],
           room.collaboratorAgentIds || [],
-          room.collaboratorAgentAddresses || [],
           room.summonedRoles || []
         ).forEach(function(value) {
           const normalized = String(value || "").trim();
-          if (normalized && !agents.includes(normalized)) {
+          if (normalized && !looksLikeMailboxAddressToken(normalized) && !agents.includes(normalized)) {
             agents.push(normalized);
           }
         });
@@ -2889,11 +3165,68 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         }).filter(function(pair) {
           return pair[0];
         }));
+        function normalizeMailboxOwnerToken(value) {
+          const normalized = String(value || "").trim();
+          if (!normalized) {
+            return "";
+          }
+          try {
+            return decodeURIComponent(normalized).trim().toLowerCase();
+          } catch {
+            return normalized.trim().toLowerCase();
+          }
+        }
+
+        function inferAgentIdFromOwnerToken(value) {
+          const normalized = normalizeMailboxOwnerToken(value);
+          if (!normalized) {
+            return "";
+          }
+          if (directoryByAgentId.has(normalized)) {
+            return normalized;
+          }
+          const internalDomainSuffix = "@internal.mailclaws";
+          if (normalized.endsWith(internalDomainSuffix)) {
+            const candidate = normalized.slice(0, -internalDomainSuffix.length);
+            if (directoryByAgentId.has(candidate)) {
+              return candidate;
+            }
+          }
+          return "";
+        }
+
+        function formatMailboxRoleLabel(role) {
+          const normalized = String(role || "").trim();
+          if (!normalized) {
+            return "Room Mailbox";
+          }
+          return normalized
+            .split(/[-_]/g)
+            .filter(Boolean)
+            .map(function(part) {
+              return part.charAt(0).toUpperCase() + part.slice(1);
+            })
+            .join(" ");
+        }
+        const directoryByMailboxId = new Map();
+        directory.forEach(function(entry) {
+          const mailboxIds = Array.isArray(entry && entry.virtualMailboxes) ? entry.virtualMailboxes : [];
+          mailboxIds.forEach(function(mailboxId) {
+            const normalized = String(mailboxId || "").trim();
+            if (normalized) {
+              directoryByMailboxId.set(normalized, entry);
+            }
+          });
+        });
 
         function inferAgentIdFromMailboxId(mailboxId) {
           const normalized = String(mailboxId || "").trim();
           if (!normalized) {
             return "";
+          }
+          const byMailboxId = directoryByMailboxId.get(normalized);
+          if (byMailboxId && byMailboxId.agentId) {
+            return byMailboxId.agentId;
           }
           const byPublicMailbox = directoryByPublicMailboxId.get(normalized);
           if (byPublicMailbox && byPublicMailbox.agentId) {
@@ -2901,10 +3234,12 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           }
           if (normalized.startsWith("internal:")) {
             const parts = normalized.split(":");
-            return parts[1] || "";
+            const owner = parts[1] || "";
+            return inferAgentIdFromOwnerToken(owner);
           }
           if (normalized.startsWith("public:")) {
-            return normalized.slice("public:".length);
+            const agentId = normalized.slice("public:".length);
+            return directoryByAgentId.has(agentId) ? agentId : "";
           }
           return "";
         }
@@ -2931,12 +3266,28 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           return created;
         }
 
+        function ensureRoleEntry(mailbox) {
+          const role = String(mailbox && mailbox.role ? mailbox.role : "").trim();
+          const mailboxId = String(mailbox && mailbox.mailboxId ? mailbox.mailboxId : "").trim();
+          const key = "room-role:" + (role || mailboxId || "mailbox");
+          const existing = grouped.get(key);
+          if (existing) {
+            return existing;
+          }
+          const created = {
+            agentId: key,
+            displayName: formatMailboxRoleLabel(role || "room-mailbox"),
+            publicMailboxId: "",
+            purpose: "Room-scoped worker mailbox.",
+            roomMailboxes: []
+          };
+          grouped.set(key, created);
+          return created;
+        }
+
         roomMailboxes.forEach(function(mailbox) {
           const agentId = inferAgentIdFromMailboxId(mailbox.mailboxId);
-          const entry = ensureEntry(agentId);
-          if (!entry) {
-            return;
-          }
+          const entry = ensureEntry(agentId) || ensureRoleEntry(mailbox);
           entry.roomMailboxes.push(mailbox);
         });
 
@@ -2967,22 +3318,24 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         });
       }
 
-      function renderRoomAgentMailboxCard(entry, room) {
+      function renderRoomAgentMailboxCard(entry, _room) {
         const roomMailboxes = Array.isArray(entry && entry.roomMailboxes) ? entry.roomMailboxes : [];
-        const roomKey = room && room.roomKey ? room.roomKey : null;
-        const accountId = room && room.accountId ? room.accountId : null;
         const roomDetail = state.data && state.data.roomDetail ? state.data.roomDetail : null;
         const roomMessages = Array.isArray(roomDetail && roomDetail.virtualMessages) ? roomDetail.virtualMessages : [];
         return (
-          '<details class="source-mail-card">' +
-          '<summary class="source-mail-card__summary">' +
-          '<div class="source-mail-card__meta"><div><div class="title">' + escapeHtmlClient(entry.displayName || entry.agentId || "agent") + '</div><div class="card-subtitle code">' + escapeHtmlClient(entry.agentId || "agent") + '</div></div><span class="muted">' + escapeHtmlClient(String(roomMailboxes.length) + " " + t("mailboxCountLabel")) + '</span></div>' +
-          '<div class="detail">' + escapeHtmlClient(roomMailboxes.map(function(mailbox) { return mailbox.mailboxId; }).join(" · ") || t("noMailboxParticipation")) + '</div>' +
-          '</summary>' +
-          '<div class="source-mail-card__body">' +
+          '<section class="agent-room-card">' +
+          '<div class="agent-room-card__header">' +
+          '<div class="title">' + escapeHtmlClient(entry.displayName || entry.agentId || "agent") + '</div>' +
           (entry.purpose ? '<div class="detail">' + escapeHtmlClient(entry.purpose) + '</div>' : '') +
           (roomMailboxes.length > 0
-            ? '<div class="mailbox-feed">' + roomMailboxes.map(function(mailbox) {
+            ? '<div class="agent-room-card__mailboxes">' + roomMailboxes.map(function(mailbox) {
+                return '<span class="agent-room-card__mailbox code">' + escapeHtmlClient(mailbox.mailboxId) + '</span>';
+              }).join("") + '</div>'
+            : '<div class="detail">' + escapeHtmlClient(t("noMailboxParticipation")) + '</div>') +
+          '</div>' +
+          '<div class="agent-room-card__body">' +
+          (roomMailboxes.length > 0
+            ? roomMailboxes.map(function(mailbox) {
                 const mailboxMessages = roomMessages.filter(function(message) {
                   return (
                     message.fromMailboxId === mailbox.mailboxId ||
@@ -2990,25 +3343,57 @@ export function renderOpenClawWorkbenchShellHtml(input: {
                     (Array.isArray(message.ccMailboxIds) && message.ccMailboxIds.includes(mailbox.mailboxId))
                   );
                 });
-                const latestLine = mailbox.latestSubject
-                  ? t("latestMessage") + ": " + mailbox.latestSubject
-                  : t("noMailboxMessagesProjected");
                 return (
-                  '<div class="feed-entry">' +
-                  '<div class="meta"><span>' + escapeHtmlClient(mailbox.kind || "mailbox") + (mailbox.role ? " / " + escapeHtmlClient(mailbox.role) : "") + '</span><span>' + escapeHtmlClient(formatTime(mailbox.latestMessageAt)) + '</span></div>' +
-                  '<div class="chips">' + renderMailboxChip(mailbox.mailboxId, roomKey, accountId) + '</div>' +
-                  '<div class="detail">' + escapeHtmlClient(latestLine) + '</div>' +
+                  '<section class="agent-mailbox-block">' +
+                  '<div class="agent-mailbox-block__header">' +
+                  '<div class="title code">' + escapeHtmlClient(mailbox.mailboxId) + '</div>' +
+                  '<span class="muted">' + escapeHtmlClient(formatTime(mailbox.latestMessageAt)) + '</span>' +
+                  '</div>' +
                   (mailboxMessages.length > 0
-                    ? '<div class="mailbox-feed">' + mailboxMessages.map(function(message) {
-                        return renderVirtualMessageEntry(message);
+                    ? '<div class="agent-mailbox-block__messages">' + mailboxMessages.map(function(message) {
+                        return renderAgentVirtualMessageCard(message);
                       }).join("") + '</div>'
                     : '<div class="empty">' + escapeHtmlClient(t("noMailboxMessagesProjected")) + '</div>') +
-                  '</div>'
+                  '</section>'
                 );
-              }).join("") + '</div>'
+              }).join("")
             : '<div class="empty">' + escapeHtmlClient(t("noMailboxParticipation")) + '</div>') +
           '</div>' +
-          '</details>'
+          '</section>'
+        );
+      }
+
+      function renderAgentVirtualMessageCard(message) {
+        const recipients = Array.isArray(message && message.toMailboxIds) && message.toMailboxIds.length > 0
+          ? message.toMailboxIds.join(", ")
+          : "n/a";
+        const ccList = Array.isArray(message && message.ccMailboxIds) && message.ccMailboxIds.length > 0
+          ? message.ccMailboxIds.join(", ")
+          : "";
+        const attachments = Array.isArray(message && message.attachments) ? message.attachments : [];
+
+        return (
+          '<article class="agent-message-card">' +
+          '<div class="agent-message-card__side">' +
+          '<div>' +
+          '<div class="agent-message-card__subject">' + escapeHtmlClient((message && message.subject) || "Message") + '</div>' +
+          '<div class="muted">' + escapeHtmlClient(formatTime(message && message.createdAt)) + '</div>' +
+          '</div>' +
+          '<div class="agent-message-card__people">' +
+          '<div class="source-mail-card__field"><div class="section-label">' + escapeHtmlClient(t("fromLabel")) + '</div><div class="detail">' + escapeHtmlClient((message && message.fromMailboxId) || "n/a") + '</div></div>' +
+          '<div class="source-mail-card__field"><div class="section-label">' + escapeHtmlClient(t("toLabel")) + '</div><div class="detail">' + escapeHtmlClient(recipients) + '</div></div>' +
+          (ccList ? '<div class="source-mail-card__field"><div class="section-label">' + escapeHtmlClient(t("ccLabel")) + '</div><div class="detail">' + escapeHtmlClient(ccList) + '</div></div>' : '') +
+          '</div>' +
+          '</div>' +
+          '<div class="agent-message-card__main">' +
+          '<pre class="mail-body">' + escapeHtmlClient((message && message.bodyText) || "") + '</pre>' +
+          (attachments.length > 0
+            ? '<div class="attachment-links">' + attachments.map(function(attachment) {
+                return '<a class="attachment-link" href="' + escapeHtmlClient(attachment.downloadPath || "#") + '" target="_blank" rel="noreferrer" download>' + escapeHtmlClient(attachment.filename || attachment.attachmentId || "attachment") + '</a>';
+              }).join("") + '</div>'
+            : '') +
+          '</div>' +
+          '</article>'
         );
       }
 
@@ -3240,10 +3625,190 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         return state.connect;
       }
 
+      function getHomeRoomDraft() {
+        const stored = state.connect || {};
+        const accounts = state.data && Array.isArray(state.data.accounts) ? state.data.accounts : [];
+        const workspace = state.data && state.data.workspace && state.data.workspace.connect ? state.data.workspace.connect : null;
+        const preferredAccountId =
+          (typeof stored.roomBootstrapAccountId === "string" && stored.roomBootstrapAccountId.trim().length > 0
+            ? stored.roomBootstrapAccountId.trim()
+            : "") ||
+          (state.route && typeof state.route.accountId === "string" && state.route.accountId.trim().length > 0
+            ? state.route.accountId.trim()
+            : "") ||
+          (workspace && typeof workspace.templateApplyAccountId === "string" && workspace.templateApplyAccountId.trim().length > 0
+            ? workspace.templateApplyAccountId.trim()
+            : "") ||
+          (accounts[0] && accounts[0].accountId ? accounts[0].accountId : "");
+        const selectedAccount = accounts.find(function(account) {
+          return account.accountId === preferredAccountId;
+        }) || null;
+
+        return {
+          accounts: accounts,
+          accountId: preferredAccountId,
+          mailboxAddress: selectedAccount && selectedAccount.emailAddress ? selectedAccount.emailAddress : "",
+          subject:
+            typeof stored.roomBootstrapSubject === "string" && stored.roomBootstrapSubject.length > 0
+              ? stored.roomBootstrapSubject
+              : t("roomSubjectDefault"),
+          body:
+            typeof stored.roomBootstrapBody === "string" && stored.roomBootstrapBody.length > 0
+              ? stored.roomBootstrapBody
+              : t("roomBodyDefault"),
+          status: stored.roomBootstrapStatus || null
+        };
+      }
+
+      function readHomeRoomField(root, name) {
+        const element = root.querySelector('[data-home-room-field="' + name + '"]');
+        return element && "value" in element ? String(element.value || "") : "";
+      }
+
+      function readHomeRoomPayload(target) {
+        const root = (target && target.closest(".home-room-panel")) || document;
+        return {
+          accountId: readHomeRoomField(root, "accountId").trim(),
+          subject: readHomeRoomField(root, "subject").trim(),
+          body: readHomeRoomField(root, "body")
+        };
+      }
+
+      function getRuntimeProfiles(connect) {
+        return connect && Array.isArray(connect.runtimeProfiles) ? connect.runtimeProfiles : [];
+      }
+
+      function getDefaultRuntimeProfileId(connect) {
+        return connect && typeof connect.defaultRuntimeProfileId === "string" ? connect.defaultRuntimeProfileId : "";
+      }
+
+      function runtimeSourceLabel(sourceKind) {
+        if (sourceKind === "embedded") return t("runtimeSourceEmbedded");
+        if (sourceKind === "openclaw_reuse") return t("runtimeSourceReuseOpenClaw");
+        if (sourceKind === "openclaw_login") return t("runtimeSourceOpenClawLogin");
+        if (sourceKind === "api_key") return t("runtimeSourceApiKey");
+        return sourceKind || "runtime";
+      }
+
+      function readRuntimeField(root, name) {
+        const element = root.querySelector('[data-runtime-field="' + name + '"]');
+        if (!element) {
+          return "";
+        }
+        if ("checked" in element && element.getAttribute("type") === "checkbox") {
+          return element.checked ? "yes" : "no";
+        }
+        return "value" in element ? String(element.value || "").trim() : "";
+      }
+
+      function rememberRuntimeProfileDraft(target) {
+        const root = (target && target.closest(".runtime-model-panel")) || document;
+        const connect = getConnectWorkspace();
+        const profiles = getRuntimeProfiles(connect);
+        const stored = state.connect || {};
+        const fallbackProfile = profiles.find(function(profile) {
+          return profile.editMode === "custom";
+        }) || null;
+        state.connect = {
+          ...stored,
+          runtimeProfileId: readRuntimeField(root, "profileId") || (typeof stored.runtimeProfileId === "string" ? stored.runtimeProfileId : ""),
+          runtimeLabel: readRuntimeField(root, "label") || (typeof stored.runtimeLabel === "string" ? stored.runtimeLabel : "") || (fallbackProfile && fallbackProfile.label ? fallbackProfile.label : ""),
+          runtimeSourceKind: readRuntimeField(root, "sourceKind") || (typeof stored.runtimeSourceKind === "string" ? stored.runtimeSourceKind : "") || "openclaw_login",
+          runtimeModel: readRuntimeField(root, "model") || (typeof stored.runtimeModel === "string" ? stored.runtimeModel : "") || "",
+          runtimeBaseUrl: readRuntimeField(root, "baseUrl") || (typeof stored.runtimeBaseUrl === "string" ? stored.runtimeBaseUrl : "") || "",
+          runtimePublicBaseUrl: readRuntimeField(root, "publicBaseUrl") || (typeof stored.runtimePublicBaseUrl === "string" ? stored.runtimePublicBaseUrl : "") || "",
+          runtimeOpenClawAgentId: readRuntimeField(root, "openClawAgentId") || (typeof stored.runtimeOpenClawAgentId === "string" ? stored.runtimeOpenClawAgentId : "") || "",
+          runtimeLoginUrl: readRuntimeField(root, "loginUrl") || (typeof stored.runtimeLoginUrl === "string" ? stored.runtimeLoginUrl : "") || "",
+          runtimeGatewayToken: readRuntimeField(root, "gatewayToken") || (typeof stored.runtimeGatewayToken === "string" ? stored.runtimeGatewayToken : ""),
+          runtimeApiKey: readRuntimeField(root, "apiKey") || (typeof stored.runtimeApiKey === "string" ? stored.runtimeApiKey : ""),
+          runtimeDefaultSelected: readRuntimeField(root, "defaultSelected") === "yes",
+          runtimeStatus: stored.runtimeStatus || null
+        };
+        return state.connect;
+      }
+
+      function maskConfiguredSecret(configured) {
+        return configured ? "configured" : "not set";
+      }
+
+      function renderRuntimeProfileCard(profile) {
+        return (
+          '<div class="timeline-entry">' +
+          '<div class="meta"><span>' + escapeHtmlClient(profile.label || profile.profileId || "profile") + '</span><span>' + escapeHtmlClient(runtimeSourceLabel(profile.sourceKind)) + '</span></div>' +
+          '<div class="title code">' + escapeHtmlClient(profile.model || "model") + '</div>' +
+          '<div class="chips">' +
+          renderPill(profile.defaultSelected ? t("defaultBaseModelBadge") : t("availableBaseModelBadge"), profile.defaultSelected ? "pill--ok" : "") +
+          renderPill(profile.builtin ? t("builtinLabel") : t("customBaseModelBadge"), "") +
+          '</div>' +
+          '<div class="detail">' + escapeHtmlClient((profile.baseUrl || profile.publicBaseUrl || profile.loginUrl || "").trim() || runtimeSourceLabel(profile.sourceKind)) + '</div>' +
+          '<div class="detail">' + escapeHtmlClient(t("runtimeSecretsSummary", { apiKey: maskConfiguredSecret(profile.apiKeyConfigured), gatewayToken: maskConfiguredSecret(profile.gatewayTokenConfigured) })) + '</div>' +
+          '<div class="timeline-entry__actions">' +
+          '<button class="btn" data-action="set-default-runtime-profile" data-profile-id="' + escapeHtmlClient(profile.profileId || "") + '">' + escapeHtmlClient(t("setDefaultBaseModel")) + '</button>' +
+          (!profile.builtin
+            ? '<button class="btn" data-action="edit-runtime-profile" data-profile-id="' + escapeHtmlClient(profile.profileId || "") + '">' + escapeHtmlClient(t("editBaseModel")) + '</button>'
+            : '') +
+          (profile.loginUrl
+            ? '<a class="btn" href="' + escapeHtmlClient(profile.loginUrl) + '" target="_blank" rel="noreferrer">' + escapeHtmlClient(t("loginAtProvider")) + '</a>'
+            : '') +
+          (!profile.builtin
+            ? '<button class="btn danger" data-action="delete-runtime-profile" data-profile-id="' + escapeHtmlClient(profile.profileId || "") + '">' + escapeHtmlClient(t("deleteBaseModel")) + '</button>'
+            : '') +
+          '</div>' +
+          '</div>'
+        );
+      }
+
+      function renderRuntimeProfileEditor(connect) {
+        const stored = state.connect || {};
+        const profiles = getRuntimeProfiles(connect);
+        const status = stored.runtimeStatus || null;
+        const noteClass =
+          !status
+            ? "setup-note"
+            : status.tone === "danger"
+              ? "setup-note setup-note--danger"
+              : "setup-note setup-note--ok";
+        const selectedSourceKind = typeof stored.runtimeSourceKind === "string" && stored.runtimeSourceKind
+          ? stored.runtimeSourceKind
+          : "openclaw_login";
+        return (
+          '<div class="panel runtime-model-panel" id="runtime-model-editor"><div class="panel-header"><h3>' + escapeHtmlClient(t("addBaseModel")) + '</h3><span class="muted">' + escapeHtmlClient(String(profiles.length)) + '</span></div><div class="panel-body">' +
+          '<div class="detail">' + escapeHtmlClient(t("baseModelsCopy")) + '</div>' +
+          (status ? '<div class="' + noteClass + '">' + escapeHtmlClient(status.message || "") + '</div>' : '') +
+          '<input type="hidden" data-runtime-field="profileId" value="' + escapeHtmlClient(stored.runtimeProfileId || "") + '" />' +
+          '<div class="detail-grid">' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("profileLabel")) + '</div><input class="console-input" data-runtime-field="label" placeholder="OpenAI GPT-5.4" value="' + escapeHtmlClient(stored.runtimeLabel || "") + '" /></label>' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("baseModelLabel")) + '</div><input class="console-input" data-runtime-field="model" placeholder="gpt-5.4" value="' + escapeHtmlClient(stored.runtimeModel || "") + '" /></label>' +
+          '</div>' +
+          '<div class="actions-inline">' +
+          '<button class="btn primary" data-action="save-runtime-profile">' + escapeHtmlClient(t("saveBaseModel")) + '</button>' +
+          '<button class="btn" data-action="clear-runtime-profile-draft">' + escapeHtmlClient(t("clearBaseModelDraft")) + '</button>' +
+          '</div>' +
+          '<details class="advanced-settings"><summary>' + escapeHtmlClient(t("advancedSettings")) + '</summary><div class="field-note">' + escapeHtmlClient(t("advancedSettingsCopy")) + '</div>' +
+          '<div class="detail-grid">' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("runtimeSourceLabel")) + '</div><select class="console-input" data-runtime-field="sourceKind">' +
+            '<option value="openclaw_login"' + (selectedSourceKind === "openclaw_login" ? " selected" : "") + '>' + escapeHtmlClient(t("runtimeSourceOpenClawLogin")) + '</option>' +
+            '<option value="api_key"' + (selectedSourceKind === "api_key" ? " selected" : "") + '>' + escapeHtmlClient(t("runtimeSourceApiKey")) + '</option>' +
+          '</select></label>' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("baseUrlLabel")) + '</div><input class="console-input" data-runtime-field="baseUrl" placeholder="https://api.openai.com or http://127.0.0.1:11437" value="' + escapeHtmlClient(stored.runtimeBaseUrl || "") + '" /></label>' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("publicBaseUrlLabel")) + '</div><input class="console-input" data-runtime-field="publicBaseUrl" placeholder="https://gateway.example.com" value="' + escapeHtmlClient(stored.runtimePublicBaseUrl || "") + '" /></label>' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("openClawAgentLabel")) + '</div><input class="console-input" data-runtime-field="openClawAgentId" placeholder="mail" value="' + escapeHtmlClient(stored.runtimeOpenClawAgentId || "") + '" /></label>' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("loginUrlLabel")) + '</div><input class="console-input" data-runtime-field="loginUrl" placeholder="https://gateway.example.com/login" value="' + escapeHtmlClient(stored.runtimeLoginUrl || "") + '" /></label>' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("gatewayTokenLabel")) + '</div><input class="console-input" data-runtime-field="gatewayToken" type="password" placeholder="' + escapeHtmlClient(t("leaveBlankToKeepSecret")) + '" value="" /></label>' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("apiKeyLabel")) + '</div><input class="console-input" data-runtime-field="apiKey" type="password" placeholder="' + escapeHtmlClient(t("leaveBlankToKeepSecret")) + '" value="" /></label>' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("defaultBaseModelLabel")) + '</div><input data-runtime-field="defaultSelected" type="checkbox"' + (stored.runtimeDefaultSelected ? " checked" : "") + ' /></label>' +
+          '</div></details>' +
+          '</div></div>'
+        );
+      }
+
       function renderConnectRuntimePanel(setup) {
         const runtimeResponse = state.runtime;
         const runtime = runtimeResponse && runtimeResponse.runtime ? runtimeResponse.runtime : runtimeResponse;
         const plan = setup.plan;
+        const connect = setup.connect;
+        const runtimeProfiles = getRuntimeProfiles(connect);
+        const defaultProfileId = getDefaultRuntimeProfileId(connect);
         const startCommand =
           plan && plan.migration && plan.migration.openClawUsers
             ? plan.migration.openClawUsers.startCommand
@@ -3269,8 +3834,16 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           renderMetric("runtime", runtime.runtimeKind || "unknown") +
           renderMetric("label", runtime.runtimeLabel || "unknown") +
           renderMetric("backend", runtime.backendEnforcement || "unknown") +
+          renderMetric(t("defaultBaseModelLabel"), defaultProfileId || "n/a") +
           renderMetric("bridge sessions", String(runtimeResponse && typeof runtimeResponse.bridgeSessionCount === "number" ? runtimeResponse.bridgeSessionCount : 0)) +
           '</div>' +
+          '<div class="actions-inline"><a class="btn" href="#runtime-model-editor">' + escapeHtmlClient(t("addBaseModel")) + '</a></div>' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("availableBaseModels")) + '</h3><span class="muted">' + escapeHtmlClient(String(runtimeProfiles.length)) + '</span></div><div class="panel-body">' +
+          (runtimeProfiles.length > 0
+            ? '<div class="mailbox-feed">' + runtimeProfiles.map(renderRuntimeProfileCard).join("") + '</div>'
+            : '<div class="empty">' + escapeHtmlClient(t("noBaseModelsConfigured")) + '</div>') +
+          '</div></div>' +
+          renderRuntimeProfileEditor(connect) +
           (!reusesOpenClaw
             ? '<div class="setup-stack">' +
               '<div class="detail">' + escapeHtmlClient(t("openclawBridgeHint")) + '</div>' +
@@ -3285,10 +3858,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const provider = setup.provider || {};
         const providerSetupKind = provider.setupKind || "app_password";
         const providerDisplayName = provider.displayName || setup.providerId || "Mailbox";
-        const requiredEnvVars = Array.isArray(provider.requiredEnvVars) ? provider.requiredEnvVars : [];
-        const notes = Array.isArray(provider.notes) ? provider.notes : [];
         const status = state.connect && state.connect.status ? state.connect.status : null;
-        const recommendation = setup.plan && setup.plan.recommendation ? setup.plan.recommendation : null;
         const setupNoteTone = status && status.tone === "danger"
           ? "setup-note setup-note--danger"
           : status && status.tone === "ok"
@@ -3301,25 +3871,20 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           (status
             ? '<div class="' + setupNoteTone + '"><div class="detail-strong">' + escapeHtmlClient(status.message || "") + '</div></div>'
             : '') +
-          '<div class="detail-grid">' +
           '<label><div class="section-label">' + escapeHtmlClient(t("emailAddressLabel")) + '</div><input class="console-input" data-connect-field="emailAddress" type="email" placeholder="user@example.com" value="' + escapeHtmlClient(setup.emailAddress || "") + '" /></label>' +
-          (setup.plan
-            ? '<label><div class="section-label">' + escapeHtmlClient(t("providerLabel")) + '</div><input class="console-input" value="' + escapeHtmlClient(providerDisplayName) + '" readonly /></label>'
-            : '') +
-          '</div>' +
           '<div class="actions-inline">' +
           '<button class="btn" data-action="prepare-connect-plan">' + escapeHtmlClient(t("loadSetup")) + '</button>' +
           '</div>' +
-          (recommendation
-            ? '<div class="setup-note"><div class="detail-strong">' + escapeHtmlClient(t("recommendedPath")) + ': ' + escapeHtmlClient(recommendation.provider.displayName || recommendation.provider.id || setup.providerId) + '</div><div class="detail">' + escapeHtmlClient(t("matchReasonLabel")) + ': ' + escapeHtmlClient(recommendation.matchReason || "manual") + '. ' + escapeHtmlClient(t("setupKindLabel")) + ': ' + escapeHtmlClient(recommendation.provider.setupKind || providerSetupKind) + '.</div></div>'
+          (setup.plan
+            ? '<div class="setup-note"><div class="detail-strong">' + escapeHtmlClient(providerDisplayName) + '</div><div class="detail">' + escapeHtmlClient(
+                providerSetupKind === "browser_oauth"
+                  ? t("oauthDetectedCopy")
+                  : (Array.isArray(provider.notes) && provider.notes[0]) || t("useRecommendedProviderCopy")
+              ) + '</div></div>'
             : '') +
-          (setup.autoconfig
-            ? '<div class="setup-note"><div class="detail-strong">' + escapeHtmlClient(t("autoconfigReady")) + '</div><div class="detail">IMAP ' + escapeHtmlClient(setup.autoconfig.imapHost || "") + ':' + escapeHtmlClient(setup.autoconfig.imapPort || "") + ' · SMTP ' + escapeHtmlClient(setup.autoconfig.smtpHost || "") + ':' + escapeHtmlClient(setup.autoconfig.smtpPort || "") + (setup.autoconfig.source ? ' · source ' + escapeHtmlClient(setup.autoconfig.source) : '') + '</div>' + (setup.autoconfig.warning ? '<div class="field-note">' + escapeHtmlClient(setup.autoconfig.warning) + '</div>' : '') + '</div>'
-            : '') +
-          '<div class="setup-note"><div class="detail-strong">' + escapeHtmlClient(providerDisplayName) + '</div><div class="detail">' + escapeHtmlClient(notes[0] || t("useRecommendedProviderCopy")) + '</div>' + (requiredEnvVars.length > 0 ? '<div class="field-note">' + escapeHtmlClient(t("requiredEnvLabel")) + ': ' + escapeHtmlClient(requiredEnvVars.join(", ")) + '</div>' : '') + '</div>' +
           (setup.plan
             ? (providerSetupKind === "browser_oauth"
-              ? '<div class="detail">' + escapeHtmlClient(t("oauthDetectedCopy")) + '</div>'
+              ? renderConnectOAuthForm(setup, provider)
               : providerSetupKind === "forward_ingest"
                 ? renderConnectForwardForm(setup)
                 : renderConnectPasswordForm(setup, provider))
@@ -3334,35 +3899,36 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const providerDisplayName = provider && provider.displayName ? provider.displayName : providerId;
         const supportsTopic = providerId === "gmail";
         const supportsTenant = providerId === "outlook";
+        const providerPortalUrl = provider && provider.portalUrl ? provider.portalUrl : "";
+        const providerPortalLabel =
+          provider && provider.portalLabel ? provider.portalLabel : t("providerMail");
         const providerHelpUrl = provider && provider.helpUrl ? provider.helpUrl : "";
         const providerHelpLabel = provider && provider.helpLabel ? provider.helpLabel : t("providerHelp");
-        const secretAutomationReason =
-          provider && provider.secretAutomation === "not_supported" && provider.secretAutomationReason
-            ? provider.secretAutomationReason
-            : "";
 
         return (
           '<div class="setup-stack">' +
           '<div class="detail">' + escapeHtmlClient(t("oauthStartsHere")) + '</div>' +
-          (secretAutomationReason ? '<div class="field-note">' + escapeHtmlClient(secretAutomationReason) + '</div>' : '') +
+          '<div class="actions-inline">' +
+          (providerPortalUrl
+            ? '<a class="btn" href="' + escapeHtmlClient(providerPortalUrl) + '" target="_blank" rel="noreferrer">' + escapeHtmlClient(providerPortalLabel) + '</a>'
+            : '') +
           (providerHelpUrl
-            ? '<div class="actions-inline"><a class="btn" href="' + escapeHtmlClient(providerHelpUrl) + '" target="_blank" rel="noreferrer">' + escapeHtmlClient(providerHelpLabel) + '</a></div>'
+            ? '<a class="btn" href="' + escapeHtmlClient(providerHelpUrl) + '" target="_blank" rel="noreferrer">' + escapeHtmlClient(providerHelpLabel) + '</a>'
             : '') +
-          '<div class="detail-grid">' +
-          '<label><div class="section-label">' + escapeHtmlClient(t("oauthClientId")) + '</div><input class="console-input" data-connect-field="clientId" placeholder="optional override" value="' + escapeHtmlClient(setup.clientId || "") + '" /></label>' +
-          '<label><div class="section-label">' + escapeHtmlClient(t("oauthClientSecret")) + '</div><input class="console-input" data-connect-field="clientSecret" type="password" placeholder="optional override" value="' + escapeHtmlClient(setup.clientSecret || "") + '" /></label>' +
-          (supportsTenant
-            ? '<label><div class="section-label">' + escapeHtmlClient(t("tenantLabel")) + '</div><input class="console-input" data-connect-field="tenant" placeholder="common" value="' + escapeHtmlClient(setup.tenant || "") + '" /></label>'
-            : '<label><div class="section-label">' + escapeHtmlClient(t("userIdLabel")) + '</div><input class="console-input" data-connect-field="userId" placeholder="me" value="' + escapeHtmlClient(setup.userId || "") + '" /></label>') +
-          '<label><div class="section-label">' + escapeHtmlClient(t("scopesLabel")) + '</div><input class="console-input" data-connect-field="scopes" placeholder="comma separated, optional" value="' + escapeHtmlClient(setup.scopes || "") + '" /></label>' +
-          (supportsTopic
-            ? '<label><div class="section-label">' + escapeHtmlClient(t("pubsubTopic")) + '</div><input class="console-input" data-connect-field="topicName" placeholder="projects/.../topics/..." value="' + escapeHtmlClient(setup.topicName || "") + '" /></label>'
-            : '<label><div class="section-label">' + escapeHtmlClient(t("labelIdsLabel")) + '</div><input class="console-input" data-connect-field="labelIds" placeholder="optional, comma separated" value="' + escapeHtmlClient(setup.labelIds || "") + '" /></label>') +
+          '<button class="btn primary" data-action="start-oauth-connect" data-provider-id="' + escapeHtmlClient(providerId || "") + '">' + escapeHtmlClient(t("continueWith", { provider: providerDisplayName || "OAuth" })) + '</button>' +
           '</div>' +
-          (supportsTopic
-            ? '<label><div class="section-label">' + escapeHtmlClient(t("labelIdsLabel")) + '</div><input class="console-input" data-connect-field="labelIds" placeholder="INBOX,IMPORTANT" value="' + escapeHtmlClient(setup.labelIds || "") + '" /></label>'
+          ((supportsTenant || supportsTopic)
+            ? '<details class="advanced-settings"><summary>' + escapeHtmlClient(t("advancedSettings")) + '</summary><div class="field-note">' + escapeHtmlClient(t("advancedSettingsCopy")) + '</div>' +
+              '<div class="detail-grid">' +
+              (supportsTenant
+                ? '<label><div class="section-label">' + escapeHtmlClient(t("tenantLabel")) + '</div><input class="console-input" data-connect-field="tenant" placeholder="common" value="' + escapeHtmlClient(setup.tenant || "") + '" /></label>'
+                : '<label><div class="section-label">' + escapeHtmlClient(t("userIdLabel")) + '</div><input class="console-input" data-connect-field="userId" placeholder="me" value="' + escapeHtmlClient(setup.userId || "") + '" /></label>') +
+              '<label><div class="section-label">' + escapeHtmlClient(t("scopesLabel")) + '</div><input class="console-input" data-connect-field="scopes" placeholder="comma separated, optional" value="' + escapeHtmlClient(setup.scopes || "") + '" /></label>' +
+              (supportsTopic
+                ? '<label><div class="section-label">' + escapeHtmlClient(t("pubsubTopic")) + '</div><input class="console-input" data-connect-field="topicName" placeholder="projects/.../topics/..." value="' + escapeHtmlClient(setup.topicName || "") + '" /></label><label><div class="section-label">' + escapeHtmlClient(t("labelIdsLabel")) + '</div><input class="console-input" data-connect-field="labelIds" placeholder="INBOX,IMPORTANT" value="' + escapeHtmlClient(setup.labelIds || "") + '" /></label>'
+                : '<label><div class="section-label">' + escapeHtmlClient(t("labelIdsLabel")) + '</div><input class="console-input" data-connect-field="labelIds" placeholder="optional, comma separated" value="' + escapeHtmlClient(setup.labelIds || "") + '" /></label>') +
+              '</div></details>'
             : '') +
-          '<div class="actions-inline"><button class="btn primary" data-action="start-oauth-connect" data-provider-id="' + escapeHtmlClient(providerId || "") + '">' + escapeHtmlClient(t("continueWith", { provider: providerDisplayName || "OAuth" })) + '</button></div>' +
           '</div>'
         );
       }
@@ -3390,17 +3956,16 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           '<div class="setup-stack">' +
           '<div class="detail">' + escapeHtmlClient(t("passwordPathCopy")) + '</div>' +
           (secretAutomationReason ? '<div class="field-note">' + escapeHtmlClient(secretAutomationReason) + '</div>' : '') +
-          ((providerPortalUrl || providerHelpUrl)
-            ? '<div class="actions-inline">' +
-              (providerPortalUrl
-                ? '<a class="btn" href="' + escapeHtmlClient(providerPortalUrl) + '" target="_blank" rel="noreferrer">' + escapeHtmlClient(providerPortalLabel) + '</a>'
-                : '') +
-              (providerHelpUrl
-                ? '<a class="btn" href="' + escapeHtmlClient(providerHelpUrl) + '" target="_blank" rel="noreferrer">' + escapeHtmlClient(providerHelpLabel) + '</a>'
-                : '') +
-              '</div>'
-            : '') +
           '<label><div class="section-label">' + escapeHtmlClient(secretLabel) + '</div><input class="console-input" data-connect-field="password" type="password" placeholder="' + escapeHtmlClient(secretPlaceholder) + '" value="' + escapeHtmlClient(setup.password || "") + '" /></label>' +
+          '<div class="actions-inline">' +
+          (providerPortalUrl
+            ? '<a class="btn" href="' + escapeHtmlClient(providerPortalUrl) + '" target="_blank" rel="noreferrer">' + escapeHtmlClient(providerPortalLabel) + '</a>'
+            : '') +
+          (providerHelpUrl
+            ? '<a class="btn" href="' + escapeHtmlClient(providerHelpUrl) + '" target="_blank" rel="noreferrer">' + escapeHtmlClient(providerHelpLabel) + '</a>'
+            : '') +
+          '<button class="btn primary" data-action="save-password-mailbox">' + escapeHtmlClient(t("saveMailboxConfig")) + '</button>' +
+          '</div>' +
           '<details class="advanced-settings"><summary>' + escapeHtmlClient(t("advancedSettings")) + '</summary><div class="field-note">' + escapeHtmlClient(t("advancedSettingsCopy")) + '</div>' +
           '<div class="detail-grid">' +
           '<label><div class="section-label">' + escapeHtmlClient(t("imapHostLabel")) + '</div><input class="console-input" data-connect-field="imapHost" placeholder="imap.example.com" value="' + escapeHtmlClient(setup.imapHost || "") + '" /></label>' +
@@ -3412,7 +3977,6 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           '<label><div class="section-label">' + escapeHtmlClient(t("smtpSecureLabel")) + '</div><select class="console-input" data-connect-field="smtpSecure"><option value="yes"' + (setup.smtpSecure === "yes" ? ' selected' : '') + '>yes</option><option value="no"' + (setup.smtpSecure === "no" ? ' selected' : '') + '>no</option></select></label>' +
           '<label><div class="section-label">' + escapeHtmlClient(t("smtpFromLabel")) + '</div><input class="console-input" data-connect-field="smtpFrom" placeholder="user@example.com" value="' + escapeHtmlClient(setup.smtpFrom || "") + '" /></label>' +
           '</div></details>' +
-          '<div class="actions-inline"><button class="btn primary" data-action="save-password-mailbox">' + escapeHtmlClient(t("saveMailboxConfig")) + '</button></div>' +
           '</div>'
         );
       }
@@ -3436,16 +4000,16 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           '<div class="card-top">' +
           '<div>' +
           '<div class="card-title">' + escapeHtmlClient(account.displayName || account.emailAddress || account.accountId) + "</div>" +
-          '<div class="card-subtitle code">' + escapeHtmlClient(account.accountId) + "</div>" +
           "</div>" +
           renderPill(account.health || "unknown", account.pendingApprovalCount > 0 ? "pill--warn" : "pill--ok") +
           "</div>" +
           '<div class="chips">' +
           renderPill((account.provider || "provider") + "", "") +
           renderPill(String(account.roomCount || 0) + " rooms", "") +
-          renderPill(String(account.pendingApprovalCount || 0) + " approvals", Number(account.pendingApprovalCount || 0) > 0 ? "pill--warn" : "") +
+          (Number(account.pendingApprovalCount || 0) > 0
+            ? renderPill(String(account.pendingApprovalCount || 0) + " approvals", "pill--warn")
+            : "") +
           "</div>" +
-          '<div class="detail">' + escapeHtmlClient(t("latestActivity")) + ' ' + escapeHtmlClient(formatTime(account.latestActivityAt)) + "</div>" +
           "</button>"
         );
       }
@@ -3489,27 +4053,26 @@ export function renderOpenClawWorkbenchShellHtml(input: {
       function renderRoomCard(room) {
         const working = isWorkingRoom(room);
         const cardClass = "list-card" + (working ? " list-card--working" : "") + (room.roomKey === state.route.roomKey ? " active" : "");
-        const progressStyle = working ? ' style="--room-progress:' + escapeHtmlClient(String(getRoomProgressPercent(room))) + '%"' : "";
+        const statusMarkup =
+          '<span class="status-row">' +
+          (room.state === "done" ? '<span class="status-dot status-dot--done" aria-hidden="true"></span>' : "") +
+          renderPill(room.state || "open", "") +
+          '</span>';
         return (
-          '<button class="' + cardClass + '"' + progressStyle + ' data-action="select-room" data-room-key="' + escapeHtmlClient(room.roomKey) + '" data-account-id="' + escapeHtmlClient(room.accountId || "") + '">' +
+          '<button class="' + cardClass + '" data-action="select-room" data-room-key="' + escapeHtmlClient(room.roomKey) + '" data-account-id="' + escapeHtmlClient(room.accountId || "") + '">' +
           '<div class="card-top">' +
           '<div>' +
           '<div class="card-title">' + escapeHtmlClient(getRoomDisplayTitle(room)) + "</div>" +
-          '<div class="card-subtitle code">' + escapeHtmlClient(room.roomKey) + "</div>" +
           "</div>" +
-          renderPill(room.state || "open", "") +
+          statusMarkup +
           "</div>" +
           '<div class="chips">' +
-          renderPill("attention " + escapeHtmlClient(room.attention || "normal"), "") +
-          renderPill("rev " + escapeHtmlClient(room.revision || 0), "") +
           renderPill(String(room.visibleAgentCount || 0) + " " + t("agents"), "") +
           renderPill(String(room.messageCount || 0) + " mail", "") +
-          renderPill(String(room.resourceCount || 0) + " resources", "") +
-          renderPill(String(room.pendingApprovalCount || 0) + " approvals", Number(room.pendingApprovalCount || 0) > 0 ? "pill--warn" : "") +
-          (room.mailTaskKind ? renderPill("task " + room.mailTaskKind, "") : "") +
-          (room.mailTaskStage ? renderPill("stage " + room.mailTaskStage, "") : "") +
+          (Number(room.pendingApprovalCount || 0) > 0
+            ? renderPill(String(room.pendingApprovalCount || 0) + " approvals", "pill--warn")
+            : "") +
           '</div>' +
-          '<div class="detail">' + escapeHtmlClient(t("processed")) + ' ' + escapeHtmlClient(formatTime(room.latestActivityAt)) + '</div>' +
           '</button>'
         );
       }
@@ -3518,14 +4081,13 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         return (
           '<button class="list-card" data-action="select-room" data-room-key="' + escapeHtmlClient(approval.roomKey) + '" data-account-id="' + escapeHtmlClient(approval.accountId || "") + '">' +
           '<div class="card-top">' +
-          '<div><div class="card-title">' + escapeHtmlClient(approval.subject || approval.requestId) + '</div><div class="card-subtitle code">' + escapeHtmlClient(approval.requestId) + "</div></div>" +
+          '<div><div class="card-title">' + escapeHtmlClient(approval.subject || approval.requestId) + "</div></div>" +
           renderPill(approval.status || "requested", approval.status === "requested" ? "pill--warn" : approval.status === "rejected" ? "pill--danger" : "pill--ok") +
           "</div>" +
           '<div class="chips">' +
           (approval.outboxStatus ? renderPill(approval.outboxStatus, "") : "") +
           renderPill(String((approval.recipients && approval.recipients.to ? approval.recipients.to.length : 0)) + " to", "") +
           "</div>" +
-          '<div class="detail">' + escapeHtmlClient(t("updated")) + ' ' + escapeHtmlClient(formatTime(approval.updatedAt)) + "</div>" +
           "</button>"
         );
       }
@@ -3534,14 +4096,13 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         return (
           '<button class="list-card' + (mailbox.mailboxId === state.route.mailboxId ? " active" : "") + '" data-action="select-mailbox" data-account-id="' + escapeHtmlClient(mailbox.accountId || state.route.accountId || "") + '" data-mailbox-id="' + escapeHtmlClient(mailbox.mailboxId) + '">' +
           '<div class="card-top">' +
-          '<div><div class="card-title code">' + escapeHtmlClient(mailbox.mailboxId) + '</div><div class="card-subtitle">' + escapeHtmlClient(mailbox.kind || "mailbox") + (mailbox.role ? " / " + escapeHtmlClient(mailbox.role) : "") + "</div></div>" +
+          '<div><div class="card-title code">' + escapeHtmlClient(mailbox.mailboxId) + '</div></div>' +
           renderPill(mailbox.active ? "active" : "inactive", mailbox.active ? "pill--ok" : "pill--warn") +
           "</div>" +
           '<div class="chips">' +
           renderPill(String(mailbox.messageCount || 0) + " msgs", "") +
           renderPill(String(mailbox.roomCount || 0) + " rooms", "") +
           "</div>" +
-          '<div class="detail">' + escapeHtmlClient(t("latest")) + ' ' + escapeHtmlClient(formatTime(mailbox.latestMessageAt)) + "</div>" +
           "</button>"
         );
       }
@@ -3552,15 +4113,9 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         return (
           '<button class="list-card' + (inbox.inboxId === state.route.inboxId ? " active" : "") + '" data-action="select-inbox" data-account-id="' + escapeHtmlClient(inbox.accountId || state.route.accountId || "") + '" data-inbox-id="' + escapeHtmlClient(inbox.inboxId || "") + '">' +
           '<div class="card-top">' +
-          '<div><div class="card-title code">' + escapeHtmlClient(inbox.inboxId || "inbox") + '</div><div class="card-subtitle">' + escapeHtmlClient(inbox.agentId || "agent") + " / " + escapeHtmlClient(t("publicInbox").toLowerCase()) + '</div></div>' +
+          '<div><div class="card-title code">' + escapeHtmlClient(inbox.inboxId || "inbox") + '</div></div>' +
           renderPill(String(items.length) + " rooms", items.length > 0 ? "pill--warn" : "") +
           "</div>" +
-          '<div class="chips">' +
-          renderPill("ACK " + escapeHtmlClient(inbox.ackSlaSeconds || 0) + "s", "") +
-          renderPill("limit " + escapeHtmlClient(inbox.activeRoomLimit || 0), "") +
-          renderPill("burst " + escapeHtmlClient(inbox.burstCoalesceSeconds || 0) + "s", "") +
-          "</div>" +
-          '<div class="detail">' + escapeHtmlClient(items.slice(0, 2).map(function(item) { return item.roomKey; }).join(", ") || t("noProjectedRooms")) + "</div>" +
           "</button>"
         );
       }
@@ -3671,27 +4226,25 @@ export function renderOpenClawWorkbenchShellHtml(input: {
 
       function renderAgentDirectoryCard(entry, connect) {
         const skillGroups = connect && Array.isArray(connect.skills) ? connect.skills : [];
-        const skillCount = (() => {
-          const match = skillGroups.find(function(group) {
-            return group.agentId === entry.agentId;
-          });
-          return match && Array.isArray(match.skills) ? match.skills.length : 0;
-        })();
+        const skillMatch = skillGroups.find(function(group) {
+          return group.agentId === entry.agentId;
+        });
+        const skills = skillMatch && Array.isArray(skillMatch.skills) ? skillMatch.skills : [];
         const selected = getSelectedAgentId(connect) === entry.agentId;
         return (
           '<div class="timeline-entry' + (selected ? ' active' : '') + '">' +
-          '<div class="meta"><span>' + escapeHtmlClient(entry.displayName || entry.agentId || "agent") + '</span><span>' + escapeHtmlClient(String((entry.virtualMailboxes || []).length) + " mailboxes") + "</span></div>" +
-          '<div class="title code">' + escapeHtmlClient(entry.publicMailboxId || ("public:" + (entry.agentId || "agent"))) + "</div>" +
+          '<div class="meta"><span>' + escapeHtmlClient(entry.displayName || entry.agentId || "agent") + "</span></div>" +
+          '<div class="section-label">' + escapeHtmlClient(t("agentProfileLabel")) + '</div>' +
           '<div class="detail">' + escapeHtmlClient(entry.purpose || "") + "</div>" +
-          '<div class="chips">' +
-          (entry.templateId ? renderPill(entry.templateId, "") : "") +
-          renderPill(String(skillCount) + " skills", "") +
-          ((entry.collaboratorAgentIds || []).slice(0, 3).map(function(agentId) { return renderPill("works with " + agentId, ""); }).join("")) +
-          "</div>" +
-          (entry.soulPath ? '<div class="detail code">' + escapeHtmlClient(entry.soulPath) + '</div>' : '<div class="detail">' + escapeHtmlClient(t("noSoulInitialized")) + '</div>') +
-          ((entry.virtualMailboxes || []).length > 0
-            ? '<div class="detail code">' + escapeHtmlClient((entry.virtualMailboxes || []).join(", ")) + "</div>"
-            : "") +
+          '<div class="section-label">' + escapeHtmlClient(t("installedSkills")) + '</div>' +
+          (skills.length > 0
+            ? '<div class="chips">' + skills.map(function(skill) {
+                return renderPill(skill.title || skill.skillId || "skill", skill.source === "managed" ? "pill--ok" : "");
+              }).join("") + '</div>'
+            : '<div class="detail">' + escapeHtmlClient(t("noSkillsDiscovered")) + '</div>') +
+          (entry.soulPath
+            ? '<div class="section-label">' + escapeHtmlClient(t("soulReadyLabel")) + '</div><div class="detail">' + escapeHtmlClient(t("soulLabel")) + '</div>'
+            : '') +
           '<div class="timeline-entry__actions"><button class="btn" data-action="select-agent" data-agent-id="' + escapeHtmlClient(entry.agentId || "") + '">' + escapeHtmlClient(selected ? t("selectedAgent") : t("manageAgent")) + '</button></div>' +
           "</div>"
         );
@@ -3723,19 +4276,48 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           state.route.accountId ||
           (state.data && state.data.selection && state.data.selection.accountId) ||
           "";
+        const selectedTenantId =
+          (connect && connect.templateApplyTenantId) ||
+          selectedAccountId ||
+          "default";
+        const skillGroups = connect && Array.isArray(connect.skills) ? connect.skills : [];
+        const selectedSkillGroup = skillGroups.find(function(group) {
+          return group.agentId === selectedAgentId;
+        });
+        const selectedSkills = selectedSkillGroup && Array.isArray(selectedSkillGroup.skills) ? selectedSkillGroup.skills : [];
+        const profileLoaded = state.connect && state.connect.agentProfileAgentId === selectedAgentId;
+        const profileDisplayName =
+          profileLoaded && state.connect && typeof state.connect.agentProfileDisplayName === "string"
+            ? state.connect.agentProfileDisplayName
+            : (selected.displayName || selectedAgentId);
+        const profilePurpose =
+          profileLoaded && state.connect && typeof state.connect.agentProfilePurpose === "string"
+            ? state.connect.agentProfilePurpose
+            : (selected.purpose || "");
+        const profileStatus =
+          profileLoaded && state.connect && state.connect.agentProfileStatus && typeof state.connect.agentProfileStatus.message === "string"
+            ? state.connect.agentProfileStatus
+            : null;
+        const profileNoteClass =
+          !profileStatus
+            ? ""
+            : profileStatus.tone === "danger"
+              ? "setup-note setup-note--danger"
+              : "setup-note setup-note--ok";
         return (
-          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(selected.displayName || selectedAgentId) + '</h3><span class="muted code">' + escapeHtmlClient(selectedAgentId) + '</span></div><div class="panel-body">' +
-          '<div class="detail">' + escapeHtmlClient(selected.purpose || "") + '</div>' +
-          '<div class="chips">' +
-          (selected.templateId ? renderPill(selected.templateId, "") : "") +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(selected.displayName || selectedAgentId) + '</h3></div><div class="panel-body">' +
+          '<div class="detail-grid">' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("displayNameLabel")) + '</div><input class="console-input" data-agent-profile-field="displayName" value="' + escapeHtmlClient(profileDisplayName) + '" /></label>' +
           '</div>' +
-          ((selected.virtualMailboxes || []).length > 0
-            ? '<div class="section-label">' + escapeHtmlClient(t("virtualMailboxes")) + '</div><div class="chips">' +
-              (selected.virtualMailboxes || []).map(function(mailboxId) {
-                return renderMailboxChip(mailboxId, null, selectedAccountId);
-              }).join("") +
-              '</div>'
-            : '') +
+          '<label><div class="section-label">' + escapeHtmlClient(t("agentProfileLabel")) + '</div><textarea class="console-textarea" data-agent-profile-field="purpose" placeholder="' + escapeHtmlClient(t("agentProfileLabel")) + '">' + escapeHtmlClient(profilePurpose) + '</textarea></label>' +
+          (profileStatus ? '<div class="' + profileNoteClass + '">' + escapeHtmlClient(profileStatus.message || "") + '</div>' : '') +
+          '<div class="actions-inline">' +
+          '<button class="btn primary" data-action="save-agent-profile" data-agent-id="' + escapeHtmlClient(selectedAgentId) + '" data-tenant-id="' + escapeHtmlClient(selectedTenantId) + '" data-account-id="' + escapeHtmlClient(selectedAccountId) + '">' + escapeHtmlClient(t("saveAgentProfile")) + '</button>' +
+          '</div>' +
+          '<div class="section-label">' + escapeHtmlClient(t("installedSkills")) + '</div>' +
+          (selectedSkills.length > 0
+            ? '<div class="mailbox-feed">' + selectedSkills.map(function(skill) { return renderAgentSkillCard(selectedAgentId, skill, { agentLabel: selected.displayName || selectedAgentId, selectable: false }); }).join("") + '</div>'
+            : '<div class="detail">' + escapeHtmlClient(t("noSkillsDiscovered")) + '</div>') +
           (soulStatus ? '<div class="' + noteClass + '">' + escapeHtmlClient(soulStatus.message) + '</div>' : '') +
           '<label><div class="section-label">' + escapeHtmlClient(t("soulLabel")) + '</div><textarea class="console-textarea" data-agent-soul-field="content" placeholder="' + escapeHtmlClient(t("soulPlaceholder")) + '">' + escapeHtmlClient(soulContent) + '</textarea></label>' +
           '<div class="actions-inline">' +
@@ -3751,21 +4333,15 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         return (skill && (skill.sourceRef || skill.path)) ? String(skill.sourceRef || skill.path) : "";
       }
 
-      function renderAgentSkillCard(agentId, skill) {
-        const sourceValue = readSkillSourceValue(skill);
+      function renderAgentSkillCard(agentId, skill, options) {
+        const selectable = Boolean(options && options.selectable);
+        const agentLabel = options && options.agentLabel ? options.agentLabel : agentId;
         return (
           '<div class="timeline-entry">' +
-          '<div class="meta"><span>' + escapeHtmlClient(skill.title || skill.skillId || "skill") + '</span><span>' + escapeHtmlClient(skill.source || "managed") + "</span></div>" +
+          '<div class="meta"><span>' + escapeHtmlClient(skill.title || skill.skillId || "skill") + '</span><span>' + escapeHtmlClient(agentLabel || t("agentPanel")) + "</span></div>" +
           '<div class="title code">' + escapeHtmlClient(skill.skillId || "skill") + "</div>" +
-          (sourceValue
-            ? '<div class="detail code">' + escapeHtmlClient(sourceValue) + "</div>"
-            : '<div class="detail">' + escapeHtmlClient(t("noSourceReference")) + '</div>') +
-          '<div class="chips">' +
-          renderPill(skill.source || "managed", skill.source === "managed" ? "pill--ok" : "") +
-          (sourceValue ? renderPill(t("sourceReadyLabel"), "pill--ok") : renderPill(t("inlineOnlyLabel"), "")) +
-          "</div>" +
-          (sourceValue
-            ? '<div class="actions-inline"><button class="btn" data-action="prefill-skill-install" data-agent-id="' + escapeHtmlClient(agentId || "") + '" data-skill-source="' + escapeHtmlClient(sourceValue) + '" data-skill-id="' + escapeHtmlClient(skill.skillId || "") + '" data-skill-title="' + escapeHtmlClient(skill.title || skill.skillId || "skill") + '">' + escapeHtmlClient(t("useAsSource")) + '</button></div>'
+          (selectable
+            ? '<div class="timeline-entry__actions"><button class="btn" data-action="select-agent-skill" data-agent-id="' + escapeHtmlClient(agentId || "") + '" data-agent-label="' + escapeHtmlClient(agentLabel || "") + '" data-skill-id="' + escapeHtmlClient(skill.skillId || "") + '" data-skill-title="' + escapeHtmlClient(skill.title || skill.skillId || "skill") + '">' + escapeHtmlClient(t("editSkill")) + '</button></div>'
             : "") +
           "</div>"
         );
@@ -3779,10 +4355,13 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           '<div class="title code">' + escapeHtmlClient(entry.agentId || "agent") + "</div>" +
           (skills.length > 0
             ? '<div class="chips">' + skills.map(function(skill) {
-                return renderPill((skill.source || "default") + " " + (skill.skillId || "skill"), skill.source === "managed" ? "pill--ok" : "");
+                return renderPill(skill.title || skill.skillId || "skill", "");
               }).join("") + "</div>" +
               '<div class="mailbox-feed">' + skills.map(function(skill) {
-                return renderAgentSkillCard(entry.agentId || "", skill);
+                return renderAgentSkillCard(entry.agentId || "", skill, {
+                  agentLabel: entry.displayName || entry.agentId || "",
+                  selectable: true
+                });
               }).join("") + "</div>"
             : '<div class="detail">' + escapeHtmlClient(t("noSkillsDiscovered")) + '</div>') +
           "</div>"
@@ -3883,8 +4462,52 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           '<div class="timeline-entry">' +
           '<div class="meta"><span>' + escapeHtmlClient(skill.title || skill.skillId || "skill") + '</span><span>' + escapeHtmlClient("mailclaws") + '</span></div>' +
           '<div class="title code">' + escapeHtmlClient(skill.skillId || "skill") + '</div>' +
-          '<div class="detail code">' + escapeHtmlClient(skill.path || "") + '</div>' +
+          '<div class="timeline-entry__actions"><button class="btn" data-action="select-shared-skill" data-skill-id="' + escapeHtmlClient(skill.skillId || "") + '" data-skill-title="' + escapeHtmlClient(skill.title || skill.skillId || "skill") + '">' + escapeHtmlClient(t("editSkill")) + '</button></div>' +
           '</div>'
+        );
+      }
+
+      function renderSkillEditorPanel(connect) {
+        const stored = state.connect || {};
+        const kind = typeof stored.skillEditorKind === "string" ? stored.skillEditorKind : "";
+        const skillId = typeof stored.skillEditorSkillId === "string" ? stored.skillEditorSkillId : "";
+        const title =
+          typeof stored.skillEditorTitle === "string" && stored.skillEditorTitle.trim().length > 0
+            ? stored.skillEditorTitle
+            : skillId;
+        const content = typeof stored.skillEditorContent === "string" ? stored.skillEditorContent : "";
+        const agentId = typeof stored.skillEditorAgentId === "string" ? stored.skillEditorAgentId : "";
+        const agentLabel = typeof stored.skillEditorAgentLabel === "string" ? stored.skillEditorAgentLabel : agentId;
+        const status = stored.skillEditorStatus || null;
+        const noteClass =
+          !status
+            ? "setup-note"
+            : status.tone === "danger"
+              ? "setup-note setup-note--danger"
+              : "setup-note setup-note--ok";
+        const accountId = connect && connect.templateApplyAccountId ? connect.templateApplyAccountId : "";
+        const tenantId = connect && connect.templateApplyTenantId ? connect.templateApplyTenantId : (accountId || "default");
+
+        if (!kind || !skillId) {
+          return (
+            '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("editSkillPanel")) + '</h3></div><div class="panel-body">' +
+            '<div class="empty">' + escapeHtmlClient(t("selectSkillToEdit")) + '</div>' +
+            '</div></div>'
+          );
+        }
+
+        return (
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(title || skillId) + '</h3><span class="muted">' + escapeHtmlClient(kind === "shared" ? t("sharedLabel") : (agentLabel || t("agentPanel"))) + '</span></div><div class="panel-body">' +
+          (status ? '<div class="' + noteClass + '">' + escapeHtmlClient(status.message || "") + '</div>' : '') +
+          '<div class="detail-grid">' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("skillIdLabel")) + '</div><input class="console-input" value="' + escapeHtmlClient(skillId) + '" readonly /></label>' +
+          (kind === "shared"
+            ? '<label><div class="section-label">' + escapeHtmlClient(t("sharedLabel")) + '</div><input class="console-input" value="mailclaws" readonly /></label>'
+            : '<label><div class="section-label">' + escapeHtmlClient(t("agentPanel")) + '</div><input class="console-input" value="' + escapeHtmlClient(agentLabel || agentId) + '" readonly /></label>') +
+          '</div>' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("markdownLabel")) + '</div><textarea class="console-textarea" data-skill-editor-field="content" placeholder="' + escapeHtmlClient(t("markdownPlaceholder")) + '">' + escapeHtmlClient(content) + '</textarea></label>' +
+          '<div class="actions-inline"><button class="btn primary" data-action="save-selected-skill" data-skill-kind="' + escapeHtmlClient(kind) + '" data-skill-id="' + escapeHtmlClient(skillId) + '" data-agent-id="' + escapeHtmlClient(agentId) + '" data-tenant-id="' + escapeHtmlClient(tenantId) + '" data-account-id="' + escapeHtmlClient(accountId) + '">' + escapeHtmlClient(t("saveSkill")) + '</button></div>' +
+          '</div></div>'
         );
       }
 
@@ -3971,6 +4594,40 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         );
       }
 
+      function renderHomeRoomPanel() {
+        const draft = getHomeRoomDraft();
+        const accounts = draft.accounts || [];
+        const status =
+          draft.status && draft.status.tone === "danger"
+            ? "setup-note setup-note--danger"
+            : draft.status && draft.status.tone === "ok"
+              ? "setup-note setup-note--ok"
+              : "setup-note";
+
+        return (
+          '<div class="panel home-room-panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("createRoomFromHome")) + '</h3><span class="muted">' + escapeHtmlClient(accounts.length > 0 ? String(accounts.length) + " accounts" : "mailbox") + '</span></div><div class="panel-body">' +
+          (accounts.length === 0
+            ? '<div class="empty">' + escapeHtmlClient(t("createRoomFromHomeEmpty")) + '</div>'
+            : '<div class="setup-stack">' +
+              '<div class="detail">' + escapeHtmlClient(t("createRoomFromHomeCopy")) + '</div>' +
+              (draft.status ? '<div class="' + status + '"><div class="detail-strong">' + escapeHtmlClient(draft.status.message || "") + '</div></div>' : '') +
+              '<div class="detail-grid">' +
+              '<label><div class="section-label">' + escapeHtmlClient(t("targetMailboxLabel")) + '</div><select class="console-input" data-home-room-field="accountId">' +
+              accounts.map(function(account) {
+                const label = (account.displayName || account.emailAddress || account.accountId) + " · " + account.accountId;
+                return '<option value="' + escapeHtmlClient(account.accountId || "") + '"' + (account.accountId === draft.accountId ? " selected" : "") + '>' + escapeHtmlClient(label) + '</option>';
+              }).join("") +
+              '</select></label>' +
+              '<label><div class="section-label">' + escapeHtmlClient(t("selfRecipientLabel")) + '</div><input class="console-input" value="' + escapeHtmlClient(draft.mailboxAddress || "") + '" readonly /></label>' +
+              '<label><div class="section-label">' + escapeHtmlClient(t("subjectLabel")) + '</div><input class="console-input" data-home-room-field="subject" placeholder="' + escapeHtmlClient(t("roomSubjectDefault")) + '" value="' + escapeHtmlClient(draft.subject || "") + '" /></label>' +
+              '</div>' +
+              '<label><div class="section-label">' + escapeHtmlClient(t("bodyLabel")) + '</div><textarea class="console-textarea" data-home-room-field="body" placeholder="' + escapeHtmlClient(t("roomBodyDefault")) + '">' + escapeHtmlClient(draft.body || "") + '</textarea></label>' +
+              '<div class="actions-inline"><button class="btn primary" data-action="create-home-room">' + escapeHtmlClient(t("createAndSendRoom")) + '</button></div>' +
+              '</div>') +
+          '</div></div>'
+        );
+      }
+
       function renderHomeOverview() {
         const setup = getConnectSetupState();
         const connect = setup.connect;
@@ -3988,6 +4645,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
             copy: t("homeCopy"),
             actions:
               '<a class="btn primary" href="' + escapeHtmlClient(hrefForRoute({ mode: "rooms", accountId: null, inboxId: null, roomKey: null, mailboxId: null })) + '">' + escapeHtmlClient(t("openRooms")) + '</a>' +
+              '<a class="btn" href="' + escapeHtmlClient(hrefForRoute({ mode: "home", accountId: null, inboxId: null, roomKey: null, mailboxId: null }) + "#runtime-model-editor") + '">' + escapeHtmlClient(t("addBaseModel")) + '</a>' +
               '<a class="btn" href="' + escapeHtmlClient(hrefForRoute({ mode: "accounts", accountId: null, inboxId: null, roomKey: null, mailboxId: null })) + '">' + escapeHtmlClient(t("connectMailbox")) + '</a>',
             summaryItems: [
               { label: t("accounts"), value: String((state.data && state.data.accounts ? state.data.accounts.length : 0)) },
@@ -3997,6 +4655,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
             ]
           }) +
           renderConnectRuntimePanel(setup) +
+          renderHomeRoomPanel() +
           '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("recentRooms")) + '</h3><span class="muted">' + escapeHtmlClient(t("recentShown", { count: Math.min(rooms.length, 6) })) + '</span></div><div class="panel-body">' +
           (rooms.length > 0 ? '<div class="list">' + rooms.slice(0, 6).map(renderRoomCard).join("") + '</div>' : '<div class="empty">' + escapeHtmlClient(t("noRoomsYet")) + '</div>') +
           '</div></div>' +
@@ -4078,21 +4737,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
       function renderSkillsHome() {
         const connect = getConnectSetupState().connect;
         const skills = connect && Array.isArray(connect.skills) ? connect.skills : [];
-        const reusableSkills = connect && Array.isArray(connect.reusableSkills) ? connect.reusableSkills : [];
         const sharedSkills = connect && Array.isArray(connect.sharedSkills) ? connect.sharedSkills : [];
-        const reusableSkillSources = reusableSkills.filter(function(skill) {
-          return typeof skill.path === "string" && skill.path.trim().length > 0;
-        });
-        const targetAgentId =
-          state.connect && typeof state.connect.skillTargetAgentId === "string" && state.connect.skillTargetAgentId.trim().length > 0
-            ? state.connect.skillTargetAgentId
-            : (connect && connect.agentDirectory && connect.agentDirectory[0] ? connect.agentDirectory[0].agentId : "");
-        const canInstallAll = Boolean(
-          connect &&
-          connect.templateApplyAccountId &&
-          targetAgentId &&
-          reusableSkillSources.length > 0
-        );
         return (
           '<div class="mail-workbench-main">' +
           renderWorkspaceHero({
@@ -4121,17 +4766,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           '</div></div>' +
           '</div>' +
           '<div class="workspace-split__side">' +
-          renderSkillInstallPanel(connect) +
-          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("reusableSkillSources")) + '</h3><span class="muted">' + escapeHtmlClient(String(reusableSkills.length)) + '</span></div><div class="panel-body">' +
-          '<div class="detail">' + escapeHtmlClient(t("reusableSkillSourcesCopy")) + '</div>' +
-          '<div class="detail">' + escapeHtmlClient(t("installAllSkillsHelp")) + '</div>' +
-          (canInstallAll
-            ? '<div class="actions-inline"><button class="btn primary" data-action="quick-install-all-reusable-skills" data-account-id="' + escapeHtmlClient(connect.templateApplyAccountId || "") + '" data-tenant-id="' + escapeHtmlClient((connect && connect.templateApplyTenantId) || connect.templateApplyAccountId || "") + '" data-agent-id="' + escapeHtmlClient(targetAgentId || "") + '">' + escapeHtmlClient(t("installAllSkills")) + '</button></div>'
-            : '') +
-          (reusableSkills.length > 0
-            ? '<div class="mailbox-feed">' + reusableSkills.map(function(skill) { return renderReusableSkillCard(skill, connect); }).join("") + "</div>"
-            : '<div class="empty">' + escapeHtmlClient(t("noReusableSkillSources")) + '</div>') +
-          '</div></div>' +
+          renderSkillEditorPanel(connect) +
           renderSharedSkillCreatePanel(connect) +
           '</div>' +
           '</div>' +
@@ -4573,20 +5208,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
             t("pageHome");
         }
         if (pageSub) {
-          pageSub.textContent =
-            state.route.roomKey
-              ? t("statusRoom")
-              : state.route.mailboxId
-                ? t("statusMailbox")
-                : state.route.accountId
-                  ? t("statusAccount")
-                  : activeTab === "agents"
-                    ? t("statusAgents")
-                    : activeTab === "skills"
-                      ? t("statusSkills")
-                      : activeTab === "accounts"
-                        ? t("statusAccount")
-                        : t("statusOverview");
+          pageSub.textContent = "";
         }
         if (breadcrumb) {
           breadcrumb.textContent =
@@ -4597,15 +5219,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
             (activeTab === "agents" ? t("agents") : activeTab === "skills" ? t("skills") : activeTab === "accounts" ? t("accounts") : activeTab === "rooms" ? t("rooms") : t("home"));
         }
         if (pageMeta) {
-          const bits = [];
-          if (state.route.accountId) bits.push(renderPill("account " + state.route.accountId, ""));
-          if (state.route.roomKey) bits.push(renderRouteChip("room " + state.route.roomKey, "open-rooms", {}, true));
-          if (state.route.mailboxId) bits.push(renderPill("mailbox " + state.route.mailboxId, ""));
-          if (state.route.inboxId) bits.push(renderPill("inbox " + state.route.inboxId, ""));
-          if (workspace && workspace.hostIntegration && workspace.hostIntegration.capabilities && workspace.hostIntegration.capabilities.internalMail) {
-            bits.push(renderPill("internal mail", "pill--ok"));
-          }
-          pageMeta.innerHTML = bits.join("");
+          pageMeta.innerHTML = "";
         }
       }
 
@@ -4813,6 +5427,126 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         };
       }
 
+      function readAgentProfilePayload(target) {
+        const root = target.closest(".panel") || document;
+        function readField(name) {
+          const element = root.querySelector('[data-agent-profile-field="' + name + '"]');
+          return element && "value" in element ? String(element.value || "") : "";
+        }
+        return {
+          displayName: readField("displayName").trim(),
+          purpose: readField("purpose").trim()
+        };
+      }
+
+      function readSkillEditorPayload(target) {
+        const root = target.closest(".panel") || document;
+        const element = root.querySelector('[data-skill-editor-field="content"]');
+        return {
+          content: element && "value" in element ? String(element.value || "") : ""
+        };
+      }
+
+      function loadSkillEditor(input) {
+        const accountId = (state.data && state.data.selection && state.data.selection.accountId) || (state.route && state.route.accountId) || "";
+        const tenantId = (state.data && state.data.workspace && state.data.workspace.connect && state.data.workspace.connect.templateApplyTenantId) || accountId || "default";
+        const kind = input && input.kind === "shared" ? "shared" : "agent";
+        const agentId = input && typeof input.agentId === "string" ? input.agentId : "";
+        const agentLabel = input && typeof input.agentLabel === "string" ? input.agentLabel : agentId;
+        const skillId = input && typeof input.skillId === "string" ? input.skillId : "";
+        const title = input && typeof input.title === "string" ? input.title : skillId;
+        if (!skillId) {
+          return;
+        }
+
+        state.connect = {
+          ...(state.connect || {}),
+          skillEditorKind: kind,
+          skillEditorAgentId: agentId,
+          skillEditorAgentLabel: agentLabel,
+          skillEditorSkillId: skillId,
+          skillEditorTitle: title,
+          skillEditorStatus: null
+        };
+        state.loading = true;
+        render();
+        const path =
+          kind === "shared"
+            ? "/skills/library/" + encodeURIComponent(skillId)
+            : "/skills/" + encodeURIComponent(agentId) + "/" + encodeURIComponent(skillId);
+        void requestJson((config.apiBasePath || "/api") + path + "?tenantId=" + encodeURIComponent(tenantId) + (accountId ? "&accountId=" + encodeURIComponent(accountId) : ""))
+          .then(function(result) {
+            state.connect = {
+              ...(state.connect || {}),
+              skillEditorKind: kind,
+              skillEditorAgentId: agentId,
+              skillEditorAgentLabel: agentLabel,
+              skillEditorSkillId: skillId,
+              skillEditorTitle: result && result.skill && result.skill.title ? result.skill.title : title,
+              skillEditorContent: result && typeof result.content === "string" ? result.content : "",
+              skillEditorStatus: {
+                tone: "ok",
+                message: t("skillLoadedMessage")
+              }
+            };
+          })
+          .catch(function(error) {
+            state.connect = {
+              ...(state.connect || {}),
+              skillEditorKind: kind,
+              skillEditorAgentId: agentId,
+              skillEditorAgentLabel: agentLabel,
+              skillEditorSkillId: skillId,
+              skillEditorTitle: title,
+              skillEditorStatus: {
+                tone: "danger",
+                message: error instanceof Error ? error.message : String(error)
+              }
+            };
+          })
+          .finally(function() {
+            state.loading = false;
+            render();
+          });
+      }
+
+      function loadAgentSoul(agentId) {
+        const accountId = (state.data && state.data.selection && state.data.selection.accountId) || (state.route && state.route.accountId) || "";
+        const tenantId = (state.data && state.data.workspace && state.data.workspace.connect && state.data.workspace.connect.templateApplyTenantId) || accountId || "default";
+        if (!agentId) {
+          return;
+        }
+        state.loading = true;
+        render();
+        void requestJson((config.apiBasePath || "/api") + "/console/agents/" + encodeURIComponent(agentId) + "/soul?tenantId=" + encodeURIComponent(tenantId) + (accountId ? "&accountId=" + encodeURIComponent(accountId) : ""))
+          .then(function(result) {
+            state.connect = {
+              ...(state.connect || {}),
+              selectedAgentId: agentId,
+              agentSoulAgentId: agentId,
+              agentSoulContent: result && typeof result.content === "string" ? result.content : "",
+              agentSoulStatus: {
+                tone: "ok",
+                message: t("soulLoadedMessage")
+              }
+            };
+          })
+          .catch(function(error) {
+            state.connect = {
+              ...(state.connect || {}),
+              selectedAgentId: agentId,
+              agentSoulStatus: {
+                tone: "danger",
+                message: error instanceof Error ? error.message : String(error)
+              }
+            };
+          })
+          .finally(function() {
+            state.loading = false;
+            render();
+          });
+      }
+
       function readSharedSkillPayload(target) {
         const root = target.closest(".panel") || document;
         function readField(name) {
@@ -4831,10 +5565,317 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
       }
 
+      function readAgentRuntimeField(root, name) {
+        const element = root.querySelector('[data-agent-runtime-field="' + name + '"]');
+        return element && "value" in element ? String(element.value || "").trim() : "";
+      }
+
       document.addEventListener("click", function(event) {
         const target = event.target instanceof Element ? event.target.closest("[data-action]") : null;
         if (!target) return;
         const action = target.getAttribute("data-action");
+        if (action === "edit-runtime-profile") {
+          event.preventDefault();
+          const connect = getConnectWorkspace();
+          const profileId = target.getAttribute("data-profile-id") || "";
+          const profile = getRuntimeProfiles(connect).find(function(entry) {
+            return entry.profileId === profileId;
+          });
+          state.connect = {
+            ...(state.connect || {}),
+            runtimeProfileId: profile && !profile.builtin ? profile.profileId : "",
+            runtimeLabel: profile ? profile.label || "" : "",
+            runtimeSourceKind: profile ? profile.sourceKind || "openclaw_login" : "openclaw_login",
+            runtimeModel: profile ? profile.model || "" : "",
+            runtimeBaseUrl: profile ? profile.baseUrl || "" : "",
+            runtimePublicBaseUrl: profile ? profile.publicBaseUrl || "" : "",
+            runtimeOpenClawAgentId: profile ? profile.openClawAgentId || "" : "",
+            runtimeLoginUrl: profile ? profile.loginUrl || "" : "",
+            runtimeDefaultSelected: Boolean(profile && profile.defaultSelected),
+            runtimeStatus: null
+          };
+          render();
+          return;
+        }
+        if (action === "clear-runtime-profile-draft") {
+          event.preventDefault();
+          state.connect = {
+            ...(state.connect || {}),
+            runtimeProfileId: "",
+            runtimeLabel: "",
+            runtimeSourceKind: "openclaw_login",
+            runtimeModel: "",
+            runtimeBaseUrl: "",
+            runtimePublicBaseUrl: "",
+            runtimeOpenClawAgentId: "",
+            runtimeLoginUrl: "",
+            runtimeGatewayToken: "",
+            runtimeApiKey: "",
+            runtimeDefaultSelected: false,
+            runtimeStatus: null
+          };
+          render();
+          return;
+        }
+        if (action === "set-default-runtime-profile") {
+          event.preventDefault();
+          const profileId = target.getAttribute("data-profile-id") || "";
+          if (!profileId) {
+            return;
+          }
+          state.loading = true;
+          render();
+          void requestJson((config.apiBasePath || "/api") + "/runtime/model-profiles/" + encodeURIComponent(profileId) + "/default", {
+            method: "POST",
+            headers: {
+              "content-type": "application/json"
+            },
+            body: JSON.stringify({})
+          })
+            .then(function() {
+              state.connect = {
+                ...(state.connect || {}),
+                runtimeStatus: {
+                  tone: "ok",
+                  message: t("defaultBaseModelUpdated")
+                }
+              };
+              return refresh(true);
+            })
+            .catch(function(error) {
+              state.connect = {
+                ...(state.connect || {}),
+                runtimeStatus: {
+                  tone: "danger",
+                  message: error instanceof Error ? error.message : String(error)
+                }
+              };
+            })
+            .finally(function() {
+              state.loading = false;
+              render();
+            });
+          return;
+        }
+        if (action === "delete-runtime-profile") {
+          event.preventDefault();
+          const profileId = target.getAttribute("data-profile-id") || "";
+          if (!profileId) {
+            return;
+          }
+          state.loading = true;
+          render();
+          void requestJson((config.apiBasePath || "/api") + "/runtime/model-profiles/" + encodeURIComponent(profileId), {
+            method: "DELETE"
+          })
+            .then(function() {
+              state.connect = {
+                ...(state.connect || {}),
+                runtimeProfileId: "",
+                runtimeStatus: {
+                  tone: "ok",
+                  message: t("baseModelDeleted")
+                }
+              };
+              return refresh(true);
+            })
+            .catch(function(error) {
+              state.connect = {
+                ...(state.connect || {}),
+                runtimeStatus: {
+                  tone: "danger",
+                  message: error instanceof Error ? error.message : String(error)
+                }
+              };
+            })
+            .finally(function() {
+              state.loading = false;
+              render();
+            });
+          return;
+        }
+        if (action === "save-runtime-profile") {
+          event.preventDefault();
+          const draft = rememberRuntimeProfileDraft(target);
+          if (!draft.runtimeLabel || !draft.runtimeModel) {
+            state.connect = {
+              ...(state.connect || {}),
+              runtimeStatus: {
+                tone: "danger",
+                message: t("baseModelValidationError")
+              }
+            };
+            render();
+            return;
+          }
+          state.loading = true;
+          render();
+          void requestJson((config.apiBasePath || "/api") + "/runtime/model-profiles", {
+            method: "POST",
+            headers: {
+              "content-type": "application/json"
+            },
+            body: JSON.stringify({
+              profileId: draft.runtimeProfileId || undefined,
+              label: draft.runtimeLabel,
+              sourceKind: draft.runtimeSourceKind || "openclaw_login",
+              model: draft.runtimeModel,
+              baseUrl: draft.runtimeBaseUrl || undefined,
+              publicBaseUrl: draft.runtimePublicBaseUrl || undefined,
+              openClawAgentId: draft.runtimeOpenClawAgentId || undefined,
+              loginUrl: draft.runtimeLoginUrl || undefined,
+              gatewayToken: draft.runtimeGatewayToken || undefined,
+              apiKey: draft.runtimeApiKey || undefined,
+              defaultSelected: draft.runtimeDefaultSelected === true
+            })
+          })
+            .then(function() {
+              state.connect = {
+                ...(state.connect || {}),
+                runtimeGatewayToken: "",
+                runtimeApiKey: "",
+                runtimeStatus: {
+                  tone: "ok",
+                  message: t("baseModelSaved")
+                }
+              };
+              return refresh(true);
+            })
+            .catch(function(error) {
+              state.connect = {
+                ...(state.connect || {}),
+                runtimeStatus: {
+                  tone: "danger",
+                  message: error instanceof Error ? error.message : String(error)
+                }
+              };
+            })
+            .finally(function() {
+              state.loading = false;
+              render();
+            });
+          return;
+        }
+        if (action === "save-agent-runtime" || action === "clear-agent-runtime") {
+          event.preventDefault();
+          const agentId = target.getAttribute("data-agent-id") || "";
+          const tenantId = target.getAttribute("data-tenant-id") || "";
+          if (!agentId || !tenantId) {
+            return;
+          }
+          const root = target.closest(".panel") || document;
+          const profileId = action === "clear-agent-runtime" ? "" : readAgentRuntimeField(root, "profileId");
+          const modelOverride = action === "clear-agent-runtime" ? "" : readAgentRuntimeField(root, "modelOverride");
+          state.loading = true;
+          render();
+          void requestJson((config.apiBasePath || "/api") + "/console/agents/" + encodeURIComponent(agentId) + "/runtime", {
+            method: "POST",
+            headers: {
+              "content-type": "application/json"
+            },
+            body: JSON.stringify({
+              tenantId: tenantId,
+              profileId: profileId || undefined,
+              modelOverride: modelOverride || undefined
+            })
+          })
+            .then(function() {
+              state.connect = {
+                ...(state.connect || {}),
+                agentRuntimeAgentId: agentId,
+                agentRuntimeProfileId: profileId,
+                agentRuntimeModelOverride: modelOverride,
+                agentRuntimeStatus: {
+                  tone: "ok",
+                  message: action === "clear-agent-runtime" ? t("agentBaseModelCleared") : t("agentBaseModelSaved")
+                }
+              };
+              return refresh(true);
+            })
+            .catch(function(error) {
+              state.connect = {
+                ...(state.connect || {}),
+                agentRuntimeAgentId: agentId,
+                agentRuntimeStatus: {
+                  tone: "danger",
+                  message: error instanceof Error ? error.message : String(error)
+                }
+              };
+            })
+            .finally(function() {
+              state.loading = false;
+              render();
+            });
+          return;
+        }
+        if (action === "create-home-room") {
+          event.preventDefault();
+          const draft = readHomeRoomPayload(target);
+          if (!draft.accountId || !draft.subject || !draft.body.trim()) {
+            state.connect = {
+              ...(state.connect || {}),
+              roomBootstrapAccountId: draft.accountId,
+              roomBootstrapSubject: draft.subject,
+              roomBootstrapBody: draft.body,
+              roomBootstrapStatus: {
+                tone: "danger",
+                message: t("createRoomValidationError")
+              }
+            };
+            render();
+            return;
+          }
+          state.loading = true;
+          render();
+          void requestJson((config.apiBasePath || "/api") + "/console/rooms/self-email", {
+            method: "POST",
+            headers: {
+              "content-type": "application/json"
+            },
+            body: JSON.stringify({
+              accountId: draft.accountId,
+              subject: draft.subject,
+              body: draft.body,
+              deliverNow: true
+            })
+          })
+            .then(function(result) {
+              state.connect = {
+                ...(state.connect || {}),
+                roomBootstrapAccountId: draft.accountId,
+                roomBootstrapSubject: draft.subject,
+                roomBootstrapBody: draft.body,
+                roomBootstrapStatus: {
+                  tone: "ok",
+                  message: t("roomCreatedAndSent", {
+                    email: result && result.mailboxAddress ? result.mailboxAddress : draft.accountId
+                  })
+                }
+              };
+              navigate({
+                mode: "rooms",
+                accountId: result && result.accountId ? result.accountId : draft.accountId,
+                inboxId: null,
+                roomKey: result && result.roomKey ? result.roomKey : null,
+                mailboxId: null
+              });
+            })
+            .catch(function(error) {
+              state.loading = false;
+              state.connect = {
+                ...(state.connect || {}),
+                roomBootstrapAccountId: draft.accountId,
+                roomBootstrapSubject: draft.subject,
+                roomBootstrapBody: draft.body,
+                roomBootstrapStatus: {
+                  tone: "danger",
+                  message: error instanceof Error ? error.message : String(error)
+                }
+              };
+              render();
+            });
+          return;
+        }
         if (action === "prepare-connect-plan") {
           event.preventDefault();
           const draft = rememberConnectFormState(target);
@@ -4888,24 +5929,6 @@ export function renderOpenClawWorkbenchShellHtml(input: {
                       : t("loadedSetupGuidance")
                 }
               };
-              if (recommended && recommended.setupKind === "browser_oauth" && recommended.id && nextAccountId) {
-                return requestJson((config.apiBasePath || "/api") + "/auth/" + encodeURIComponent(recommended.id) + "/start", {
-                  method: "POST",
-                  headers: {
-                    "content-type": "application/json"
-                  },
-                  body: JSON.stringify({
-                    accountId: nextAccountId,
-                    displayName: nextDisplayName || undefined,
-                    loginHint: draft.emailAddress || undefined
-                  })
-                }).then(function(result) {
-                  if (!result || typeof result.authorizeUrl !== "string" || result.authorizeUrl.trim().length === 0) {
-                    throw new Error(t("oauthAuthorizeUrlMissing"));
-                  }
-                  window.location.assign(result.authorizeUrl);
-                });
-              }
             })
             .catch(function(error) {
               state.connect = {
@@ -5095,42 +6118,151 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         }
         if (action === "select-agent") {
           event.preventDefault();
+          const currentSelectedAgentId =
+            state.connect && typeof state.connect.agentSoulAgentId === "string" ? state.connect.agentSoulAgentId : "";
           const agentId = target.getAttribute("data-agent-id") || "";
           state.connect = {
             ...(state.connect || {}),
-            selectedAgentId: agentId
+            selectedAgentId: agentId,
+            agentSoulStatus: null
           };
-          if (state.connect && state.connect.agentSoulAgentId === agentId) {
-            render();
+          render();
+          if (currentSelectedAgentId === agentId) {
             return;
           }
-          target.setAttribute("data-action", "load-agent-soul");
+          loadAgentSoul(agentId);
+          return;
         }
         if (action === "load-agent-soul") {
           event.preventDefault();
           const agentId = target.getAttribute("data-agent-id") || "";
-          const accountId = (state.data && state.data.selection && state.data.selection.accountId) || (state.route && state.route.accountId) || "";
-          const tenantId = (state.data && state.data.workspace && state.data.workspace.connect && state.data.workspace.connect.templateApplyTenantId) || accountId || "default";
+          loadAgentSoul(agentId);
+          return;
+        }
+        if (action === "select-agent-skill") {
+          event.preventDefault();
+          loadSkillEditor({
+            kind: "agent",
+            agentId: target.getAttribute("data-agent-id") || "",
+            agentLabel: target.getAttribute("data-agent-label") || "",
+            skillId: target.getAttribute("data-skill-id") || "",
+            title: target.getAttribute("data-skill-title") || ""
+          });
+          return;
+        }
+        if (action === "select-shared-skill") {
+          event.preventDefault();
+          loadSkillEditor({
+            kind: "shared",
+            skillId: target.getAttribute("data-skill-id") || "",
+            title: target.getAttribute("data-skill-title") || ""
+          });
+          return;
+        }
+        if (action === "save-selected-skill") {
+          event.preventDefault();
+          const kind = target.getAttribute("data-skill-kind") || "";
+          const skillId = target.getAttribute("data-skill-id") || "";
+          const agentId = target.getAttribute("data-agent-id") || "";
+          const tenantId = target.getAttribute("data-tenant-id") || "";
+          const accountId = target.getAttribute("data-account-id") || "";
+          const payload = readSkillEditorPayload(target);
+          if (!skillId) {
+            return;
+          }
           state.loading = true;
           render();
-          void requestJson((config.apiBasePath || "/api") + "/console/agents/" + encodeURIComponent(agentId) + "/soul?tenantId=" + encodeURIComponent(tenantId) + (accountId ? "&accountId=" + encodeURIComponent(accountId) : ""))
+          const path =
+            kind === "shared"
+              ? "/skills/library/" + encodeURIComponent(skillId)
+              : "/skills/" + encodeURIComponent(agentId) + "/" + encodeURIComponent(skillId);
+          void requestJson((config.apiBasePath || "/api") + path, {
+            method: "PUT",
+            headers: {
+              "content-type": "application/json"
+            },
+            body: JSON.stringify({
+              tenantId: tenantId || undefined,
+              accountId: accountId || undefined,
+              content: payload.content
+            })
+          })
             .then(function(result) {
               state.connect = {
                 ...(state.connect || {}),
-                selectedAgentId: agentId,
-                agentSoulAgentId: agentId,
-                agentSoulContent: result && typeof result.content === "string" ? result.content : "",
-                agentSoulStatus: {
+                skillEditorKind: kind,
+                skillEditorAgentId: agentId,
+                skillEditorAgentLabel:
+                  (state.connect && typeof state.connect.skillEditorAgentLabel === "string")
+                    ? state.connect.skillEditorAgentLabel
+                    : agentId,
+                skillEditorSkillId: skillId,
+                skillEditorTitle:
+                  result && result.skill && typeof result.skill.title === "string"
+                    ? result.skill.title
+                    : ((state.connect && state.connect.skillEditorTitle) || skillId),
+                skillEditorContent: result && typeof result.content === "string" ? result.content : payload.content,
+                skillEditorStatus: {
                   tone: "ok",
-                  message: t("soulLoadedMessage")
+                  message: t("skillSavedMessage")
                 }
               };
+              return refresh(true);
+            })
+            .catch(function(error) {
+              state.connect = {
+                ...(state.connect || {}),
+                skillEditorStatus: {
+                  tone: "danger",
+                  message: error instanceof Error ? error.message : String(error)
+                }
+              };
+            })
+            .finally(function() {
+              state.loading = false;
+              render();
+            });
+          return;
+        }
+        if (action === "save-agent-profile") {
+          event.preventDefault();
+          const agentId = target.getAttribute("data-agent-id") || "";
+          const tenantId = target.getAttribute("data-tenant-id") || "";
+          const accountId = target.getAttribute("data-account-id") || "";
+          const payload = readAgentProfilePayload(target);
+          state.loading = true;
+          render();
+          void requestJson((config.apiBasePath || "/api") + "/console/agents/" + encodeURIComponent(agentId) + "/profile", {
+            method: "PUT",
+            headers: {
+              "content-type": "application/json"
+            },
+            body: JSON.stringify({
+              tenantId: tenantId || undefined,
+              accountId: accountId || undefined,
+              displayName: payload.displayName,
+              purpose: payload.purpose
+            })
+          })
+            .then(function() {
+              state.connect = {
+                ...(state.connect || {}),
+                selectedAgentId: agentId,
+                agentProfileAgentId: agentId,
+                agentProfileDisplayName: payload.displayName,
+                agentProfilePurpose: payload.purpose,
+                agentProfileStatus: {
+                  tone: "ok",
+                  message: t("profileSavedMessage")
+                }
+              };
+              return refresh(true);
             })
             .catch(function(error) {
               state.connect = {
                 ...(state.connect || {}),
                 selectedAgentId: agentId,
-                agentSoulStatus: {
+                agentProfileStatus: {
                   tone: "danger",
                   message: error instanceof Error ? error.message : String(error)
                 }
@@ -5490,6 +6622,16 @@ export function renderOpenClawWorkbenchShellHtml(input: {
                 sharedSkillStatus: {
                   tone: "ok",
                   message: t("sharedSkillSavedMessage")
+                },
+                skillEditorKind: "shared",
+                skillEditorAgentId: "",
+                skillEditorAgentLabel: "",
+                skillEditorSkillId: created && created.skillId ? created.skillId : payload.skillId,
+                skillEditorTitle: created && created.title ? created.title : payload.title,
+                skillEditorContent: payload.content,
+                skillEditorStatus: {
+                  tone: "ok",
+                  message: t("skillSavedMessage")
                 },
                 skillSource: created && created.path ? created.path : "",
                 skillId: created && created.skillId ? created.skillId : payload.skillId,

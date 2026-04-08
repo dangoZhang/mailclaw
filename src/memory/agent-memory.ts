@@ -113,6 +113,56 @@ export function readAgentSoul(config: AppConfig, tenantId: string, agentId: stri
   return fs.readFileSync(workspace.soulPath, "utf8");
 }
 
+export function readAgentProfile(
+  config: AppConfig,
+  tenantId: string,
+  agentId: string
+) {
+  const profilePath = path.join(getAgentStateDir(config, tenantId, agentId), "PROFILE.md");
+  if (!fs.existsSync(profilePath)) {
+    return null;
+  }
+
+  const content = fs.readFileSync(profilePath, "utf8");
+  const parsed = parseAgentProfileMarkdown(content, agentId);
+  return {
+    ...parsed,
+    profilePath,
+    content
+  };
+}
+
+export function writeAgentProfile(
+  config: AppConfig,
+  input: {
+    tenantId: string;
+    agentId: string;
+    displayName?: string;
+    purpose?: string;
+  }
+) {
+  const workspace = ensureAgentWorkspace(config, input.tenantId, input.agentId, {
+    profile: {
+      displayName: input.displayName,
+      purpose: input.purpose
+    }
+  });
+  const profile = buildAgentWorkspaceProfile(input.agentId, {
+    displayName: input.displayName,
+    purpose: input.purpose
+  });
+  const content = renderAgentProfileMarkdown(profile);
+  const profilePath = path.join(workspace.agentDir, "PROFILE.md");
+  fs.writeFileSync(profilePath, content, "utf8");
+  return {
+    agentId: input.agentId,
+    displayName: profile.displayName,
+    purpose: profile.purpose,
+    profilePath,
+    content
+  };
+}
+
 export function writeAgentSoul(
   config: AppConfig,
   input: {
@@ -167,11 +217,13 @@ export function ensureAgentWorkspace(
   }
 
   const soulPath = path.join(agentDir, "SOUL.md");
+  const profilePath = path.join(agentDir, "PROFILE.md");
   const agentsPath = path.join(agentDir, "AGENTS.md");
   const memoryPath = path.join(agentDir, "MEMORY.md");
   const defaultSkills = ensureDefaultMailSkills(rolesDir);
   const profile = buildAgentWorkspaceProfile(agentId, options?.profile);
 
+  ensureGeneratedMarkdownFile(profilePath, renderAgentProfileMarkdown(profile));
   ensureGeneratedMarkdownFile(
     soulPath,
     renderAgentSoulMarkdown({
@@ -196,6 +248,7 @@ export function ensureAgentWorkspace(
 
   return {
     agentDir,
+    profilePath,
     soulPath,
     agentsPath,
     memoryPath,
@@ -245,7 +298,61 @@ export function getAgentWorkspaceSkill(
 
   return {
     skill,
-    content: fs.readFileSync(skill.path, "utf8")
+    content: unwrapManagedSkillMarkdown(fs.readFileSync(skill.path, "utf8"))
+  };
+}
+
+export function writeAgentWorkspaceSkill(
+  config: AppConfig,
+  input: {
+    tenantId: string;
+    agentId: string;
+    skillId: string;
+    content: string;
+    now?: string;
+  }
+) {
+  const existing = getAgentWorkspaceSkill(config, input.tenantId, input.agentId, input.skillId);
+  const trimmed = input.content.trim();
+  if (!trimmed) {
+    throw new Error("skill content is required");
+  }
+
+  if (existing.skill.source === "managed") {
+    const rawContent = fs.readFileSync(existing.skill.path, "utf8");
+    const metadata = parseManagedSkillMetadata(rawContent);
+    const title = deriveSkillTitle(
+      typeof metadata?.title === "string" ? metadata.title : existing.skill.title,
+      trimmed,
+      existing.skill.skillId
+    );
+    const contents = wrapManagedSkillMarkdown(
+      {
+        skillId: existing.skill.skillId,
+        title,
+        sourceRef:
+          typeof metadata?.sourceRef === "string" && metadata.sourceRef.trim().length > 0
+            ? metadata.sourceRef.trim()
+            : existing.skill.path,
+        installedAt:
+          typeof metadata?.installedAt === "string" && metadata.installedAt.trim().length > 0
+            ? metadata.installedAt.trim()
+            : (input.now ?? new Date().toISOString())
+      },
+      trimmed
+    );
+    fs.writeFileSync(existing.skill.path, contents, "utf8");
+    return {
+      skill: describeSkillMarkdown(existing.skill.path, "managed"),
+      content: unwrapManagedSkillMarkdown(fs.readFileSync(existing.skill.path, "utf8"))
+    };
+  }
+
+  const normalizedContent = trimmed.endsWith("\n") ? trimmed : `${trimmed}\n`;
+  fs.writeFileSync(existing.skill.path, normalizedContent, "utf8");
+  return {
+    skill: existing.skill,
+    content: fs.readFileSync(existing.skill.path, "utf8")
   };
 }
 
@@ -351,6 +458,67 @@ export function createSharedSkill(
     title,
     path: destinationPath,
     source: "shared" as const
+  };
+}
+
+export function getSharedSkill(
+  config: AppConfig,
+  tenantId: string,
+  skillId: string
+) {
+  const normalizedSkillId = normalizeManagedSkillId(skillId);
+  const skill = listSharedSkills(config, tenantId).find((entry) => entry.skillId === normalizedSkillId);
+  if (!skill) {
+    throw new Error(`shared skill not found: ${skillId}`);
+  }
+
+  return {
+    skill,
+    content: unwrapManagedSkillMarkdown(fs.readFileSync(skill.path, "utf8"))
+  };
+}
+
+export function writeSharedSkill(
+  config: AppConfig,
+  input: {
+    tenantId: string;
+    skillId: string;
+    content: string;
+    now?: string;
+  }
+) {
+  const existing = getSharedSkill(config, input.tenantId, input.skillId);
+  const rawContent = fs.readFileSync(existing.skill.path, "utf8");
+  const metadata = parseManagedSkillMetadata(rawContent);
+  const trimmed = input.content.trim();
+  if (!trimmed) {
+    throw new Error("skill content is required");
+  }
+
+  const title = deriveSkillTitle(
+    typeof metadata?.title === "string" ? metadata.title : existing.skill.title,
+    trimmed,
+    existing.skill.skillId
+  );
+  const contents = wrapManagedSkillMarkdown(
+    {
+      skillId: existing.skill.skillId,
+      title,
+      sourceRef:
+        typeof metadata?.sourceRef === "string" && metadata.sourceRef.trim().length > 0
+          ? metadata.sourceRef.trim()
+          : existing.skill.path,
+      installedAt:
+        typeof metadata?.installedAt === "string" && metadata.installedAt.trim().length > 0
+          ? metadata.installedAt.trim()
+          : (input.now ?? new Date().toISOString())
+    },
+    trimmed
+  );
+  fs.writeFileSync(existing.skill.path, contents, "utf8");
+  return {
+    skill: listSharedSkills(config, input.tenantId).find((entry) => entry.skillId === existing.skill.skillId) ?? existing.skill,
+    content: unwrapManagedSkillMarkdown(fs.readFileSync(existing.skill.path, "utf8"))
   };
 }
 
@@ -762,6 +930,10 @@ function wrapManagedSkillMarkdown(
   return `<!-- mailclaws-skill: ${JSON.stringify(metadata)} -->\n\n${normalizedContent}`;
 }
 
+function unwrapManagedSkillMarkdown(content: string) {
+  return content.replace(/^<!--\s*mailclaws-skill:\s*\{.*\}\s*-->\r?\n\r?\n?/, "");
+}
+
 async function loadSkillSource(source: string) {
   if (source.startsWith("http://") || source.startsWith("https://")) {
     const resolvedSource = normalizeRemoteSkillSource(source);
@@ -876,6 +1048,36 @@ function buildAgentWorkspaceProfile(agentId: string, profile?: AgentWorkspacePro
       profile?.headcountNotes?.length && profile.headcountNotes.some((note) => note.trim().length > 0)
         ? profile.headcountNotes
         : ["Treat the room as working memory: triage the latest state, delegate by mail, and only persist reusable Pre."]
+  };
+}
+
+function renderAgentProfileMarkdown(profile: Required<AgentWorkspaceProfile>) {
+  return [
+    `# ${profile.displayName}`,
+    "",
+    "## Profile",
+    profile.purpose,
+    ""
+  ].join("\n");
+}
+
+function parseAgentProfileMarkdown(content: string, fallbackAgentId: string) {
+  const normalized = content.replace(/\r\n/g, "\n");
+  const headingMatch = normalized.match(/^#\s+(.+)$/m);
+  const displayName = headingMatch?.[1]?.trim() || fallbackAgentId;
+  const profileSectionMatch = normalized.match(/##\s+Profile\s*\n+([\s\S]*?)(?:\n##\s+|$)/i);
+  const fallbackBody = normalized
+    .split("\n")
+    .filter((line) => line.trim().length > 0 && !line.trim().startsWith("#"))
+    .join("\n")
+    .trim();
+  const purpose = (profileSectionMatch?.[1] ?? fallbackBody).trim();
+  return {
+    displayName,
+    purpose:
+      purpose.length > 0
+        ? purpose
+        : "Hold a durable MailClaws role and long-term memory; keep rooms as working memory and collaborate through virtual mail."
   };
 }
 

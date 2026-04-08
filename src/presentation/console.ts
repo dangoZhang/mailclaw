@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import type { DatabaseSync } from "node:sqlite";
 
 import { replayRoom } from "../core/replay.js";
@@ -13,7 +14,8 @@ import type {
   ThreadRoom,
   VirtualMessageOriginKind
 } from "../core/types.js";
-import { listMailAccounts } from "../storage/repositories/mail-accounts.js";
+import { evaluateSenderPolicy } from "../security/sender-policy.js";
+import { getMailAccount, listMailAccounts } from "../storage/repositories/mail-accounts.js";
 import { listMailMessagesForRoom } from "../storage/repositories/mail-messages.js";
 import {
   type ApprovalRequestRecord,
@@ -187,6 +189,13 @@ export interface ConsoleVirtualMessageSummary {
   fromMailboxId: string;
   toMailboxIds: string[];
   ccMailboxIds: string[];
+  bodyText: string;
+  attachments: Array<{
+    attachmentId: string;
+    filename: string;
+    mimeType: string;
+    downloadPath: string;
+  }>;
   roomRevision: number;
   createdAt: string;
 }
@@ -316,7 +325,9 @@ export function listConsoleRooms(
   } = {}
 ) {
   const summaries = listThreadRooms(db)
-    .map((room) => buildConsoleRoomSummary(replayRoom(db, room.roomKey)))
+    .map((room) => replayRoom(db, room.roomKey))
+    .filter((snapshot) => roomVisibleInWorkbench(db, snapshot))
+    .map((snapshot) => buildConsoleRoomSummary(snapshot))
     .filter((summary) => matchesRoomFilters(summary, input))
     .sort((left, right) => compareDescending(left.latestActivityAt, right.latestActivityAt));
 
@@ -325,7 +336,7 @@ export function listConsoleRooms(
 
 export function getConsoleRoom(db: DatabaseSync, roomKey: string): ConsoleRoomDetail | null {
   const snapshot = replayRoom(db, roomKey);
-  if (!snapshot.room) {
+  if (!snapshot.room || !roomVisibleInWorkbench(db, snapshot)) {
     return null;
   }
   const timeline = buildRoomTimeline(snapshot);
@@ -591,6 +602,45 @@ function buildConsoleRoomSummary(snapshot: ReturnType<typeof replayRoom>): Conso
   };
 }
 
+function roomVisibleInWorkbench(db: DatabaseSync, snapshot: ReturnType<typeof replayRoom>) {
+  if (!snapshot.room) {
+    return false;
+  }
+
+  const account = getMailAccount(db, snapshot.room.accountId);
+  if (!account || !workbenchInboundGuardEnabled(account.settings)) {
+    return true;
+  }
+
+  const latestSourceMail = listMailMessagesForRoom(db, {
+    accountId: snapshot.room.accountId,
+    stableThreadId: snapshot.room.stableThreadId
+  })
+    .sort((left, right) => compareDescending(left.receivedAt, right.receivedAt))[0];
+  if (!latestSourceMail) {
+    return true;
+  }
+
+  const acceptAfter = resolveWorkbenchAcceptAfter(account.createdAt, account.settings);
+  if (acceptAfter) {
+    const receivedAtMs = Date.parse(latestSourceMail.receivedAt);
+    const acceptAfterMs = Date.parse(acceptAfter);
+    if (Number.isFinite(receivedAtMs) && Number.isFinite(acceptAfterMs) && receivedAtMs < acceptAfterMs) {
+      return false;
+    }
+  }
+
+  const from = typeof latestSourceMail.from === "string" ? latestSourceMail.from.trim().toLowerCase() : "";
+  if (!from) {
+    return true;
+  }
+
+  return evaluateSenderPolicy({
+    from,
+    config: resolveWorkbenchSenderPolicy(account.emailAddress, account.settings)
+  }).allowed;
+}
+
 function buildConsoleSourceMailSummaries(db: DatabaseSync, snapshot: ReturnType<typeof replayRoom>): ConsoleSourceMailSummary[] {
   if (!snapshot.room) {
     return [];
@@ -799,9 +849,66 @@ function buildConsoleVirtualMessageSummaries(snapshot: ReturnType<typeof replayR
       fromMailboxId: message.fromMailboxId,
       toMailboxIds: [...message.toMailboxIds],
       ccMailboxIds: [...message.ccMailboxIds],
+      bodyText: readConsoleVirtualMessageBody(snapshot, message),
+      attachments: buildConsoleVirtualMessageAttachments(snapshot, message),
       roomRevision: message.roomRevision,
       createdAt: message.createdAt
     }) satisfies ConsoleVirtualMessageSummary);
+}
+
+function readConsoleVirtualMessageBody(
+  snapshot: ReturnType<typeof replayRoom>,
+  message: ReturnType<typeof replayRoom>["virtualMessages"][number]
+) {
+  if (message.bodyRef && !message.bodyRef.startsWith("virtual-body://") && fs.existsSync(message.bodyRef)) {
+    try {
+      const text = fs.readFileSync(message.bodyRef, "utf8").trim();
+      if (text.length > 0) {
+        return text;
+      }
+    } catch {
+      // Fall back to room state below.
+    }
+  }
+
+  const latestSnapshot = snapshot.preSnapshots.find((entry) => entry.roomRevision === message.roomRevision);
+  if (latestSnapshot) {
+    const draft = (latestSnapshot.draftBody ?? latestSnapshot.summary ?? "").trim();
+    if (draft.length > 0) {
+      return draft;
+    }
+  }
+
+  return message.subject.trim();
+}
+
+function buildConsoleVirtualMessageAttachments(
+  snapshot: ReturnType<typeof replayRoom>,
+  message: ReturnType<typeof replayRoom>["virtualMessages"][number]
+) {
+  const refs = new Set(message.artifactRefs ?? []);
+  if (refs.size === 0) {
+    return [];
+  }
+
+  return snapshot.attachments
+    .filter((attachment) => {
+      const plainId = attachment.attachmentId;
+      const attachmentRef = `attachment:${attachment.attachmentId}`;
+      return (
+        refs.has(plainId) ||
+        refs.has(attachmentRef) ||
+        refs.has(`mailclaws-ref:${encodeURIComponent(plainId)}`) ||
+        refs.has(`mailclaws-ref:${encodeURIComponent(attachmentRef)}`)
+      );
+    })
+    .map((attachment) => ({
+      attachmentId: attachment.attachmentId,
+      filename: attachment.filename,
+      mimeType: attachment.mimeType,
+      downloadPath:
+        `/api/rooms/${encodeURIComponent(message.roomKey)}/attachments/${encodeURIComponent(attachment.attachmentId)}/content`
+    }));
 }
 
 function buildConsoleMailboxDeliverySummaries(snapshot: ReturnType<typeof replayRoom>) {
@@ -986,6 +1093,80 @@ function rankHealth(health: ConsoleAccountSummary["health"]) {
     default:
       return 2;
   }
+}
+
+function workbenchInboundGuardEnabled(settings: Record<string, unknown>) {
+  const intake = readConsoleObject(settings.intake);
+  if (intake.restrictToSelfAndAllowlist === true) {
+    return true;
+  }
+  if (
+    typeof intake.acceptAfter === "string" ||
+    typeof settings.connectedAt === "string" ||
+    typeof settings.mailboxConnectedAt === "string"
+  ) {
+    return true;
+  }
+
+  return [settings.senderPolicy, settings.allowlist, settings.whitelist, settings.agentRouting].some(
+    (value) => value && typeof value === "object" && !Array.isArray(value)
+  );
+}
+
+function resolveWorkbenchAcceptAfter(createdAt: string, settings: Record<string, unknown>) {
+  const intake = readConsoleObject(settings.intake);
+  return (
+    readConsoleString(intake.acceptAfter) ??
+    readConsoleString(settings.connectedAt) ??
+    readConsoleString(settings.mailboxConnectedAt) ??
+    createdAt
+  );
+}
+
+function resolveWorkbenchSenderPolicy(emailAddress: string, settings: Record<string, unknown>) {
+  const senderPolicy = readConsoleObject(settings.senderPolicy);
+  const allowlist = readConsoleObject(settings.allowlist);
+  const whitelist = readConsoleObject(settings.whitelist);
+
+  return {
+    allowEmails: uniqueConsoleStrings([
+      emailAddress,
+      ...readConsoleStringArray(senderPolicy.allowEmails),
+      ...readConsoleStringArray(allowlist.emails),
+      ...readConsoleStringArray(whitelist.emails)
+    ]),
+    allowDomains: uniqueConsoleStrings([
+      ...readConsoleStringArray(senderPolicy.allowDomains),
+      ...readConsoleStringArray(allowlist.domains),
+      ...readConsoleStringArray(whitelist.domains)
+    ]),
+    denyEmails: uniqueConsoleStrings([
+      ...readConsoleStringArray(senderPolicy.denyEmails),
+      ...readConsoleStringArray(allowlist.denyEmails),
+      ...readConsoleStringArray(whitelist.denyEmails)
+    ]),
+    denyDomains: uniqueConsoleStrings([
+      ...readConsoleStringArray(senderPolicy.denyDomains),
+      ...readConsoleStringArray(allowlist.denyDomains),
+      ...readConsoleStringArray(whitelist.denyDomains)
+    ])
+  };
+}
+
+function readConsoleObject(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function readConsoleString(value: unknown) {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function readConsoleStringArray(value: unknown) {
+  return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : [];
+}
+
+function uniqueConsoleStrings(values: string[]) {
+  return Array.from(new Set(values.map((value) => value.trim().toLowerCase()).filter(Boolean)));
 }
 
 function classifyRoomAttention(input: {

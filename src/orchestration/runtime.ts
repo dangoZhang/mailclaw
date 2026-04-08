@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import type { DatabaseSync } from "node:sqlite";
@@ -6,7 +6,9 @@ import type { DatabaseSync } from "node:sqlite";
 import type { AppConfig } from "../config.js";
 import { recoverRoomQueue } from "../core/recovery.js";
 import { replayRoom } from "../core/replay.js";
+import { normalizeMailEnvelope } from "../providers/normalize.js";
 import { redactSensitiveText, redactSensitiveValue } from "../security/redaction.js";
+import { evaluateSenderPolicy, type SenderPolicyConfig } from "../security/sender-policy.js";
 import {
   bindGatewaySessionToRoom,
   markGatewayOutcomeDispatchFailed,
@@ -111,16 +113,21 @@ import {
   ensureAgentWorkspace,
   findAgentMemoryDraft,
   getAgentWorkspaceSkill,
+  getSharedSkill as getSharedSkillFile,
   getTenantStateDir,
   installAgentWorkspaceSkill,
   listReusableSkillSources,
   listSharedSkills,
   listAgentMemoryDrafts,
   listAgentWorkspaceSkills,
+  readAgentProfile as readAgentProfileFile,
   readAgentSoul as readAgentSoulFile,
   rejectAgentMemoryDraft,
   resolveAgentMemoryDraftNamespaces,
   reviewAgentMemoryDraft,
+  writeAgentProfile as writeAgentProfileFile,
+  writeAgentWorkspaceSkill as writeAgentWorkspaceSkillFile,
+  writeSharedSkill as writeSharedSkillFile,
   writeAgentSoul as writeAgentSoulFile
 } from "../memory/agent-memory.js";
 import {
@@ -141,7 +148,7 @@ import {
 } from "../memory/namespace-spec.js";
 import { readMemoryNamespace as readScopedMemoryNamespace } from "../memory/namespaces.js";
 import type { MailAgentExecutor } from "../runtime/agent-executor.js";
-import { createDefaultMailAgentExecutor } from "../runtime/default-executor.js";
+import { createDynamicMailAgentExecutor } from "../runtime/dynamic-executor.js";
 import {
   listBridgeRuntimeSessions,
   describeRuntimeExecutionBoundary,
@@ -163,7 +170,8 @@ import {
   type MailOutboxStatus,
   updateMailOutboxStatus
 } from "../storage/repositories/mail-outbox.js";
-import { persistOutboxArtifact } from "../storage/artifacts.js";
+import { getThreadStateDir, persistOutboxArtifact, readAttachmentArtifactMetadata } from "../storage/artifacts.js";
+import { listMailAttachmentsForRoom } from "../storage/repositories/mail-attachments.js";
 import {
   findApprovalRequestByReferenceId,
   findControlPlaneOutboxByReferenceId,
@@ -195,7 +203,8 @@ import {
   validateOutboundRecipients
 } from "../reporting/rfc.js";
 import { buildParticipantFingerprint, normalizeSubject } from "../threading/dedupe.js";
-import { filterInternalAliasRecipients } from "../threading/mailbox-routing.js";
+import { filterInternalAliasRecipients, resolveMailboxRoute } from "../threading/mailbox-routing.js";
+import { buildRoomSessionKey } from "../threading/session-key.js";
 import {
   ingestIncomingMail,
   type LeasedRoomJob,
@@ -220,7 +229,7 @@ import {
 } from "../storage/repositories/provider-events.js";
 import { appendThreadLedgerEvent, listThreadLedgerEvents } from "../storage/repositories/thread-ledger.js";
 import { getThreadRoom, listThreadRooms, saveThreadRoom } from "../storage/repositories/thread-rooms.js";
-import { getMailThread } from "../storage/repositories/mail-threads.js";
+import { getMailThread, upsertMailThread } from "../storage/repositories/mail-threads.js";
 import { createWorkerPool } from "../queue/worker-pool.js";
 import { leaseNextRoomJob } from "../queue/thread-queue.js";
 import { searchRoomContext } from "../retrieval/room-search.js";
@@ -261,7 +270,25 @@ import {
   getOAuthLoginSessionByState,
   upsertOAuthLoginSession
 } from "../storage/repositories/oauth-login-sessions.js";
+import {
+  deleteAgentRuntimePreference,
+  getAgentRuntimePreference,
+  upsertAgentRuntimePreference
+} from "../storage/repositories/agent-runtime-preferences.js";
+import {
+  deleteRuntimeModelProfile as deleteStoredRuntimeModelProfile,
+  getRuntimeModelProfile as getStoredRuntimeModelProfile,
+  upsertRuntimeModelProfile as upsertStoredRuntimeModelProfile,
+  upsertRuntimeSettings
+} from "../storage/repositories/runtime-model-profiles.js";
+import {
+  createRuntimeModelProfileId,
+  listRuntimeModelProfileViews,
+  resolveDefaultRuntimeModelProfileId,
+  resolveRuntimeModelProfile
+} from "../runtime/runtime-model-registry.js";
 import { listScheduledMailJobs } from "../storage/repositories/scheduled-mail-jobs.js";
+import { toSafeStorageFileName } from "../storage/path-safety.js";
 import {
   cancelScheduledMailJob,
   pauseScheduledMailJob,
@@ -400,6 +427,15 @@ export interface RuntimeRoomMailSyncInput {
   requireApproval?: boolean;
 }
 
+export interface RuntimeSelfEmailRoomInput {
+  accountId: string;
+  subject: string;
+  body: string;
+  mailboxAddress?: string;
+  deliverNow?: boolean;
+  now?: string;
+}
+
 export type RuntimeGmailOAuthStartInput = Omit<RuntimeOAuthStartInput, "provider" | "tenant">;
 export type RuntimeGmailOAuthCompleteInput = RuntimeOAuthCompleteInput;
 
@@ -441,7 +477,7 @@ export class RuntimeApiError extends Error {
 }
 
 export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
-  const agentExecutor = deps.agentExecutor ?? createDefaultMailAgentExecutor(deps.config);
+  const agentExecutor = deps.agentExecutor ?? createDynamicMailAgentExecutor(deps.db, deps.config);
   const smtpSender = deps.smtpSender ?? createConfiguredSmtpSender(deps.config, deps.smtpTransportFactory);
   const subAgentTransport =
     deps.subAgentTransport ??
@@ -470,6 +506,8 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
     gmailSenderCache: new Map<string, ReturnType<typeof createConfiguredGmailSender>>(),
     accountSmtpSenderCache: new Map<string, ReturnType<typeof createAccountSmtpSender>>()
   };
+  const watcherControllers = new Map<string, WatcherController<string>>();
+  let watcherOptions: RuntimeWatcherOptions | null = null;
   const resolveOutboxSender = (roomKey: string) => {
     return resolveLocalDeliverySender(
       {
@@ -485,9 +523,58 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
       deliverySenderCaches
     );
   };
+  const deliverQueuedOutbox = (options?: Parameters<typeof mailIoPlane.deliverQueuedOutbox>[2]) =>
+    mailIoPlane.deliverQueuedOutbox(
+      deps.db,
+      ({ record }) => {
+        const resolved = resolveOutboxSender(record.roomKey);
+        if (!resolved.sender) {
+          return null;
+        }
+
+        return {
+          sender: resolved.sender,
+          threadId: resolved.providerThreadId
+        };
+      },
+      options
+    );
   const ingestMail = async (input: RuntimeIngestInput) => {
     if (!deps.config.features.mailIngest) {
       throw new RuntimeFeatureDisabledError("mail ingest is disabled");
+    }
+    const account = loadLatestAccount(input.accountId);
+    const inboundGuard = evaluateInboundRoomGuard({
+      account,
+      mailboxAddress: input.mailboxAddress,
+      envelope: input.envelope,
+      now: new Date().toISOString()
+    });
+    if (inboundGuard.ignored) {
+      if (account) {
+        appendProviderEvent(deps.db, {
+          accountId: account.accountId,
+          provider: account.provider,
+          eventType: "provider.event.ignored",
+          cursorValue: inboundGuard.providerMessageId,
+          payload: {
+            reasons: inboundGuard.reasons,
+            internetMessageId: inboundGuard.internetMessageId,
+            mailboxAddress: input.mailboxAddress
+          },
+          createdAt: inboundGuard.evaluatedAt
+        });
+      }
+      return {
+        ingested: {
+          status: "ignored" as const,
+          roomKey: "",
+          stableThreadId: "",
+          dedupeKey: `ignored:${input.accountId}:${inboundGuard.providerMessageId || inboundGuard.internetMessageId || randomUUID()}`,
+          reasons: inboundGuard.reasons
+        },
+        processed: null
+      };
     }
 
     const ingested = ingestIncomingMail(
@@ -835,6 +922,131 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
       }
     } satisfies Record<string, unknown>;
   };
+  const buildWatcherController = (
+    account: MailAccountRecord,
+    options: RuntimeWatcherOptions
+  ): WatcherController<string> | null => {
+    const watchSettings = getWatchSettings(account.settings);
+    const durableCheckpoint = resolveDurableWatchCheckpoint(account);
+
+    if (account.provider === "imap" && (options.imap || hasConfiguredImapSettings(account.settings))) {
+      return startImapPoller({
+        accountId: account.accountId,
+        mailboxAddress: account.emailAddress,
+        initialCheckpoint: durableCheckpoint,
+        intervalMs: watchSettings.intervalMs,
+        processImmediately: options.processImmediately ?? false,
+        fetch: ({ checkpoint, signal }) =>
+          options.imap?.fetch
+            ? options.imap.fetch({
+                accountId: account.accountId,
+                settings: account.settings,
+                checkpoint,
+                signal
+              })
+            : mailIoPlane.fetchImapMessages(
+                {
+                  accountId: account.accountId,
+                  mailboxAddress: account.emailAddress,
+                  settings: account.settings,
+                  checkpoint,
+                  signal
+                },
+                {
+                  clientFactory: options.imap?.clientFactory
+                }
+              ),
+        ingest: ingestMail,
+        onCheckpoint: (checkpoint, metadata) =>
+          persistWatchCheckpoint(account.accountId, checkpoint, metadata, account)
+      });
+    }
+
+    const hasExternalGmailHandlers = Boolean(options.gmail?.listen && options.gmail?.fetch);
+    if (account.provider === "gmail" && (hasExternalGmailHandlers || hasConfiguredGmailSettings(account.settings))) {
+      return startGmailWatcher({
+        accountId: account.accountId,
+        mailboxAddress: account.emailAddress,
+        initialCheckpoint: durableCheckpoint,
+        intervalMs: watchSettings.intervalMs,
+        processImmediately: options.processImmediately ?? false,
+        listen: ({ checkpoint, signal }) =>
+          hasExternalGmailHandlers
+            ? options.gmail!.listen!({
+                accountId: account.accountId,
+                settings: loadLatestAccount(account.accountId, account)?.settings ?? account.settings,
+                checkpoint,
+                signal
+              })
+            : mailIoPlane.fetchGmailWatchBatch(
+                {
+                  accountId: account.accountId,
+                  settings: loadLatestAccount(account.accountId, account)?.settings ?? account.settings,
+                  checkpoint,
+                  signal
+                },
+                {
+                  clientFactory: options.gmail?.clientFactory
+                }
+              ),
+        fetch: (notification, signal) =>
+          hasExternalGmailHandlers
+            ? options.gmail!.fetch!({
+                accountId: account.accountId,
+                settings: loadLatestAccount(account.accountId, account)?.settings ?? account.settings,
+                notification,
+                signal
+              })
+            : mailIoPlane.fetchGmailMessage(
+                {
+                  accountId: account.accountId,
+                  settings: loadLatestAccount(account.accountId, account)?.settings ?? account.settings,
+                  notification,
+                  signal
+                },
+                {
+                  clientFactory: options.gmail?.clientFactory
+                }
+              ),
+        ingest: ingestMail,
+        onCheckpoint: (checkpoint, metadata) =>
+          persistWatchCheckpoint(account.accountId, checkpoint, metadata, account)
+      });
+    }
+
+    return null;
+  };
+  const stopWatcher = (accountId: string) => {
+    const controller = watcherControllers.get(accountId);
+    if (!controller) {
+      return;
+    }
+
+    watcherControllers.delete(accountId);
+    void controller.stop().catch(() => undefined);
+  };
+  const syncWatcherForAccount = (account: MailAccountRecord, options: RuntimeWatcherOptions) => {
+    const nextController = account.status === "active" ? buildWatcherController(account, options) : null;
+    stopWatcher(account.accountId);
+    if (nextController) {
+      watcherControllers.set(account.accountId, nextController);
+    }
+  };
+  const syncWatchers = (options: RuntimeWatcherOptions) => {
+    watcherOptions = options;
+    const accounts = listMailAccounts(deps.db);
+    const accountIds = new Set(accounts.map((account) => account.accountId));
+
+    for (const accountId of watcherControllers.keys()) {
+      if (!accountIds.has(accountId)) {
+        stopWatcher(accountId);
+      }
+    }
+
+    for (const account of accounts) {
+      syncWatcherForAccount(account, options);
+    }
+  };
   const redactOAuthLoginSession = (session: ReturnType<typeof getOAuthLoginSession>) => {
     if (!session) {
       return null;
@@ -900,8 +1112,12 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
       createdAt: existing?.createdAt ?? timestamp,
       updatedAt: timestamp
     });
+    const nextAccount = listMailAccounts(deps.db).find((account) => account.accountId === input.accountId) ?? null;
+    if (nextAccount && watcherOptions) {
+      syncWatcherForAccount(nextAccount, watcherOptions);
+    }
 
-    return listMailAccounts(deps.db).find((account) => account.accountId === input.accountId) ?? null;
+    return nextAccount;
   };
   const buildGmailOAuthAccount = (input: {
     session: NonNullable<ReturnType<typeof getOAuthLoginSessionByState>>;
@@ -1220,6 +1436,7 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
     return agentIds.map((agentId) => {
       const templateRecord = templateIndex.get(agentId);
       const soulPath = path.join(agentRoot, agentId, "SOUL.md");
+      const profile = readAgentProfileFile(deps.config, input.tenantId, agentId);
       const agentMailboxes = accountMailboxes
         .filter(
           (mailbox) =>
@@ -1243,8 +1460,13 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
 
       return {
         ...entry,
+        displayName: profile?.displayName || entry.displayName,
+        purpose: profile?.purpose || entry.purpose,
+        profilePath: profile?.profilePath ?? null,
         soulPath: fs.existsSync(soulPath) ? soulPath : null,
         inbox: inboxes.find((inbox) => inbox.agentId === agentId) ?? null,
+        runtimePreference: getAgentRuntimePreferenceSummary(input.tenantId, agentId),
+        effectiveRuntime: getEffectiveAgentRuntimeSummary(input.tenantId, agentId),
         virtualMailboxes: Array.from(new Set([...entry.virtualMailboxes, ...agentMailboxes])).sort((left, right) =>
           left.localeCompare(right)
         )
@@ -1283,6 +1505,39 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
       activeRoomCount,
       subagentRunCounts: accountId ? collectAccountSubagentRunCounts(accountId) : {}
     });
+  };
+  const listRuntimeProfiles = () => listRuntimeModelProfileViews(deps.db, deps.config);
+  const getDefaultRuntimeProfileId = () => resolveDefaultRuntimeModelProfileId(deps.db, deps.config);
+  const getAgentRuntimePreferenceSummary = (tenantId: string, agentId: string) => {
+    const preference = getAgentRuntimePreference(deps.db, tenantId, agentId);
+    if (!preference) {
+      return null;
+    }
+    return {
+      profileId: preference.profileId ?? null,
+      modelOverride: preference.modelOverride ?? null,
+      updatedAt: preference.updatedAt
+    };
+  };
+  const getEffectiveAgentRuntimeSummary = (tenantId: string, agentId: string) => {
+    const resolved = resolveRuntimeModelProfile(deps.db, deps.config, {
+      tenantId,
+      agentId
+    });
+    const profile = resolved.profile;
+    if (!profile) {
+      return null;
+    }
+    return {
+      profileId: profile.profileId,
+      label: profile.label,
+      sourceKind: profile.sourceKind,
+      model:
+        typeof resolved.preference?.modelOverride === "string" && resolved.preference.modelOverride.trim().length > 0
+          ? resolved.preference.modelOverride.trim()
+          : profile.model,
+      inherited: !resolved.preference?.profileId && !resolved.preference?.modelOverride
+    };
   };
   const redactMailAccountSettings = (settings: Record<string, unknown>) => {
     const watch =
@@ -1596,6 +1851,8 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
         agentTemplates: listConfiguredAgentTemplates(),
         agentDirectory,
         skills,
+        runtimeProfiles: listRuntimeProfiles(),
+        defaultRuntimeProfileId: getDefaultRuntimeProfileId(),
         reusableSkills,
         sharedSkills,
         headcountRecommendations: listHeadcountRecommendations(templateAccountId ?? undefined)
@@ -2223,6 +2480,47 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
 
       return resolveConsoleBoundaries(view);
     },
+    getRoomAttachmentContent(input: {
+      roomKey: string;
+      attachmentId: string;
+    }) {
+      const attachment = listMailAttachmentsForRoom(deps.db, input.roomKey).find(
+        (entry) => entry.attachmentId === input.attachmentId
+      );
+      if (!attachment) {
+        throw new RuntimeApiError(`attachment not found: ${input.attachmentId}`, 404);
+      }
+
+      const metadata = readAttachmentArtifactMetadata(attachment.artifactPath);
+      const filePath =
+        metadata?.rawDataPath ??
+        metadata?.extractedTextPath ??
+        metadata?.summaryPath ??
+        attachment.artifactPath;
+
+      if (!filePath || !fs.existsSync(filePath)) {
+        throw new RuntimeApiError(`attachment file not found: ${input.attachmentId}`, 404);
+      }
+
+      const servingExtractedText = filePath === metadata?.extractedTextPath || filePath === metadata?.summaryPath;
+      const servingMetadata = filePath === attachment.artifactPath && !metadata?.rawDataPath && !metadata?.extractedTextPath;
+      const filename =
+        servingMetadata
+          ? `${attachment.filename}.json`
+          : servingExtractedText && path.extname(attachment.filename).length === 0
+            ? `${attachment.filename}.md`
+            : attachment.filename;
+
+      return {
+        path: filePath,
+        filename,
+        mimeType: servingMetadata
+          ? "application/json; charset=utf-8"
+          : servingExtractedText
+            ? "text/markdown; charset=utf-8"
+            : attachment.mimeType || "application/octet-stream"
+      };
+    },
     listConsoleApprovals(input?: Parameters<typeof listConsoleApprovalsView>[1]) {
       return listConsoleApprovalsView(deps.db, input);
     },
@@ -2402,6 +2700,71 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
         }))
       };
     },
+    listRuntimeModelProfiles() {
+      return listRuntimeProfiles();
+    },
+    upsertRuntimeModelProfile(input: {
+      profileId?: string;
+      label: string;
+      sourceKind: "openclaw_login" | "api_key";
+      model: string;
+      baseUrl?: string;
+      publicBaseUrl?: string;
+      openClawAgentId?: string;
+      loginUrl?: string;
+      gatewayToken?: string;
+      apiKey?: string;
+      enabled?: boolean;
+      now?: string;
+    }) {
+      const now = input.now ?? new Date().toISOString();
+      const existing =
+        typeof input.profileId === "string" && input.profileId.trim().length > 0
+          ? getStoredRuntimeModelProfile(deps.db, input.profileId.trim())
+          : null;
+      const profileId = existing?.profileId ?? input.profileId?.trim() ?? createRuntimeModelProfileId();
+      upsertStoredRuntimeModelProfile(deps.db, {
+        profileId,
+        label: input.label.trim(),
+        sourceKind: input.sourceKind,
+        model: input.model.trim(),
+        baseUrl: input.baseUrl?.trim() || existing?.baseUrl,
+        publicBaseUrl: input.publicBaseUrl?.trim() || existing?.publicBaseUrl,
+        openClawAgentId: input.openClawAgentId?.trim() || existing?.openClawAgentId,
+        loginUrl: input.loginUrl?.trim() || existing?.loginUrl,
+        gatewayToken:
+          input.sourceKind === "openclaw_login"
+            ? (input.gatewayToken?.trim() || existing?.gatewayToken)
+            : undefined,
+        apiKey:
+          input.sourceKind === "api_key" ? (input.apiKey?.trim() || existing?.apiKey) : undefined,
+        enabled: input.enabled ?? existing?.enabled ?? true,
+        createdAt: existing?.createdAt ?? now,
+        updatedAt: now
+      });
+      return {
+        profileId,
+        profiles: listRuntimeProfiles()
+      };
+    },
+    deleteRuntimeModelProfile(profileId: string) {
+      deleteStoredRuntimeModelProfile(deps.db, profileId);
+      return {
+        deleted: true,
+        profileId,
+        profiles: listRuntimeProfiles()
+      };
+    },
+    setDefaultRuntimeModelProfile(profileId: string, now = new Date().toISOString()) {
+      upsertRuntimeSettings(deps.db, {
+        defaultProfileId: profileId,
+        updatedAt: now
+      });
+      return {
+        defaultProfileId: getDefaultRuntimeProfileId(),
+        profiles: listRuntimeProfiles()
+      };
+    },
     listAgentTemplates() {
       return listConfiguredAgentTemplates();
     },
@@ -2424,6 +2787,12 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
       skillId: string;
     }) {
       return getAgentWorkspaceSkill(deps.config, input.tenantId, input.agentId, input.skillId);
+    },
+    inspectSharedSkill(input: {
+      tenantId: string;
+      skillId: string;
+    }) {
+      return getSharedSkillFile(deps.config, input.tenantId, input.skillId);
     },
     getHeadcountRecommendations(accountId?: string) {
       return listHeadcountRecommendations(accountId);
@@ -2658,6 +3027,46 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
         headcountRecommendations: listHeadcountRecommendations(input.accountId)
       };
     },
+    getAgentRuntimePreference(input: {
+      tenantId: string;
+      agentId: string;
+    }) {
+      return {
+        preference: getAgentRuntimePreferenceSummary(input.tenantId, input.agentId),
+        effective: getEffectiveAgentRuntimeSummary(input.tenantId, input.agentId),
+        defaultProfileId: getDefaultRuntimeProfileId(),
+        profiles: listRuntimeProfiles()
+      };
+    },
+    saveAgentRuntimePreference(input: {
+      tenantId: string;
+      agentId: string;
+      profileId?: string;
+      modelOverride?: string;
+      now?: string;
+    }) {
+      const now = input.now ?? new Date().toISOString();
+      const normalizedProfileId = input.profileId?.trim() || undefined;
+      const normalizedModelOverride = input.modelOverride?.trim() || undefined;
+      if (!normalizedProfileId && !normalizedModelOverride) {
+        deleteAgentRuntimePreference(deps.db, input.tenantId, input.agentId);
+      } else {
+        const existing = getAgentRuntimePreference(deps.db, input.tenantId, input.agentId);
+        upsertAgentRuntimePreference(deps.db, {
+          tenantId: input.tenantId,
+          agentId: input.agentId,
+          profileId: normalizedProfileId,
+          modelOverride: normalizedModelOverride,
+          createdAt: existing?.createdAt ?? now,
+          updatedAt: now
+        });
+      }
+      return {
+        preference: getAgentRuntimePreferenceSummary(input.tenantId, input.agentId),
+        effective: getEffectiveAgentRuntimeSummary(input.tenantId, input.agentId),
+        profiles: listRuntimeProfiles()
+      };
+    },
     async installAgentSkill(input: {
       tenantId: string;
       agentId: string;
@@ -2684,6 +3093,23 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
     }) {
       return createSharedSkillFile(deps.config, input);
     },
+    writeAgentSkill(input: {
+      tenantId: string;
+      agentId: string;
+      skillId: string;
+      content: string;
+      now?: string;
+    }) {
+      return writeAgentWorkspaceSkillFile(deps.config, input);
+    },
+    writeSharedSkill(input: {
+      tenantId: string;
+      skillId: string;
+      content: string;
+      now?: string;
+    }) {
+      return writeSharedSkillFile(deps.config, input);
+    },
     readAgentSoul(input: {
       tenantId: string;
       agentId: string;
@@ -2699,6 +3125,22 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
       content: string;
     }) {
       return writeAgentSoulFile(deps.config, input);
+    },
+    writeAgentProfile(input: {
+      tenantId: string;
+      accountId?: string;
+      agentId: string;
+      displayName?: string;
+      purpose?: string;
+    }) {
+      const result = writeAgentProfileFile(deps.config, input);
+      return {
+        ...result,
+        agentDirectory: listAgentDirectory({
+          tenantId: input.tenantId,
+          accountId: input.accountId
+        })
+      };
     },
     deleteAgent(input: {
       tenantId: string;
@@ -2772,17 +3214,162 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
       return recoverRoomQueue(deps.db, now);
     },
     async deliverOutbox() {
-      return mailIoPlane.deliverQueuedOutbox(deps.db, ({ record }) => {
-        const resolved = resolveOutboxSender(record.roomKey);
-        if (!resolved.sender) {
-          return null;
-        }
+      return deliverQueuedOutbox();
+    },
+    async createRoomFromSelfEmail(input: RuntimeSelfEmailRoomInput) {
+      const accountId = input.accountId.trim();
+      const subject = input.subject.trim();
+      const body = input.body.trim();
+      if (!accountId) {
+        throw new RuntimeApiError("accountId is required", 400);
+      }
+      if (!subject) {
+        throw new RuntimeApiError("subject is required", 400);
+      }
+      if (!body) {
+        throw new RuntimeApiError("body is required", 400);
+      }
 
-        return {
-          sender: resolved.sender,
-          threadId: resolved.providerThreadId
-        };
+      const account = getMailAccount(deps.db, accountId);
+      if (!account) {
+        throw new RuntimeApiError(`mail account not found: ${accountId}`, 404);
+      }
+
+      const now = input.now ?? new Date().toISOString();
+      const routing = readAccountAgentRoutingSettings(account.settings);
+      const tenantId = account.accountId;
+      const agentDirectory = listAgentDirectory({
+        tenantId,
+        accountId: account.accountId
       });
+      const frontAgentId =
+        routing.defaultFrontAgentId ??
+        routing.durableAgentIds[0] ??
+        agentDirectory[0]?.agentId ??
+        undefined;
+      const collaboratorAgentIds = uniqueAgentIds(routing.collaboratorAgentIds).filter(
+        (agentId) => agentId !== frontAgentId
+      );
+      const publicAgentIds = uniqueAgentIds([
+        ...(frontAgentId ? [frontAgentId] : []),
+        ...routing.durableAgentIds,
+        ...collaboratorAgentIds
+      ]);
+      const stableThreadId = buildSelfEmailRoomStableThreadId({
+        accountId: account.accountId,
+        subject,
+        createdAt: now
+      });
+      const roomKey = buildRoomSessionKey(
+        account.accountId,
+        stableThreadId,
+        deps.config.openClaw.sessionPrefix,
+        frontAgentId
+      );
+      upsertMailThread(deps.db, {
+        stableThreadId,
+        accountId: account.accountId,
+        normalizedSubject: normalizeSubject(subject),
+        participantFingerprint: buildParticipantFingerprint([account.emailAddress]),
+        createdAt: now,
+        lastMessageAt: now
+      });
+      saveThreadRoom(deps.db, {
+        roomKey,
+        accountId: account.accountId,
+        stableThreadId,
+        parentSessionKey: roomKey,
+        ...(frontAgentId ? { frontAgentId, frontAgentAddress: frontAgentId } : {}),
+        ...(publicAgentIds.length > 0 ? { publicAgentIds } : {}),
+        ...(collaboratorAgentIds.length > 0 ? { collaboratorAgentIds } : {}),
+        summonedRoles: [],
+        state: "idle",
+        revision: 1,
+        lastInboundSeq: 0,
+        lastOutboundSeq: 0
+      });
+      appendThreadLedgerEvent(deps.db, {
+        roomKey,
+        revision: 1,
+        type: "room.created",
+        payload: {
+          stableThreadId,
+          source: "workbench_self_email",
+          internetMessageId: null,
+          providerThreadId: null
+        }
+      });
+
+      const internalOwner = buildSelfEmailRoomInternalOwner(frontAgentId, roomKey);
+      const principalId = `principal:${internalOwner}`;
+      const mailboxId = `internal:${internalOwner}:orchestrator`;
+      upsertVirtualMailbox(deps.db, {
+        mailboxId,
+        accountId: account.accountId,
+        kind: "internal_role",
+        principalId,
+        role: "orchestrator",
+        active: true,
+        createdAt: now,
+        updatedAt: now
+      });
+      const bodyRef = persistSelfEmailRoomBodyArtifact(deps.config, {
+        accountId: account.accountId,
+        stableThreadId,
+        createdAt: now,
+        body
+      });
+      const inputsHash = createHash("sha256")
+        .update(account.accountId)
+        .update("\n")
+        .update(subject)
+        .update("\n")
+        .update(body)
+        .digest("hex");
+      const messageResult = submitVirtualMessage(deps.db, {
+        roomKey,
+        threadKind: "work",
+        topic: subject,
+        fromPrincipalId: principalId,
+        fromMailboxId: mailboxId,
+        toMailboxIds: [mailboxId],
+        kind: "system_notice",
+        visibility: "internal",
+        subject,
+        bodyRef,
+        roomRevision: 1,
+        inputsHash,
+        createdAt: now
+      });
+      const mailboxAddress = input.mailboxAddress?.trim() || account.emailAddress;
+      const outbox = queueRoomMessageEmailSync(deps.db, deps.config, {
+        roomKey,
+        messageId: messageResult.message.messageId,
+        mailboxAddress,
+        to: [mailboxAddress],
+        subject,
+        body,
+        kind: "final",
+        approvalRequired: false,
+        createdAt: now,
+        allowSelfRecipient: true
+      });
+      const delivery =
+        input.deliverNow === false
+          ? null
+          : await deliverQueuedOutbox({
+              outboxIds: [outbox.outboxId]
+            });
+
+      return {
+        accountId: account.accountId,
+        mailboxAddress,
+        roomKey,
+        stableThreadId,
+        messageId: messageResult.message.messageId,
+        outbox,
+        delivery
+      };
     },
     async drainQueue(options: {
       maxRuns?: number;
@@ -3521,104 +4108,16 @@ export function createMailSidecarRuntime(deps: MailSidecarRuntimeDeps) {
       return upsertAccountRecord(input);
     },
     startWatchers(options: RuntimeWatcherOptions) {
-      const controllers: Record<string, WatcherController<string>> = {};
-
-      for (const account of listMailAccounts(deps.db)) {
-        if (account.status !== "active") {
-          continue;
-        }
-
-        const watchSettings = getWatchSettings(account.settings);
-        const durableCheckpoint = resolveDurableWatchCheckpoint(account);
-
-        if (account.provider === "imap" && (options.imap || hasConfiguredImapSettings(account.settings))) {
-          controllers[account.accountId] = startImapPoller({
-            accountId: account.accountId,
-            mailboxAddress: account.emailAddress,
-            initialCheckpoint: durableCheckpoint,
-            intervalMs: watchSettings.intervalMs,
-            processImmediately: options.processImmediately ?? false,
-            fetch: ({ checkpoint, signal }) =>
-              options.imap?.fetch
-                ? options.imap.fetch({
-                    accountId: account.accountId,
-                    settings: account.settings,
-                    checkpoint,
-                    signal
-                  })
-                : mailIoPlane.fetchImapMessages(
-                    {
-                      accountId: account.accountId,
-                      mailboxAddress: account.emailAddress,
-                      settings: account.settings,
-                      checkpoint,
-                      signal
-                    },
-                    {
-                      clientFactory: options.imap?.clientFactory
-                    }
-                  ),
-            ingest: ingestMail,
-            onCheckpoint: (checkpoint, metadata) =>
-              persistWatchCheckpoint(account.accountId, checkpoint, metadata, account)
-          });
-          continue;
-        }
-
-        const hasExternalGmailHandlers = Boolean(options.gmail?.listen && options.gmail?.fetch);
-        if (account.provider === "gmail" && (hasExternalGmailHandlers || hasConfiguredGmailSettings(account.settings))) {
-          controllers[account.accountId] = startGmailWatcher({
-            accountId: account.accountId,
-            mailboxAddress: account.emailAddress,
-            initialCheckpoint: durableCheckpoint,
-            intervalMs: watchSettings.intervalMs,
-            processImmediately: options.processImmediately ?? false,
-            listen: ({ checkpoint, signal }) =>
-              hasExternalGmailHandlers
-                ? options.gmail!.listen!({
-                    accountId: account.accountId,
-                    settings: loadLatestAccount(account.accountId, account)?.settings ?? account.settings,
-                    checkpoint,
-                    signal
-                  })
-                : mailIoPlane.fetchGmailWatchBatch(
-                    {
-                      accountId: account.accountId,
-                      settings: loadLatestAccount(account.accountId, account)?.settings ?? account.settings,
-                      checkpoint,
-                      signal
-                    },
-                    {
-                      clientFactory: options.gmail?.clientFactory
-                    }
-                  ),
-            fetch: (notification, signal) =>
-              hasExternalGmailHandlers
-                ? options.gmail!.fetch!({
-                    accountId: account.accountId,
-                    settings: loadLatestAccount(account.accountId, account)?.settings ?? account.settings,
-                    notification,
-                    signal
-                  })
-                : mailIoPlane.fetchGmailMessage(
-                    {
-                      accountId: account.accountId,
-                      settings: loadLatestAccount(account.accountId, account)?.settings ?? account.settings,
-                      notification,
-                      signal
-                    },
-                    {
-                      clientFactory: options.gmail?.clientFactory
-                    }
-                  ),
-            ingest: ingestMail,
-            onCheckpoint: (checkpoint, metadata) =>
-              persistWatchCheckpoint(account.accountId, checkpoint, metadata, account)
-          });
-        }
-      }
-
-      return controllers;
+      syncWatchers(options);
+      return Object.fromEntries(watcherControllers.entries());
+    },
+    async stopWatchers() {
+      watcherOptions = null;
+      const stopPromises = Array.from(watcherControllers.values(), (controller) =>
+        controller.stop().catch(() => undefined)
+      );
+      watcherControllers.clear();
+      await Promise.all(stopPromises);
     }
   };
 
@@ -3799,6 +4298,7 @@ function queueRoomMessageEmailSync(
     kind?: "ack" | "progress" | "final";
     approvalRequired?: boolean;
     createdAt?: string;
+    allowSelfRecipient?: boolean;
   }
 ) {
   const room = getThreadRoom(db, input.roomKey);
@@ -3831,7 +4331,8 @@ function queueRoomMessageEmailSync(
     mailboxAddress,
     explicitTo: input.to,
     explicitCc: input.cc,
-    explicitBcc: input.bcc
+    explicitBcc: input.bcc,
+    allowSelfRecipient: input.allowSelfRecipient
   });
   if (recipients.to.length === 0) {
     throw new RuntimeApiError(
@@ -4034,10 +4535,17 @@ function buildEmailSyncRecipients(input: {
   explicitTo?: string[];
   explicitCc?: string[];
   explicitBcc?: string[];
+  allowSelfRecipient?: boolean;
 }) {
-  const explicitTo = uniqueVisibleEmailRecipients(input.explicitTo ?? [], input.mailboxAddress);
-  const explicitCc = uniqueVisibleEmailRecipients(input.explicitCc ?? [], input.mailboxAddress);
-  const explicitBcc = uniqueVisibleEmailRecipients(input.explicitBcc ?? [], input.mailboxAddress);
+  const explicitTo = uniqueVisibleEmailRecipients(input.explicitTo ?? [], input.mailboxAddress, {
+    allowSelfRecipient: input.allowSelfRecipient
+  });
+  const explicitCc = uniqueVisibleEmailRecipients(input.explicitCc ?? [], input.mailboxAddress, {
+    allowSelfRecipient: input.allowSelfRecipient
+  });
+  const explicitBcc = uniqueVisibleEmailRecipients(input.explicitBcc ?? [], input.mailboxAddress, {
+    allowSelfRecipient: input.allowSelfRecipient
+  });
   if (explicitTo.length > 0) {
     const toSet = new Set(explicitTo);
     const cc = explicitCc.filter((recipient) => !toSet.has(recipient));
@@ -4100,10 +4608,19 @@ function uniqueEmailRecipients(values: string[]) {
   return recipients;
 }
 
-function uniqueVisibleEmailRecipients(values: string[], mailboxAddress: string) {
-  return uniqueEmailRecipients(filterInternalAliasRecipients(values, mailboxAddress)).filter(
-    (recipient) => recipient !== normalizeEmailRecipient(mailboxAddress)
-  );
+function uniqueVisibleEmailRecipients(
+  values: string[],
+  mailboxAddress: string,
+  options: {
+    allowSelfRecipient?: boolean;
+  } = {}
+) {
+  if (options.allowSelfRecipient) {
+    return uniqueEmailRecipients(values);
+  }
+
+  const recipients = uniqueEmailRecipients(filterInternalAliasRecipients(values, mailboxAddress));
+  return recipients.filter((recipient) => recipient !== normalizeEmailRecipient(mailboxAddress));
 }
 
 function normalizeEmailRecipient(value: string) {
@@ -4158,6 +4675,233 @@ function persistRoomMessageSyncOutboundIndex(
 
 function parseReferencesHeader(value: string | undefined) {
   return value?.split(/\s+/).map((entry) => entry.trim()).filter(Boolean) ?? [];
+}
+
+function buildSelfEmailRoomStableThreadId(input: {
+  accountId: string;
+  subject: string;
+  createdAt: string;
+}) {
+  const digest = createHash("sha256")
+    .update(input.accountId)
+    .update("\n")
+    .update(input.subject)
+    .update("\n")
+    .update(input.createdAt)
+    .update("\n")
+    .update(randomUUID())
+    .digest("hex")
+    .slice(0, 16);
+
+  return `self-room-${digest}`;
+}
+
+function persistSelfEmailRoomBodyArtifact(
+  config: AppConfig,
+  input: {
+    accountId: string;
+    stableThreadId: string;
+    createdAt: string;
+    body: string;
+  }
+) {
+  const threadDir = getThreadStateDir(config, input.accountId, input.stableThreadId);
+  const artifactPath = path.join(
+    threadDir,
+    "virtual-mail",
+    toSafeStorageFileName(`self-email-${input.createdAt}`, ".txt", "self-email")
+  );
+
+  fs.mkdirSync(path.dirname(artifactPath), {
+    recursive: true
+  });
+  fs.writeFileSync(artifactPath, input.body, "utf8");
+  return artifactPath;
+}
+
+function buildSelfEmailRoomInternalOwner(frontAgentId: string | undefined, roomKey: string) {
+  const localPart =
+    sanitizeInternalMailboxLocalPart(frontAgentId) ||
+    createHash("sha256").update(roomKey).digest("hex").slice(0, 12);
+  return `${localPart}@internal.mailclaws`;
+}
+
+function sanitizeInternalMailboxLocalPart(value?: string | null) {
+  const normalized = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/^[.-]+|[.-]+$/g, "")
+    .replace(/-{2,}/g, "-");
+
+  return normalized.length > 0 ? normalized : "";
+}
+
+function evaluateInboundRoomGuard(input: {
+  account: MailAccountRecord | null;
+  mailboxAddress: string;
+  envelope: IngestIncomingMailInput["envelope"];
+  now: string;
+}) {
+  if (!input.account || !isInboundRoomGuardEnabled(input.account)) {
+    return {
+      ignored: false,
+      reasons: [] as string[],
+      providerMessageId: undefined,
+      internetMessageId: undefined,
+      evaluatedAt: input.now
+    };
+  }
+
+  const normalized = normalizeMailEnvelope(input.envelope);
+  const receivedAt = normalized.date ?? input.now;
+  const reasons: string[] = [];
+  const acceptAfter = resolveInboundAcceptAfter(input.account);
+  if (acceptAfter) {
+    const receivedAtMs = Date.parse(receivedAt);
+    const acceptAfterMs = Date.parse(acceptAfter);
+    if (Number.isFinite(receivedAtMs) && Number.isFinite(acceptAfterMs) && receivedAtMs < acceptAfterMs) {
+      reasons.push(`history_before_connected_at:${acceptAfter}`);
+    }
+  }
+
+  const senderPolicy = resolveInboundSenderPolicy(input.account);
+  const mailboxRoute = resolveMailboxRoute({
+    account: input.account,
+    fallbackMailboxAddress: input.mailboxAddress,
+    envelope: normalized
+  });
+  for (const participant of collectGuardedParticipants(normalized, mailboxRoute)) {
+    const result = evaluateSenderPolicy({
+      from: participant,
+      config: senderPolicy
+    });
+    if (!result.allowed) {
+      reasons.push(`sender_policy:${participant}:${result.reason}`);
+      break;
+    }
+  }
+
+  return {
+    ignored: reasons.length > 0,
+    reasons,
+    providerMessageId: normalized.providerMessageId,
+    internetMessageId: normalized.messageId,
+    evaluatedAt: input.now
+  };
+}
+
+function isInboundRoomGuardEnabled(account: MailAccountRecord) {
+  const settings = readSettingsObject(account.settings);
+  const intake = readNestedObject(settings, "intake");
+  if (intake.restrictToSelfAndAllowlist === true) {
+    return true;
+  }
+  if (
+    typeof intake.acceptAfter === "string" ||
+    typeof settings.connectedAt === "string" ||
+    typeof settings.mailboxConnectedAt === "string"
+  ) {
+    return true;
+  }
+
+  return [
+    settings.senderPolicy,
+    settings.allowlist,
+    settings.whitelist,
+    settings.agentRouting
+  ].some((value) => value && typeof value === "object" && !Array.isArray(value));
+}
+
+function resolveInboundAcceptAfter(account: MailAccountRecord) {
+  const settings = readSettingsObject(account.settings);
+  const intake = readNestedObject(settings, "intake");
+  return (
+    readString(intake, "acceptAfter") ??
+    readString(settings, "connectedAt") ??
+    readString(settings, "mailboxConnectedAt") ??
+    account.createdAt
+  );
+}
+
+function resolveInboundSenderPolicy(account: MailAccountRecord): SenderPolicyConfig {
+  const settings = readSettingsObject(account.settings);
+  const senderPolicy = readNestedObject(settings, "senderPolicy");
+  const allowlist = readNestedObject(settings, "allowlist");
+  const whitelist = readNestedObject(settings, "whitelist");
+
+  return {
+    allowEmails: uniqueNormalizedStrings([
+      account.emailAddress,
+      ...readStringArray(senderPolicy, "allowEmails"),
+      ...readStringArray(allowlist, "emails"),
+      ...readStringArray(whitelist, "emails")
+    ]),
+    allowDomains: uniqueNormalizedStrings([
+      ...readStringArray(senderPolicy, "allowDomains"),
+      ...readStringArray(allowlist, "domains"),
+      ...readStringArray(whitelist, "domains")
+    ]),
+    denyEmails: uniqueNormalizedStrings([
+      ...readStringArray(senderPolicy, "denyEmails"),
+      ...readStringArray(allowlist, "denyEmails"),
+      ...readStringArray(whitelist, "denyEmails")
+    ]),
+    denyDomains: uniqueNormalizedStrings([
+      ...readStringArray(senderPolicy, "denyDomains"),
+      ...readStringArray(allowlist, "denyDomains"),
+      ...readStringArray(whitelist, "denyDomains")
+    ])
+  };
+}
+
+function collectGuardedParticipants(
+  normalized: ReturnType<typeof normalizeMailEnvelope>,
+  mailboxRoute: ReturnType<typeof resolveMailboxRoute>
+) {
+  return uniqueNormalizedStrings([
+    normalized.from.email,
+    ...filterInternalAliasRecipients(
+      normalized.to.map((entry) => entry.email),
+      mailboxRoute.canonicalMailboxAddress,
+      mailboxRoute.internalAliasAddresses
+    ),
+    ...filterInternalAliasRecipients(
+      normalized.cc.map((entry) => entry.email),
+      mailboxRoute.canonicalMailboxAddress,
+      mailboxRoute.internalAliasAddresses
+    ),
+    ...filterInternalAliasRecipients(
+      normalized.replyTo.map((entry) => entry.email),
+      mailboxRoute.canonicalMailboxAddress,
+      mailboxRoute.internalAliasAddresses
+    )
+  ]);
+}
+
+function readSettingsObject(settings: Record<string, unknown>) {
+  return typeof settings === "object" && settings !== null ? settings : {};
+}
+
+function readNestedObject(settings: Record<string, unknown>, key: string) {
+  const value = settings[key];
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function readString(settings: Record<string, unknown>, key: string) {
+  const value = settings[key];
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function readStringArray(settings: Record<string, unknown>, key: string) {
+  const value = settings[key];
+  return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : [];
+}
+
+function uniqueNormalizedStrings(values: string[]) {
+  return Array.from(new Set(values.map((value) => value.trim().toLowerCase()).filter(Boolean)));
 }
 
 function getWatchSettings(settings: Record<string, unknown>) {
