@@ -1685,13 +1685,11 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           timeline: "Timeline",
           entriesCount: "{count} entries",
           noTimelineEntries: "No room timeline entries have been recorded yet.",
-          roomFocusCopy: "Focus this room on the creating task mail, the public mail thread, the current agents, and the latest runtime only.",
-          taskMailPanel: "Task Mail",
-          taskMailCopy: "The external email that created this room.",
-          noTaskMail: "No source task mail was recorded for this room.",
-          publicMailPanel: "Public Mail",
-          publicMailCopy: "Later public emails in this thread. Open a card to inspect the original message detail.",
-          noPublicMail: "No additional public mail has been recorded for this room.",
+          roomFocusCopy: "Focus this room on the mail thread, the current agents, and the latest runtime only.",
+          threadMailPanel: "Thread Mail",
+          threadMailCopy: "The room-creating mail and later public replies are shown together in one thread.",
+          noThreadMail: "No thread mail has been recorded for this room.",
+          taskMailBadge: "Created room",
           currentAgentsPanel: "Current Agents",
           currentAgentsCopy: "Open an agent to reveal only its room mailboxes. Select a mailbox chip to inspect the correspondence.",
           noAgentsVisible: "No visible agent has been recorded for this room yet.",
@@ -2019,13 +2017,11 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           timeline: "时间线",
           entriesCount: "共 {count} 条",
           noTimelineEntries: "这个房间还没有记录时间线条目。",
-          roomFocusCopy: "这个房间只聚焦创建房间的任务邮件、公开邮件线程、当前智能体和最近一次运行时间。",
-          taskMailPanel: "任务邮件",
-          taskMailCopy: "这封外部邮件创建了当前房间。",
-          noTaskMail: "这个房间还没有记录来源任务邮件。",
-          publicMailPanel: "公开邮件",
-          publicMailCopy: "这是当前线程后续的公开邮件。点击卡片可展开查看原始邮件详情。",
-          noPublicMail: "这个房间还没有后续公开邮件。",
+          roomFocusCopy: "这个房间只聚焦线程邮件、当前智能体和最近一次运行时间。",
+          threadMailPanel: "线程邮件",
+          threadMailCopy: "创建房间的邮件和后续公开回复合并在同一条线程里展示。",
+          noThreadMail: "这个房间还没有记录线程邮件。",
+          taskMailBadge: "创建房间",
           currentAgentsPanel: "当前智能体",
           currentAgentsCopy: "点开智能体即可看到它在当前房间里的虚拟邮箱。点邮箱标签可查看往来信件。",
           noAgentsVisible: "这个房间还没有记录可见智能体。",
@@ -2353,13 +2349,11 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           timeline: "Timeline",
           entriesCount: "{count} entrées",
           noTimelineEntries: "Aucune entrée de timeline n’a encore été enregistrée pour cette room.",
-          roomFocusCopy: "Cette room se concentre uniquement sur l’email de création, le fil d’emails publics, les agents visibles et le dernier temps d’exécution.",
-          taskMailPanel: "Mail de tâche",
-          taskMailCopy: "L’email externe qui a créé cette room.",
-          noTaskMail: "Aucun mail source n’a été enregistré pour cette room.",
-          publicMailPanel: "Mail public",
-          publicMailCopy: "Les emails publics suivants dans ce fil. Ouvrez une carte pour lire le détail du message original.",
-          noPublicMail: "Aucun mail public supplémentaire n’a été enregistré pour cette room.",
+          roomFocusCopy: "Cette room se concentre uniquement sur le fil d’emails, les agents visibles et le dernier temps d’exécution.",
+          threadMailPanel: "Fil d’emails",
+          threadMailCopy: "Le mail qui a créé la room et les réponses publiques suivantes sont affichés ensemble dans un seul fil.",
+          noThreadMail: "Aucun email du fil n’a été enregistré pour cette room.",
+          taskMailBadge: "Création de room",
           currentAgentsPanel: "Agents actuels",
           currentAgentsCopy: "Ouvrez un agent pour afficher uniquement ses boîtes de room. Sélectionnez une puce de boîte pour consulter la correspondance.",
           noAgentsVisible: "Aucun agent visible n’a encore été enregistré pour cette room.",
@@ -2903,6 +2897,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
 
       function renderSourceMailCard(mail, options) {
         const expanded = options && options.expanded;
+        const badge = options && options.badge ? String(options.badge) : "";
         const summaryLine = mail && mail.excerpt ? mail.excerpt : t("openOriginalDetails");
         const recipients = Array.isArray(mail && mail.to) && mail.to.length > 0 ? mail.to.join(", ") : "n/a";
         const ccList = Array.isArray(mail && mail.cc) && mail.cc.length > 0 ? mail.cc.join(", ") : "";
@@ -2910,7 +2905,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         return (
           '<details class="source-mail-card"' + (expanded ? " open" : "") + '>' +
           '<summary class="source-mail-card__summary">' +
-          '<div class="source-mail-card__meta"><div><div class="title">' + escapeHtmlClient((mail && mail.subject) || "Mail") + '</div><div class="card-subtitle">' + escapeHtmlClient((mail && mail.from) || "n/a") + '</div></div><span class="muted">' + escapeHtmlClient(formatTime(mail && mail.receivedAt)) + '</span></div>' +
+          '<div class="source-mail-card__meta"><div><div class="title">' + escapeHtmlClient((mail && mail.subject) || "Mail") + '</div><div class="card-subtitle">' + escapeHtmlClient((mail && mail.from) || "n/a") + '</div></div><div class="chips">' + (badge ? renderPill(badge, "pill--ok") : "") + '<span class="muted">' + escapeHtmlClient(formatTime(mail && mail.receivedAt)) + '</span></div></div>' +
           '<div class="detail">' + escapeHtmlClient(summaryLine) + '</div>' +
           '</summary>' +
           '<div class="source-mail-card__body">' +
@@ -4293,6 +4288,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const room = roomDetail.room;
         const taskMail = roomDetail.taskMail || null;
         const publicMails = Array.isArray(roomDetail.publicMails) ? roomDetail.publicMails : [];
+        const threadMails = (taskMail ? [taskMail] : []).concat(publicMails);
         const latestRun = roomDetail.latestRun || null;
         const visibleAgents = getRoomVisibleAgents(room);
         const roomAgentEntries = getRoomAgentMailboxEntries(roomDetail);
@@ -4304,8 +4300,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
             title: getRoomDisplayTitle(room),
             copy: t("roomFocusCopy"),
             summaryItems: [
-              { label: t("taskMailPanel"), value: taskMail ? "1" : "0" },
-              { label: t("publicMailPanel"), value: String(publicMails.length) },
+              { label: t("threadMailPanel"), value: String(threadMails.length) },
               { label: t("agents"), value: String(currentAgentCount) },
               { label: t("runtimeDurationLabel"), value: latestRun ? formatDurationMs(latestRun.durationMs) : t("durationNotAvailable") }
             ]
@@ -4316,22 +4311,19 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           renderMetric(t("runtimeStatusLabel"), latestRun ? t(latestRun.status === "running" ? "runtimeRunning" : latestRun.status === "failed" ? "runtimeFailed" : "runtimeCompleted") : t("durationNotAvailable")) +
           renderMetric(t("runtimeDurationLabel"), latestRun ? formatDurationMs(latestRun.durationMs) : t("durationNotAvailable")) +
           renderMetric(t("agents"), currentAgentCount) +
-          renderMetric(t("publicMailPanel"), publicMails.length) +
+          renderMetric(t("threadMailPanel"), threadMails.length) +
           '</div>' +
           '</div></div>' +
-          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("taskMailPanel")) + '</h3></div><div class="panel-body">' +
-          '<div class="detail">' + escapeHtmlClient(t("taskMailCopy")) + '</div>' +
-          (taskMail
-            ? renderSourceMailCard(taskMail, { expanded: true })
-            : '<div class="empty">' + escapeHtmlClient(t("noTaskMail")) + '</div>') +
-          '</div></div>' +
-          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("publicMailPanel")) + '</h3><span class="muted">' + escapeHtmlClient(String(publicMails.length)) + '</span></div><div class="panel-body">' +
-          '<div class="detail">' + escapeHtmlClient(t("publicMailCopy")) + '</div>' +
-          (publicMails.length > 0
-            ? '<div class="source-mail-list">' + publicMails.map(function(mail) {
-                return renderSourceMailCard(mail, { expanded: false });
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("threadMailPanel")) + '</h3><span class="muted">' + escapeHtmlClient(String(threadMails.length)) + '</span></div><div class="panel-body">' +
+          '<div class="detail">' + escapeHtmlClient(t("threadMailCopy")) + '</div>' +
+          (threadMails.length > 0
+            ? '<div class="source-mail-list">' + threadMails.map(function(mail, index) {
+                return renderSourceMailCard(mail, {
+                  expanded: index === 0,
+                  badge: index === 0 && taskMail ? t("taskMailBadge") : ""
+                });
               }).join("") + '</div>'
-            : '<div class="empty">' + escapeHtmlClient(t("noPublicMail")) + '</div>') +
+            : '<div class="empty">' + escapeHtmlClient(t("noThreadMail")) + '</div>') +
           '</div></div>' +
           '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("currentAgentsPanel")) + '</h3></div><div class="panel-body">' +
           '<div class="detail">' + escapeHtmlClient(t("currentAgentsCopy")) + '</div>' +
