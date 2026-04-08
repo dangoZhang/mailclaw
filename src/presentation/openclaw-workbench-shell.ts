@@ -268,12 +268,6 @@ select {
   text-overflow: ellipsis;
 }
 
-.topbar-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 .topbar-theme-mode {
   display: inline-flex;
   align-items: center;
@@ -308,6 +302,45 @@ select {
 }
 
 .topbar-theme-mode__btn--active {
+  color: var(--accent);
+  background: var(--accent-subtle);
+  border-color: color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.topbar-locale {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--bg-elevated) 78%, transparent);
+}
+
+.topbar-locale__btn {
+  min-width: 42px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) ease,
+    background var(--duration-fast) ease,
+    border-color var(--duration-fast) ease;
+}
+
+.topbar-locale__btn:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.topbar-locale__btn--active {
   color: var(--accent);
   background: var(--accent-subtle);
   border-color: color-mix(in srgb, var(--accent) 25%, transparent);
@@ -829,19 +862,13 @@ select {
 .mail-workbench-grid {
   display: grid;
   gap: 16px;
-  grid-template-columns: minmax(0, 1.75fr) minmax(320px, 0.92fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
 }
 
-.mail-workbench-main,
-.mail-workbench-side {
+.mail-workbench-main {
   display: grid;
   gap: 16px;
-}
-
-.mail-workbench-side {
-  position: sticky;
-  top: 16px;
 }
 
 .panel {
@@ -1150,11 +1177,6 @@ select {
     grid-template-columns: 1fr;
   }
 
-  .mail-workbench-side {
-    position: static;
-    top: auto;
-  }
-
   .workspace-hero__grid {
     grid-template-columns: 1fr;
   }
@@ -1258,11 +1280,10 @@ export function renderOpenClawWorkbenchShellHtml(input: {
             <button type="button" class="toolbar-button" id="refresh-button" aria-label="Refresh workbench">
               <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"></path><path d="M21 3v6h-6"></path></svg>
             </button>
-            <div class="topbar-status">
-              <span class="pill pill--ok">Workbench</span>
-              <span class="pill" id="accounts-pill">accounts 0</span>
-              <span class="pill" id="rooms-pill">rooms 0</span>
-              <span class="pill" id="approvals-pill">approvals 0</span>
+            <div class="topbar-locale" role="group" aria-label="Language">
+              <button type="button" class="topbar-locale__btn topbar-locale__btn--active" data-locale="en" aria-label="English">EN</button>
+              <button type="button" class="topbar-locale__btn" data-locale="zh-CN" aria-label="中文">中文</button>
+              <button type="button" class="topbar-locale__btn" data-locale="fr" aria-label="Français">FR</button>
             </div>
             <div class="topbar-theme-mode" role="group" aria-label="Color mode">
               <button type="button" class="topbar-theme-mode__btn topbar-theme-mode__btn--active" data-theme-mode="dark" aria-label="Dark mode">
@@ -1333,9 +1354,652 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         data: null,
         runtime: null,
         connect: null,
+        locale: "en",
         navCollapsed: false,
         navDrawerOpen: false,
         route: null
+      };
+
+      const LOCALE_STORAGE_KEY = "mailclaws.workbench.locale";
+
+      const TRANSLATIONS = {
+        en: {
+          workbench: "Workbench",
+          home: "Home",
+          accounts: "External Accounts",
+          rooms: "Room",
+          agents: "Agent",
+          skills: "Skill",
+          pageHome: "Home",
+          pageAccounts: "External Accounts",
+          pageRooms: "Room Workbench",
+          pageAgents: "Agent Directory",
+          pageSkills: "Skill Library",
+          pageMailboxes: "Mailbox Workbench",
+          homeTitle: "MailClaws workbench",
+          homeCopy: "External email enters by room. Rooms hold working memory, virtual mail, attachments, and shared resources. Agents provide soul and reusable skills around that room kernel.",
+          openRooms: "Open Room",
+          connectMailbox: "Connect Mailbox",
+          systemSnapshot: "System Snapshot",
+          coreSurfaces: "core surfaces",
+          recentRooms: "Recent Rooms",
+          recentShown: "{count} shown",
+          noRoomsYet: "No rooms are visible yet.",
+          accountsTitle: "Connected external mailboxes",
+          accountsCopy: "Connect real IMAP, SMTP, OAuth, or forward-ingest accounts here. External mail lands in new rooms, and replies return through the existing room.",
+          roomsTitle: "Room is the core work surface",
+          roomsCopy: "Each new external email creates a new room. Replies stay in the same room. A room holds shared virtual mail, attachments, notes, and recruited agents for the job.",
+          agentsTitle: "Agent templates and souls",
+          agentsCopy: "Agents do not carry per-room working context. This page manages reusable templates, durable SOUL.md state, mailbox bindings, and the agent roster that rooms can recruit.",
+          skillsTitle: "Reusable agent skills",
+          skillsCopy: "Skills stay outside room working memory. Install them onto durable agents so rooms can recruit the same behavior repeatedly without copying prompts into every thread.",
+          connectPanel: "Connect A Mailbox",
+          loadSetup: "Load Setup",
+          continueWith: "Continue With {provider}",
+          saveMailboxConfig: "Save Mailbox Config",
+          installOrReuseSkill: "Install Or Reuse Skill",
+          installFromSource: "Install From Source",
+          createAgent: "Create Agent",
+          agentTemplates: "Agent Templates",
+          customAgent: "Custom Agent",
+          agentDirectory: "Agent Directory",
+          headcount: "Headcount",
+          skillsPanel: "Skills",
+          accountsPanel: "Accounts",
+          providerState: "Provider State",
+          mailboxAccount: "Mailbox Account",
+          publicInboxes: "Public Inboxes",
+          recentMailboxes: "Recent Mailboxes",
+          recentConversations: "Recent Conversations",
+          roomsPanel: "Rooms",
+          approvalQueue: "Approval queue",
+          approvalRequests: "Approval requests",
+          inboxSummary: "Inbox Summary",
+          inboxItems: "Inbox Items",
+          mailboxWorkspace: "Mailbox workspace",
+          mailboxesAndRoutes: "Mailboxes and intake routes",
+          virtualMailboxes: "Virtual Mailboxes",
+          roomSummary: "Room Summary",
+          sharedResources: "Shared Resources",
+          tracked: "{count} tracked",
+          languageLabel: "Language",
+          statusOverview: "Overview of external accounts, rooms, agents, and reusable skills.",
+          statusAccount: "Inspect provider state, public inboxes, rooms, and mailboxes for one connected account.",
+          statusRoom: "Inspect one room, its mailbox participation, approvals, and gateway projection trace.",
+          statusMailbox: "Inspect one mailbox feed and the room-local projection visible inside it.",
+          statusAgents: "Apply templates, inspect soul files, and manage the durable agent roster.",
+          statusSkills: "Inspect and install reusable markdown skills onto durable agents.",
+          connectedCount: "{count} connected",
+          configuredCount: "{count} configured",
+          projectedCount: "{count} projected",
+          shownCount: "{count} shown",
+          visibleCount: "{count} visible",
+          visibleSkillsCount: "{count} visible skills",
+          durableAgentsCount: "{count} durable agents",
+          presetsCount: "{count} presets",
+          targetAgentsCount: "{count} target agents",
+          latestActivity: "Latest activity",
+          latestMessage: "Latest message",
+          latestRoom: "Latest room",
+          latest: "Latest",
+          processed: "Processed",
+          updated: "Updated",
+          noProjectedRooms: "No projected rooms yet",
+          loadingWorkspace: "Loading mail workspace…",
+          noWorkbenchPayload: "No workbench payload was returned.",
+          providerEmpty: "Select an account to inspect provider watch, cursors, and mailbox projection state.",
+          providerObserveCopy: "MailClaws keeps the runtime kernel as truth. Provider watch and mailbox projections are observable here, not authoritative.",
+          ingress: "Ingress",
+          outbound: "Outbound",
+          watch: "Watch",
+          lastEvent: "Last event",
+          selectAccountHint: "Select an account to inspect provider state, inboxes, rooms, and mailbox projections.",
+          noPublicInboxProjection: "No public inbox projection exists for this account yet.",
+          noVirtualMailboxesForAccount: "No virtual mailboxes are visible for this account.",
+          noAccountRoomActivity: "No room activity has been recorded for this account yet.",
+          selectInboxHint: "Select a public inbox to inspect room-level intake, ACK pressure, and work backlog.",
+          inboxNotVisible: "The selected inbox is not visible in the current account scope.",
+          publicInbox: "Public Inbox",
+          inboxCopy: "Inbox items are room-level workload, not raw-message tasks. That keeps ACK pressure, backlog, and delegation aligned with the room kernel.",
+          selectRoomHint: "Select a room below to move from queue posture into full room inspection.",
+          noInboxRoomProjection: "No room projections are currently visible in this inbox.",
+          selectMailboxHint: "Select a mailbox to inspect mailbox-local feed and room participation.",
+          mailboxNotVisible: "The selected mailbox is not visible in the current account scope.",
+          mailboxSummary: "Mailbox Summary",
+          roomThreadInMailbox: "Room Thread In Mailbox",
+          noMailboxRoomProjection: "No projected entries for this room are visible in the selected mailbox.",
+          mailboxFeed: "Mailbox Feed",
+          itemsLoaded: "{count} items loaded",
+          noMailboxMessagesProjected: "No messages are currently projected into the selected mailbox.",
+          noPublicInboxBinding: "No public inbox binding is attached to this mailbox.",
+          selectAccountForMailboxes: "Select an account to inspect mailboxes and public inboxes.",
+          mailboxWorkspaceCopy: "Use this view to scan internal role mailboxes, public inbox bindings, and provider posture for one connected account.",
+          noVirtualMailboxAttached: "No virtual mailbox is attached to this account yet.",
+          noMailboxAccountsConnected: "No mailbox accounts have been connected yet.",
+          roomsEmptyFiltered: "No rooms are visible under the current filters.",
+          approvalTitle: "Approval Queue",
+          approvalCopy: "Outbound side effects stay gated here. Review one request to inspect draft hash, room linkage, and approval lineage before delivery.",
+          noApprovalsVisible: "No approval requests are visible under the current filters.",
+          requests: "requests",
+          requested: "requested",
+          approved: "approved",
+          rejected: "rejected",
+          virtualMailbox: "Virtual Mailbox",
+          virtualMailboxCopy: "This is the mailbox-local view of internal collaboration. Use it to inspect what one role mailbox can see across feeds and room-local projections.",
+          roomTitleDetail: "Room",
+          roomCopyDetail: "Room detail is the durable truth view: revisioned room state, mailbox participation, gateway outcomes, task tracking, and the replay-visible timeline all stay here.",
+          frontAgent: "Front agent",
+          routing: "Routing",
+          mailboxesLabel: "Mailboxes",
+          noMailboxParticipation: "No mailbox participation recorded.",
+          sharedResourcesCopy: "Attachments and room documents are room-scoped shared resources. They can be referenced from virtual mail without leaving the room boundary.",
+          attachmentsLabel: "attachments",
+          documentsLabel: "documents",
+          preSnapshots: "pre snapshots",
+          visibleAgentsLabel: "visible agents",
+          noSharedResources: "No shared attachments or room documents have been recorded yet.",
+          gatewayProjection: "Gateway Projection",
+          projectedMessages: "{count} projected messages",
+          controlPlanes: "Control planes",
+          sessionKeys: "Session keys",
+          projectedDeliveries: "Projected deliveries",
+          projectedOutcomes: "Projected outcomes",
+          noGatewayProjection: "No Gateway outcome projection has been recorded for this room yet.",
+          gatewayAndMailSync: "Gateway And Mail Sync",
+          governedBridge: "governed bridge",
+          gatewaySyncCopy: "Gateway data can be imported into internal mail, and selected room messages can be synchronized back into governed email outbox delivery.",
+          gatewayIngress: "Gateway ingress",
+          emailSync: "Email sync",
+          gatewayDispatch: "Gateway dispatch",
+          approvalGate: "Approval gate",
+          mailTasks: "Mail Tasks",
+          noMailTasks: "No mail task classification has been recorded for this room yet.",
+          virtualMailCopy: "This is the internal collaboration chain for the room: single-parent replies, mailbox routing, and origin kinds stay visible here without reopening raw transcripts.",
+          noVirtualMail: "No virtual mail has been recorded for this room yet.",
+          mailboxDeliveriesCopy: "Delivery rows show where each internal message was queued, leased, consumed, or marked stale inside the virtual mail plane.",
+          noMailboxDeliveries: "No mailbox delivery rows have been recorded for this room yet.",
+          governedOutbox: "Governed Outbox",
+          governedOutboxCopy: "Only this governed outbox path can produce real external email. Review it alongside approvals when checking what may leave the room.",
+          noOutboxIntents: "No outbox intents have been recorded for this room yet.",
+          timeline: "Timeline",
+          entriesCount: "{count} entries",
+          noTimelineEntries: "No room timeline entries have been recorded yet."
+          ,
+          virtualMail: "Virtual Mail",
+          mailboxDeliveries: "Mailbox Deliveries",
+          noSoulInitialized: "SOUL.md has not been initialized yet.",
+          noSourceReference: "No reusable source reference recorded.",
+          noSkillsDiscovered: "No skills discovered yet.",
+          noDurableAgentSkills: "Connect or create a durable agent to inspect skills.",
+          emailAddressLabel: "Email address",
+          providerLabel: "Provider",
+          accountIdLabel: "Account ID",
+          displayNameLabel: "Display name",
+          recommendedPath: "Recommended path",
+          autoconfigReady: "Autoconfig ready",
+          requiredEnvLabel: "Required env when left blank here",
+          oauthClientId: "OAuth client ID",
+          oauthClientSecret: "OAuth client secret",
+          tenantLabel: "Tenant",
+          userIdLabel: "User ID",
+          scopesLabel: "Scopes",
+          pubsubTopic: "Pub/Sub topic",
+          labelIdsLabel: "Label IDs",
+          passwordPathCopy: "This path stores IMAP/SMTP settings directly through the HTTP API. It does not verify the credentials before saving.",
+          imapHostLabel: "IMAP host",
+          imapPortLabel: "IMAP port",
+          imapSecureLabel: "IMAP secure",
+          imapMailboxLabel: "IMAP mailbox",
+          smtpHostLabel: "SMTP host",
+          smtpPortLabel: "SMTP port",
+          smtpSecureLabel: "SMTP secure",
+          smtpFromLabel: "SMTP from",
+          cliFallback: "CLI Fallback",
+          sameRuntimeModel: "same runtime, same account model",
+          noAgentTemplatesAvailable: "No agent templates are available.",
+          durableSoulMailbox: "durable soul + mailbox",
+          createDurableAgentCopy: "Create one durable agent with its own SOUL.md, internal mailboxes, inbox policy, and directory entry.",
+          agentIdLabel: "Agent ID",
+          publicMailboxLabel: "Public Mailbox",
+          collaboratorsLabel: "Collaborators",
+          purposeLabel: "Purpose",
+          createCustomAgentAfterConnect: "Connect an account first, then create custom durable agents in that workspace.",
+          noDurableSouls: "Apply a template or initialize an agent memory workspace to create durable souls.",
+          recommendedShapes: "recommended shapes",
+          headcountWaiting: "Headcount recommendations appear after MailClaws can see account or burst-work load.",
+          builtInLabel: "built-in",
+          installerLabel: "installer",
+          builtInSkillsNote: "Default durable agents start with read-email and write-email. Add markdown skills when you want reusable reading, writing, routing, or review behavior.",
+          targetAgentLabel: "Target Agent",
+          skillIdLabel: "Skill ID",
+          titleLabel: "Title",
+          sourceLabel: "Source",
+          connectMailboxFirstThenInstall: "Connect a mailbox first. Then create a durable agent or apply a template before installing skills."
+        },
+        "zh-CN": {
+          workbench: "工作台",
+          home: "主页",
+          accounts: "外部账户",
+          rooms: "房间",
+          agents: "智能体",
+          skills: "技能",
+          pageHome: "主页",
+          pageAccounts: "外部账户",
+          pageRooms: "房间工作台",
+          pageAgents: "智能体目录",
+          pageSkills: "技能库",
+          pageMailboxes: "邮箱工作台",
+          homeTitle: "MailClaws 工作台",
+          homeCopy: "外部邮件按房间进入。房间保存工作记忆、虚拟邮件、附件和共享资源。智能体提供 soul 和可复用技能，围绕房间内核协作。",
+          openRooms: "进入房间",
+          connectMailbox: "连接邮箱",
+          systemSnapshot: "系统概览",
+          coreSurfaces: "核心对象",
+          recentRooms: "最近房间",
+          recentShown: "显示 {count} 个",
+          noRoomsYet: "目前还没有可见房间。",
+          accountsTitle: "已连接的外部邮箱",
+          accountsCopy: "在这里连接真实 IMAP、SMTP、OAuth 或 forward-ingest 邮箱。新的外部邮件会进入新房间，回信则回到原房间。",
+          roomsTitle: "Room 是核心工作面",
+          roomsCopy: "每封新的外部邮件都会创建一个新房间。回信继续留在原房间。房间承载共享虚拟邮件、附件、笔记和被招募的智能体。",
+          agentsTitle: "智能体模板与 soul",
+          agentsCopy: "智能体本身不携带房间工作上下文。这里管理可复用模板、持久 SOUL.md、邮箱绑定，以及可被房间招募的智能体 roster。",
+          skillsTitle: "可复用智能体技能",
+          skillsCopy: "技能不放在房间工作记忆里。把技能安装到常驻智能体上，房间就能反复招募同一能力，而不用每次复制 prompt。",
+          connectPanel: "连接邮箱",
+          loadSetup: "加载配置",
+          continueWith: "继续使用 {provider}",
+          saveMailboxConfig: "保存邮箱配置",
+          installOrReuseSkill: "安装或复用技能",
+          installFromSource: "从来源安装",
+          createAgent: "创建智能体",
+          agentTemplates: "智能体模板",
+          customAgent: "自定义智能体",
+          agentDirectory: "智能体目录",
+          headcount: "编制建议",
+          skillsPanel: "技能",
+          accountsPanel: "账户",
+          providerState: "Provider 状态",
+          mailboxAccount: "邮箱账户",
+          publicInboxes: "公开收件箱",
+          recentMailboxes: "最近邮箱",
+          recentConversations: "最近会话",
+          roomsPanel: "房间",
+          approvalQueue: "审批队列",
+          approvalRequests: "审批请求",
+          inboxSummary: "收件箱摘要",
+          inboxItems: "收件箱项目",
+          mailboxWorkspace: "邮箱工作区",
+          mailboxesAndRoutes: "邮箱与收件路线",
+          virtualMailboxes: "虚拟邮箱",
+          roomSummary: "房间摘要",
+          sharedResources: "共享资源",
+          tracked: "共 {count} 项",
+          languageLabel: "语言",
+          statusOverview: "总览外部账户、房间、智能体和可复用技能。",
+          statusAccount: "查看单个已连接账户的 provider 状态、公开收件箱、房间和邮箱。",
+          statusRoom: "查看单个房间的邮箱参与、审批和网关映射轨迹。",
+          statusMailbox: "查看单个邮箱 feed，以及它在房间里的局部投影。",
+          statusAgents: "应用模板、查看 soul 文件，并管理常驻智能体 roster。",
+          statusSkills: "查看并安装可复用 markdown 技能到常驻智能体。",
+          connectedCount: "已连接 {count} 个",
+          configuredCount: "已配置 {count} 个",
+          projectedCount: "已投影 {count} 个",
+          shownCount: "显示 {count} 个",
+          visibleCount: "可见 {count} 个",
+          visibleSkillsCount: "可见技能 {count} 个",
+          durableAgentsCount: "常驻智能体 {count} 个",
+          presetsCount: "预设 {count} 个",
+          targetAgentsCount: "目标智能体 {count} 个",
+          latestActivity: "最近活动",
+          latestMessage: "最新邮件",
+          latestRoom: "最新房间",
+          latest: "最近",
+          processed: "处理于",
+          updated: "更新于",
+          noProjectedRooms: "还没有投影出的房间",
+          loadingWorkspace: "正在加载邮件工作台…",
+          noWorkbenchPayload: "没有返回工作台数据。",
+          providerEmpty: "选择一个账户以查看 provider 监听、游标和邮箱投影状态。",
+          providerObserveCopy: "MailClaws 仍以运行时内核为准。这里展示 provider 监听和邮箱投影，但它们不是权威状态。",
+          ingress: "入站",
+          outbound: "出站",
+          watch: "监听",
+          lastEvent: "最近事件",
+          selectAccountHint: "选择一个账户，查看 provider 状态、收件箱、房间和邮箱投影。",
+          noPublicInboxProjection: "这个账户还没有公开收件箱投影。",
+          noVirtualMailboxesForAccount: "这个账户下还没有可见虚拟邮箱。",
+          noAccountRoomActivity: "这个账户下还没有记录到房间活动。",
+          selectInboxHint: "选择一个公开收件箱，查看按房间聚合的 intake、ACK 压力和待办积压。",
+          inboxNotVisible: "当前账户范围内看不到所选收件箱。",
+          publicInbox: "公开收件箱",
+          inboxCopy: "收件箱项目以房间为粒度，而不是原始邮件任务。这样 ACK 压力、积压和委派都与房间内核保持一致。",
+          selectRoomHint: "在下方选择一个房间，进入完整房间视图。",
+          noInboxRoomProjection: "这个收件箱里暂时还没有可见房间投影。",
+          selectMailboxHint: "选择一个邮箱，查看它的局部 feed 和房间参与情况。",
+          mailboxNotVisible: "当前账户范围内看不到所选邮箱。",
+          mailboxSummary: "邮箱摘要",
+          roomThreadInMailbox: "邮箱中的房间线程",
+          noMailboxRoomProjection: "所选邮箱里还没有这个房间的投影条目。",
+          mailboxFeed: "邮箱 Feed",
+          itemsLoaded: "已加载 {count} 项",
+          noMailboxMessagesProjected: "所选邮箱里当前还没有投影出的消息。",
+          noPublicInboxBinding: "这个邮箱还没有绑定公开收件箱。",
+          selectAccountForMailboxes: "选择一个账户，查看邮箱和公开收件箱。",
+          mailboxWorkspaceCopy: "这个视图用于查看内部角色邮箱、公开收件箱绑定，以及单个已连接账户的 provider 姿态。",
+          noVirtualMailboxAttached: "这个账户还没有挂接虚拟邮箱。",
+          noMailboxAccountsConnected: "还没有连接任何邮箱账户。",
+          roomsEmptyFiltered: "当前筛选条件下没有可见房间。",
+          approvalTitle: "审批队列",
+          approvalCopy: "所有外发副作用都在这里受控。交付前可逐条检查草稿哈希、房间关联和审批链路。",
+          noApprovalsVisible: "当前筛选条件下没有可见审批请求。",
+          requests: "请求",
+          requested: "待审批",
+          approved: "已批准",
+          rejected: "已拒绝",
+          virtualMailbox: "虚拟邮箱",
+          virtualMailboxCopy: "这是内部协作在邮箱侧的局部视图，用来查看某个角色邮箱在各个 feed 和房间投影里能看到什么。",
+          roomTitleDetail: "房间",
+          roomCopyDetail: "房间详情是持久真相视图：修订版房间状态、邮箱参与、网关结果、任务跟踪和可重放时间线都留在这里。",
+          frontAgent: "前台智能体",
+          routing: "路由",
+          mailboxesLabel: "邮箱",
+          noMailboxParticipation: "还没有记录任何邮箱参与。",
+          sharedResourcesCopy: "附件和房间文档都是房间范围的共享资源。它们可以被虚拟邮件引用，而不离开房间边界。",
+          attachmentsLabel: "附件",
+          documentsLabel: "文档",
+          preSnapshots: "预快照",
+          visibleAgentsLabel: "可见智能体",
+          noSharedResources: "这个房间还没有记录共享附件或房间文档。",
+          gatewayProjection: "网关投影",
+          projectedMessages: "已投影消息 {count} 条",
+          controlPlanes: "控制面",
+          sessionKeys: "会话键",
+          projectedDeliveries: "投影投递",
+          projectedOutcomes: "投影结果",
+          noGatewayProjection: "这个房间还没有记录网关结果投影。",
+          gatewayAndMailSync: "网关与邮件同步",
+          governedBridge: "受控桥接",
+          gatewaySyncCopy: "网关数据可以导入内部邮件，房间中的选定消息也可以同步回受控外发邮箱。",
+          gatewayIngress: "网关入站",
+          emailSync: "邮件同步",
+          gatewayDispatch: "网关派发",
+          approvalGate: "审批闸门",
+          mailTasks: "邮件任务",
+          noMailTasks: "这个房间还没有记录邮件任务分类。",
+          virtualMailCopy: "这里展示房间内的内部协作链：单父回复、邮箱路由和来源类型都可见，无需重新打开原始转录。",
+          noVirtualMail: "这个房间还没有记录虚拟邮件。",
+          mailboxDeliveriesCopy: "投递行展示每条内部消息在虚拟邮件平面里被排队、租约、消费或标记陈旧的过程。",
+          noMailboxDeliveries: "这个房间还没有记录邮箱投递行。",
+          governedOutbox: "受控发件箱",
+          governedOutboxCopy: "只有这条受控发件链路能产生真实外部邮件。检查将离开房间的内容时，应与审批一起查看。",
+          noOutboxIntents: "这个房间还没有记录发件意图。",
+          timeline: "时间线",
+          entriesCount: "共 {count} 条",
+          noTimelineEntries: "这个房间还没有记录时间线条目。",
+          virtualMail: "虚拟邮件",
+          mailboxDeliveries: "邮箱投递",
+          noSoulInitialized: "SOUL.md 还没有初始化。",
+          noSourceReference: "还没有记录可复用来源引用。",
+          noSkillsDiscovered: "还没有发现任何技能。",
+          noDurableAgentSkills: "先连接或创建一个常驻智能体，才能查看技能。",
+          emailAddressLabel: "邮箱地址",
+          providerLabel: "Provider",
+          accountIdLabel: "账户 ID",
+          displayNameLabel: "显示名",
+          recommendedPath: "推荐路径",
+          autoconfigReady: "自动配置已就绪",
+          requiredEnvLabel: "若此处留空所需环境变量",
+          oauthClientId: "OAuth Client ID",
+          oauthClientSecret: "OAuth Client Secret",
+          tenantLabel: "租户",
+          userIdLabel: "用户 ID",
+          scopesLabel: "Scopes",
+          pubsubTopic: "Pub/Sub 主题",
+          labelIdsLabel: "标签 ID",
+          passwordPathCopy: "这个路径会通过 HTTP API 直接保存 IMAP/SMTP 配置，保存前不会校验凭证。",
+          imapHostLabel: "IMAP 主机",
+          imapPortLabel: "IMAP 端口",
+          imapSecureLabel: "IMAP 加密",
+          imapMailboxLabel: "IMAP 邮箱",
+          smtpHostLabel: "SMTP 主机",
+          smtpPortLabel: "SMTP 端口",
+          smtpSecureLabel: "SMTP 加密",
+          smtpFromLabel: "SMTP 发件人",
+          cliFallback: "CLI 备用路径",
+          sameRuntimeModel: "同一运行时，同一账户模型",
+          noAgentTemplatesAvailable: "当前没有可用的智能体模板。",
+          durableSoulMailbox: "持久 soul + 邮箱",
+          createDurableAgentCopy: "创建一个带独立 SOUL.md、内部邮箱、收件策略和目录条目的常驻智能体。",
+          agentIdLabel: "智能体 ID",
+          publicMailboxLabel: "公开邮箱",
+          collaboratorsLabel: "协作者",
+          purposeLabel: "用途",
+          createCustomAgentAfterConnect: "先连接账户，再在这个工作区里创建自定义常驻智能体。",
+          noDurableSouls: "先应用模板或初始化智能体记忆工作区，才能创建常驻 soul。",
+          recommendedShapes: "推荐形态",
+          headcountWaiting: "MailClaws 看到账户或突发负载后，才会给出编制建议。",
+          builtInLabel: "内置",
+          installerLabel: "安装器",
+          builtInSkillsNote: "默认常驻智能体自带 read-email 和 write-email。需要可复用的阅读、写作、路由或审阅能力时，再添加 markdown 技能。",
+          targetAgentLabel: "目标智能体",
+          skillIdLabel: "技能 ID",
+          titleLabel: "标题",
+          sourceLabel: "来源",
+          connectMailboxFirstThenInstall: "先连接邮箱，再创建常驻智能体或应用模板，然后安装技能。"
+        },
+        fr: {
+          workbench: "Workbench",
+          home: "Accueil",
+          accounts: "Comptes externes",
+          rooms: "Room",
+          agents: "Agent",
+          skills: "Compétence",
+          pageHome: "Accueil",
+          pageAccounts: "Comptes externes",
+          pageRooms: "Workbench Room",
+          pageAgents: "Directory d’agents",
+          pageSkills: "Bibliothèque de compétences",
+          pageMailboxes: "Workbench Mailbox",
+          homeTitle: "Workbench MailClaws",
+          homeCopy: "L’email externe entre par room. Les rooms portent la mémoire de travail, le virtual mail, les pièces jointes et les ressources partagées. Les agents apportent le soul et les compétences réutilisables autour de ce noyau room.",
+          openRooms: "Ouvrir Room",
+          connectMailbox: "Connecter Boîte Mail",
+          systemSnapshot: "Vue système",
+          coreSurfaces: "surfaces clés",
+          recentRooms: "Rooms récentes",
+          recentShown: "{count} affichées",
+          noRoomsYet: "Aucune room visible pour le moment.",
+          accountsTitle: "Boîtes mail externes connectées",
+          accountsCopy: "Connectez ici de vraies boîtes IMAP, SMTP, OAuth ou forward-ingest. Un nouvel email externe ouvre une nouvelle room, et une réponse retourne dans la room existante.",
+          roomsTitle: "La room est la surface de travail centrale",
+          roomsCopy: "Chaque nouvel email externe crée une nouvelle room. Les réponses restent dans la même room. Une room porte le virtual mail partagé, les pièces jointes, les notes et les agents recrutés.",
+          agentsTitle: "Templates d’agents et souls",
+          agentsCopy: "Les agents ne portent pas le contexte de travail actif d’une room. Cette page gère les templates réutilisables, l’état durable de SOUL.md, les bindings mailbox et le roster d’agents recrutables.",
+          skillsTitle: "Compétences d’agent réutilisables",
+          skillsCopy: "Les compétences restent hors de la mémoire de travail de la room. Installez-les sur des agents durables pour qu’une room puisse recruter le même comportement sans recopier les prompts.",
+          connectPanel: "Connecter Une Boîte Mail",
+          loadSetup: "Charger Setup",
+          continueWith: "Continuer Avec {provider}",
+          saveMailboxConfig: "Enregistrer La Configuration",
+          installOrReuseSkill: "Installer Ou Réutiliser Une Compétence",
+          installFromSource: "Installer Depuis La Source",
+          createAgent: "Créer Agent",
+          agentTemplates: "Templates d’agents",
+          customAgent: "Agent personnalisé",
+          agentDirectory: "Directory d’agents",
+          headcount: "HeadCount",
+          skillsPanel: "Compétences",
+          accountsPanel: "Comptes",
+          providerState: "État Provider",
+          mailboxAccount: "Compte Mailbox",
+          publicInboxes: "Public Inboxes",
+          recentMailboxes: "Mailboxes récentes",
+          recentConversations: "Conversations récentes",
+          roomsPanel: "Rooms",
+          approvalQueue: "File d’approbation",
+          approvalRequests: "Demandes d’approbation",
+          inboxSummary: "Résumé Inbox",
+          inboxItems: "Éléments Inbox",
+          mailboxWorkspace: "Workspace Mailbox",
+          mailboxesAndRoutes: "Mailboxes et routes d’entrée",
+          virtualMailboxes: "Mailboxes virtuelles",
+          roomSummary: "Résumé de la room",
+          sharedResources: "Ressources partagées",
+          tracked: "{count} suivies",
+          languageLabel: "Langue",
+          statusOverview: "Vue d’ensemble des comptes externes, rooms, agents et compétences réutilisables.",
+          statusAccount: "Inspecter l’état provider, les public inboxes, les rooms et les mailboxes d’un compte connecté.",
+          statusRoom: "Inspecter une room, sa participation mailbox, ses approvals et sa trace de projection Gateway.",
+          statusMailbox: "Inspecter un feed mailbox et la projection locale visible dans cette room.",
+          statusAgents: "Appliquer des templates, inspecter les fichiers soul et gérer le roster d’agents durables.",
+          statusSkills: "Inspecter et installer des compétences markdown réutilisables sur des agents durables.",
+          connectedCount: "{count} connectés",
+          configuredCount: "{count} configurés",
+          projectedCount: "{count} projetés",
+          shownCount: "{count} affichés",
+          visibleCount: "{count} visibles",
+          visibleSkillsCount: "{count} compétences visibles",
+          durableAgentsCount: "{count} agents durables",
+          presetsCount: "{count} presets",
+          targetAgentsCount: "{count} agents cibles",
+          latestActivity: "Dernière activité",
+          latestMessage: "Dernier message",
+          latestRoom: "Dernière room",
+          latest: "Dernier",
+          processed: "Traité",
+          updated: "Mis à jour",
+          noProjectedRooms: "Aucune room projetée pour l’instant",
+          loadingWorkspace: "Chargement du workbench mail…",
+          noWorkbenchPayload: "Aucune charge utile du workbench n’a été renvoyée.",
+          providerEmpty: "Sélectionnez un compte pour inspecter la surveillance provider, les curseurs et l’état de projection mailbox.",
+          providerObserveCopy: "MailClaws garde le noyau runtime comme vérité. La surveillance provider et les projections mailbox sont observables ici, sans être autoritaires.",
+          ingress: "Entrée",
+          outbound: "Sortie",
+          watch: "Surveillance",
+          lastEvent: "Dernier événement",
+          selectAccountHint: "Sélectionnez un compte pour inspecter l’état provider, les inboxes, les rooms et les projections mailbox.",
+          noPublicInboxProjection: "Aucune projection de public inbox n’existe encore pour ce compte.",
+          noVirtualMailboxesForAccount: "Aucune mailbox virtuelle n’est visible pour ce compte.",
+          noAccountRoomActivity: "Aucune activité de room n’a encore été enregistrée pour ce compte.",
+          selectInboxHint: "Sélectionnez une public inbox pour inspecter l’entrée par room, la pression ACK et le backlog.",
+          inboxNotVisible: "L’inbox sélectionnée n’est pas visible dans le périmètre du compte courant.",
+          publicInbox: "Public Inbox",
+          inboxCopy: "Les éléments d’inbox sont une charge de travail au niveau room, pas des tâches de message brut. Cela garde la pression ACK, le backlog et la délégation alignés sur le noyau room.",
+          selectRoomHint: "Sélectionnez une room ci-dessous pour passer de la file à l’inspection complète.",
+          noInboxRoomProjection: "Aucune projection de room n’est visible dans cette inbox.",
+          selectMailboxHint: "Sélectionnez une mailbox pour inspecter son flux local et la participation des rooms.",
+          mailboxNotVisible: "La mailbox sélectionnée n’est pas visible dans le périmètre du compte courant.",
+          mailboxSummary: "Résumé Mailbox",
+          roomThreadInMailbox: "Thread de room dans la mailbox",
+          noMailboxRoomProjection: "Aucune entrée projetée de cette room n’est visible dans la mailbox sélectionnée.",
+          mailboxFeed: "Flux Mailbox",
+          itemsLoaded: "{count} éléments chargés",
+          noMailboxMessagesProjected: "Aucun message n’est actuellement projeté dans la mailbox sélectionnée.",
+          noPublicInboxBinding: "Aucun binding de public inbox n’est attaché à cette mailbox.",
+          selectAccountForMailboxes: "Sélectionnez un compte pour inspecter les mailboxes et les public inboxes.",
+          mailboxWorkspaceCopy: "Utilisez cette vue pour parcourir les mailboxes de rôle internes, les bindings de public inbox et l’état provider d’un compte connecté.",
+          noVirtualMailboxAttached: "Aucune mailbox virtuelle n’est attachée à ce compte.",
+          noMailboxAccountsConnected: "Aucun compte mailbox n’a encore été connecté.",
+          roomsEmptyFiltered: "Aucune room visible avec les filtres actuels.",
+          approvalTitle: "File d’approbation",
+          approvalCopy: "Les effets sortants restent contrôlés ici. Vérifiez une requête pour inspecter le hash de brouillon, le lien room et la lignée d’approbation avant livraison.",
+          noApprovalsVisible: "Aucune demande d’approbation n’est visible avec les filtres actuels.",
+          requests: "demandes",
+          requested: "demandé",
+          approved: "approuvé",
+          rejected: "rejeté",
+          virtualMailbox: "Mailbox virtuelle",
+          virtualMailboxCopy: "Ceci est la vue locale mailbox de la collaboration interne. Utilisez-la pour inspecter ce qu’une mailbox de rôle voit à travers les flux et projections de room.",
+          roomTitleDetail: "Room",
+          roomCopyDetail: "Le détail de room est la vue de vérité durable : état révisé, participation mailbox, résultats Gateway, suivi des tâches et timeline rejouable restent ici.",
+          frontAgent: "Agent de façade",
+          routing: "Routage",
+          mailboxesLabel: "Mailboxes",
+          noMailboxParticipation: "Aucune participation mailbox enregistrée.",
+          sharedResourcesCopy: "Les pièces jointes et documents de room sont des ressources partagées à l’échelle de la room. Ils peuvent être référencés depuis le virtual mail sans sortir de la room.",
+          attachmentsLabel: "pièces jointes",
+          documentsLabel: "documents",
+          preSnapshots: "pré-snapshots",
+          visibleAgentsLabel: "agents visibles",
+          noSharedResources: "Aucune pièce jointe partagée ni document de room n’a encore été enregistré.",
+          gatewayProjection: "Projection Gateway",
+          projectedMessages: "{count} messages projetés",
+          controlPlanes: "Plans de contrôle",
+          sessionKeys: "Clés de session",
+          projectedDeliveries: "Livraisons projetées",
+          projectedOutcomes: "Résultats projetés",
+          noGatewayProjection: "Aucune projection de résultat Gateway n’a encore été enregistrée pour cette room.",
+          gatewayAndMailSync: "Gateway et synchro mail",
+          governedBridge: "pont gouverné",
+          gatewaySyncCopy: "Les données Gateway peuvent être importées dans le mail interne, et des messages de room sélectionnés peuvent être synchronisés vers l’outbox email gouvernée.",
+          gatewayIngress: "Entrée Gateway",
+          emailSync: "Synchro email",
+          gatewayDispatch: "Dispatch Gateway",
+          approvalGate: "Porte d’approbation",
+          mailTasks: "Tâches mail",
+          noMailTasks: "Aucune classification de tâche mail n’a encore été enregistrée pour cette room.",
+          virtualMailCopy: "Ceci est la chaîne de collaboration interne de la room : réponses à parent unique, routage mailbox et types d’origine restent visibles ici sans rouvrir les transcriptions brutes.",
+          noVirtualMail: "Aucun virtual mail n’a encore été enregistré pour cette room.",
+          mailboxDeliveriesCopy: "Les lignes de livraison montrent où chaque message interne a été mis en file, loué, consommé ou marqué périmé dans le plan virtual mail.",
+          noMailboxDeliveries: "Aucune ligne de livraison mailbox n’a encore été enregistrée pour cette room.",
+          governedOutbox: "Outbox gouvernée",
+          governedOutboxCopy: "Seul ce chemin d’outbox gouvernée peut produire un vrai email externe. Vérifiez-le avec les approbations pour voir ce qui peut quitter la room.",
+          noOutboxIntents: "Aucune intention d’outbox n’a encore été enregistrée pour cette room.",
+          timeline: "Timeline",
+          entriesCount: "{count} entrées",
+          noTimelineEntries: "Aucune entrée de timeline n’a encore été enregistrée pour cette room.",
+          virtualMail: "Mail virtuel",
+          mailboxDeliveries: "Livraisons mailbox",
+          noSoulInitialized: "SOUL.md n’a pas encore été initialisé.",
+          noSourceReference: "Aucune référence de source réutilisable enregistrée.",
+          noSkillsDiscovered: "Aucune compétence découverte pour l’instant.",
+          noDurableAgentSkills: "Connectez ou créez un agent durable pour inspecter les compétences.",
+          emailAddressLabel: "Adresse email",
+          providerLabel: "Provider",
+          accountIdLabel: "ID de compte",
+          displayNameLabel: "Nom affiché",
+          recommendedPath: "Chemin recommandé",
+          autoconfigReady: "Autoconfig prête",
+          requiredEnvLabel: "Variables d’environnement requises si laissé vide ici",
+          oauthClientId: "ID client OAuth",
+          oauthClientSecret: "Secret client OAuth",
+          tenantLabel: "Tenant",
+          userIdLabel: "ID utilisateur",
+          scopesLabel: "Scopes",
+          pubsubTopic: "Sujet Pub/Sub",
+          labelIdsLabel: "IDs de labels",
+          passwordPathCopy: "Cette voie enregistre directement les réglages IMAP/SMTP via l’API HTTP. Les identifiants ne sont pas vérifiés avant l’enregistrement.",
+          imapHostLabel: "Hôte IMAP",
+          imapPortLabel: "Port IMAP",
+          imapSecureLabel: "IMAP sécurisé",
+          imapMailboxLabel: "Boîte IMAP",
+          smtpHostLabel: "Hôte SMTP",
+          smtpPortLabel: "Port SMTP",
+          smtpSecureLabel: "SMTP sécurisé",
+          smtpFromLabel: "Expéditeur SMTP",
+          cliFallback: "Fallback CLI",
+          sameRuntimeModel: "même runtime, même modèle de compte",
+          noAgentTemplatesAvailable: "Aucun template d’agent disponible.",
+          durableSoulMailbox: "soul durable + mailbox",
+          createDurableAgentCopy: "Créez un agent durable avec son propre SOUL.md, ses mailboxes internes, sa politique d’inbox et son entrée d’annuaire.",
+          agentIdLabel: "ID agent",
+          publicMailboxLabel: "Mailbox publique",
+          collaboratorsLabel: "Collaborateurs",
+          purposeLabel: "But",
+          createCustomAgentAfterConnect: "Connectez d’abord un compte, puis créez des agents durables personnalisés dans cet espace.",
+          noDurableSouls: "Appliquez un template ou initialisez un espace mémoire d’agent pour créer des souls durables.",
+          recommendedShapes: "formes recommandées",
+          headcountWaiting: "Les recommandations de headcount apparaissent quand MailClaws voit le compte ou la charge burst.",
+          builtInLabel: "intégré",
+          installerLabel: "installateur",
+          builtInSkillsNote: "Les agents durables démarrent avec read-email et write-email. Ajoutez des compétences markdown pour des comportements réutilisables de lecture, rédaction, routage ou revue.",
+          targetAgentLabel: "Agent cible",
+          skillIdLabel: "ID compétence",
+          titleLabel: "Titre",
+          sourceLabel: "Source",
+          connectMailboxFirstThenInstall: "Connectez d’abord une mailbox, puis créez un agent durable ou appliquez un template avant d’installer des compétences."
+        }
       };
 
       function escapeHtmlClient(value) {
@@ -1347,10 +2011,40 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           .replaceAll("'", "&#39;");
       }
 
+      function resolveInitialLocale() {
+        try {
+          const stored = window.localStorage.getItem(LOCALE_STORAGE_KEY);
+          if (stored === "en" || stored === "zh-CN" || stored === "fr") {
+            return stored;
+          }
+        } catch {}
+        const browserLanguage = typeof navigator !== "undefined" ? String(navigator.language || "") : "";
+        if (browserLanguage.toLowerCase().startsWith("zh")) {
+          return "zh-CN";
+        }
+        if (browserLanguage.toLowerCase().startsWith("fr")) {
+          return "fr";
+        }
+        return "en";
+      }
+
+      function interpolate(template, values) {
+        return String(template || "").replace(/\{(\w+)\}/g, function(_, key) {
+          return values && values[key] != null ? String(values[key]) : "";
+        });
+      }
+
+      function t(key, values) {
+        const table = TRANSLATIONS[state.locale] || TRANSLATIONS.en;
+        const fallback = TRANSLATIONS.en[key] || key;
+        return interpolate(table[key] || fallback, values);
+      }
+
       function formatTime(value) {
         if (!value) return "n/a";
         try {
-          return new Date(value).toLocaleString();
+          const locale = state.locale === "zh-CN" ? "zh-CN" : state.locale === "fr" ? "fr-FR" : "en-US";
+          return new Date(value).toLocaleString(locale);
         } catch {
           return String(value);
         }
@@ -1743,32 +2437,32 @@ export function renderOpenClawWorkbenchShellHtml(input: {
             : "setup-note";
 
         return (
-          '<div class="panel connect-config-panel"><div class="panel-header"><h3>Connect A Mailbox</h3><span class="muted">' + escapeHtmlClient(providerDisplayName) + '</span></div><div class="panel-body">' +
+          '<div class="panel connect-config-panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("connectPanel")) + '</h3><span class="muted">' + escapeHtmlClient(providerDisplayName) + '</span></div><div class="panel-body">' +
           '<div class="setup-stack">' +
           (status
             ? '<div class="' + setupNoteTone + '"><div class="detail-strong">' + escapeHtmlClient(status.message || "") + '</div></div>'
             : '') +
           '<div class="detail-grid">' +
-          '<label><div class="section-label">Email address</div><input class="console-input" data-connect-field="emailAddress" type="email" placeholder="user@example.com" value="' + escapeHtmlClient(setup.emailAddress || "") + '" /></label>' +
-          '<label><div class="section-label">Provider</div><select class="console-input" data-connect-field="providerId">' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("emailAddressLabel")) + '</div><input class="console-input" data-connect-field="emailAddress" type="email" placeholder="user@example.com" value="' + escapeHtmlClient(setup.emailAddress || "") + '" /></label>' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("providerLabel")) + '</div><select class="console-input" data-connect-field="providerId">' +
           setup.providerOptions.map(function(option) {
             const selected = option.id === setup.providerId ? ' selected' : '';
             return '<option value="' + escapeHtmlClient(option.id) + '"' + selected + '>' + escapeHtmlClient(option.displayName || option.id) + '</option>';
           }).join("") +
           '</select></label>' +
-          '<label><div class="section-label">Account ID</div><input class="console-input" data-connect-field="accountId" placeholder="acct-support" value="' + escapeHtmlClient(setup.accountId || "") + '" /></label>' +
-          '<label><div class="section-label">Display name</div><input class="console-input" data-connect-field="displayName" placeholder="Support" value="' + escapeHtmlClient(setup.displayName || "") + '" /></label>' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("accountIdLabel")) + '</div><input class="console-input" data-connect-field="accountId" placeholder="acct-support" value="' + escapeHtmlClient(setup.accountId || "") + '" /></label>' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("displayNameLabel")) + '</div><input class="console-input" data-connect-field="displayName" placeholder="Support" value="' + escapeHtmlClient(setup.displayName || "") + '" /></label>' +
           '</div>' +
           '<div class="actions-inline">' +
-          '<button class="btn" data-action="prepare-connect-plan">Load Setup</button>' +
+          '<button class="btn" data-action="prepare-connect-plan">' + escapeHtmlClient(t("loadSetup")) + '</button>' +
           '</div>' +
           (recommendation
-            ? '<div class="setup-note"><div class="detail-strong">Recommended path: ' + escapeHtmlClient(recommendation.provider.displayName || recommendation.provider.id || setup.providerId) + '</div><div class="detail">Match reason: ' + escapeHtmlClient(recommendation.matchReason || "manual") + '. Setup kind: ' + escapeHtmlClient(recommendation.provider.setupKind || providerSetupKind) + '.</div></div>'
+            ? '<div class="setup-note"><div class="detail-strong">' + escapeHtmlClient(t("recommendedPath")) + ': ' + escapeHtmlClient(recommendation.provider.displayName || recommendation.provider.id || setup.providerId) + '</div><div class="detail">Match reason: ' + escapeHtmlClient(recommendation.matchReason || "manual") + '. Setup kind: ' + escapeHtmlClient(recommendation.provider.setupKind || providerSetupKind) + '.</div></div>'
             : '') +
           (setup.autoconfig
-            ? '<div class="setup-note"><div class="detail-strong">Autoconfig ready</div><div class="detail">IMAP ' + escapeHtmlClient(setup.autoconfig.imapHost || "") + ':' + escapeHtmlClient(setup.autoconfig.imapPort || "") + ' · SMTP ' + escapeHtmlClient(setup.autoconfig.smtpHost || "") + ':' + escapeHtmlClient(setup.autoconfig.smtpPort || "") + (setup.autoconfig.source ? ' · source ' + escapeHtmlClient(setup.autoconfig.source) : '') + '</div>' + (setup.autoconfig.warning ? '<div class="field-note">' + escapeHtmlClient(setup.autoconfig.warning) + '</div>' : '') + '</div>'
+            ? '<div class="setup-note"><div class="detail-strong">' + escapeHtmlClient(t("autoconfigReady")) + '</div><div class="detail">IMAP ' + escapeHtmlClient(setup.autoconfig.imapHost || "") + ':' + escapeHtmlClient(setup.autoconfig.imapPort || "") + ' · SMTP ' + escapeHtmlClient(setup.autoconfig.smtpHost || "") + ':' + escapeHtmlClient(setup.autoconfig.smtpPort || "") + (setup.autoconfig.source ? ' · source ' + escapeHtmlClient(setup.autoconfig.source) : '') + '</div>' + (setup.autoconfig.warning ? '<div class="field-note">' + escapeHtmlClient(setup.autoconfig.warning) + '</div>' : '') + '</div>'
             : '') +
-          '<div class="setup-note"><div class="detail-strong">' + escapeHtmlClient(providerDisplayName) + '</div><div class="detail">' + escapeHtmlClient((notes[0] || "Use the recommended provider path, then confirm the account shows up under Accounts.")) + '</div>' + (requiredEnvVars.length > 0 ? '<div class="field-note">Required env when left blank here: ' + escapeHtmlClient(requiredEnvVars.join(", ")) + '</div>' : '') + '</div>' +
+          '<div class="setup-note"><div class="detail-strong">' + escapeHtmlClient(providerDisplayName) + '</div><div class="detail">' + escapeHtmlClient((notes[0] || "Use the recommended provider path, then confirm the account shows up under Accounts.")) + '</div>' + (requiredEnvVars.length > 0 ? '<div class="field-note">' + escapeHtmlClient(t("requiredEnvLabel")) + ': ' + escapeHtmlClient(requiredEnvVars.join(", ")) + '</div>' : '') + '</div>' +
           (providerSetupKind === "browser_oauth"
             ? renderConnectOAuthForm(setup, provider)
             : providerSetupKind === "forward_ingest"
@@ -1784,25 +2478,35 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const providerDisplayName = provider && provider.displayName ? provider.displayName : providerId;
         const supportsTopic = providerId === "gmail";
         const supportsTenant = providerId === "outlook";
+        const providerHelpUrl = provider && provider.helpUrl ? provider.helpUrl : "";
+        const providerHelpLabel = provider && provider.helpLabel ? provider.helpLabel : "Provider Help";
+        const secretAutomationReason =
+          provider && provider.secretAutomation === "not_supported" && provider.secretAutomationReason
+            ? provider.secretAutomationReason
+            : "";
 
         return (
           '<div class="setup-stack">' +
           '<div class="detail">Browser OAuth starts from this workbench. Leave client credentials blank when the server already has them in env.</div>' +
+          (secretAutomationReason ? '<div class="field-note">' + escapeHtmlClient(secretAutomationReason) + '</div>' : '') +
+          (providerHelpUrl
+            ? '<div class="actions-inline"><a class="btn" href="' + escapeHtmlClient(providerHelpUrl) + '" target="_blank" rel="noreferrer">' + escapeHtmlClient(providerHelpLabel) + '</a></div>'
+            : '') +
           '<div class="detail-grid">' +
-          '<label><div class="section-label">OAuth client ID</div><input class="console-input" data-connect-field="clientId" placeholder="optional override" value="' + escapeHtmlClient(setup.clientId || "") + '" /></label>' +
-          '<label><div class="section-label">OAuth client secret</div><input class="console-input" data-connect-field="clientSecret" type="password" placeholder="optional override" value="' + escapeHtmlClient(setup.clientSecret || "") + '" /></label>' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("oauthClientId")) + '</div><input class="console-input" data-connect-field="clientId" placeholder="optional override" value="' + escapeHtmlClient(setup.clientId || "") + '" /></label>' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("oauthClientSecret")) + '</div><input class="console-input" data-connect-field="clientSecret" type="password" placeholder="optional override" value="' + escapeHtmlClient(setup.clientSecret || "") + '" /></label>' +
           (supportsTenant
-            ? '<label><div class="section-label">Tenant</div><input class="console-input" data-connect-field="tenant" placeholder="common" value="' + escapeHtmlClient(setup.tenant || "") + '" /></label>'
-            : '<label><div class="section-label">User ID</div><input class="console-input" data-connect-field="userId" placeholder="me" value="' + escapeHtmlClient(setup.userId || "") + '" /></label>') +
-          '<label><div class="section-label">Scopes</div><input class="console-input" data-connect-field="scopes" placeholder="comma separated, optional" value="' + escapeHtmlClient(setup.scopes || "") + '" /></label>' +
+            ? '<label><div class="section-label">' + escapeHtmlClient(t("tenantLabel")) + '</div><input class="console-input" data-connect-field="tenant" placeholder="common" value="' + escapeHtmlClient(setup.tenant || "") + '" /></label>'
+            : '<label><div class="section-label">' + escapeHtmlClient(t("userIdLabel")) + '</div><input class="console-input" data-connect-field="userId" placeholder="me" value="' + escapeHtmlClient(setup.userId || "") + '" /></label>') +
+          '<label><div class="section-label">' + escapeHtmlClient(t("scopesLabel")) + '</div><input class="console-input" data-connect-field="scopes" placeholder="comma separated, optional" value="' + escapeHtmlClient(setup.scopes || "") + '" /></label>' +
           (supportsTopic
-            ? '<label><div class="section-label">Pub/Sub topic</div><input class="console-input" data-connect-field="topicName" placeholder="projects/.../topics/..." value="' + escapeHtmlClient(setup.topicName || "") + '" /></label>'
-            : '<label><div class="section-label">Label IDs</div><input class="console-input" data-connect-field="labelIds" placeholder="optional, comma separated" value="' + escapeHtmlClient(setup.labelIds || "") + '" /></label>') +
+            ? '<label><div class="section-label">' + escapeHtmlClient(t("pubsubTopic")) + '</div><input class="console-input" data-connect-field="topicName" placeholder="projects/.../topics/..." value="' + escapeHtmlClient(setup.topicName || "") + '" /></label>'
+            : '<label><div class="section-label">' + escapeHtmlClient(t("labelIdsLabel")) + '</div><input class="console-input" data-connect-field="labelIds" placeholder="optional, comma separated" value="' + escapeHtmlClient(setup.labelIds || "") + '" /></label>') +
           '</div>' +
           (supportsTopic
-            ? '<label><div class="section-label">Label IDs</div><input class="console-input" data-connect-field="labelIds" placeholder="INBOX,IMPORTANT" value="' + escapeHtmlClient(setup.labelIds || "") + '" /></label>'
+            ? '<label><div class="section-label">' + escapeHtmlClient(t("labelIdsLabel")) + '</div><input class="console-input" data-connect-field="labelIds" placeholder="INBOX,IMPORTANT" value="' + escapeHtmlClient(setup.labelIds || "") + '" /></label>'
             : '') +
-          '<div class="actions-inline"><button class="btn primary" data-action="start-oauth-connect" data-provider-id="' + escapeHtmlClient(providerId || "") + '">Continue With ' + escapeHtmlClient(providerDisplayName || "OAuth") + '</button></div>' +
+          '<div class="actions-inline"><button class="btn primary" data-action="start-oauth-connect" data-provider-id="' + escapeHtmlClient(providerId || "") + '">' + escapeHtmlClient(t("continueWith", { provider: providerDisplayName || "OAuth" })) + '</button></div>' +
           '</div>'
         );
       }
@@ -1811,24 +2515,47 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const providerPortalUrl = provider && provider.portalUrl ? provider.portalUrl : "";
         const providerPortalLabel =
           provider && provider.portalLabel ? provider.portalLabel : "Open Provider Mail";
+        const providerHelpUrl = provider && provider.helpUrl ? provider.helpUrl : "";
+        const providerHelpLabel = provider && provider.helpLabel ? provider.helpLabel : "Provider Help";
+        const credentialMode = provider && provider.credentialMode ? provider.credentialMode : "manual_password";
+        const secretAutomationReason =
+          provider && provider.secretAutomation === "not_supported" && provider.secretAutomationReason
+            ? provider.secretAutomationReason
+            : "";
+        const secretLabel =
+          credentialMode === "manual_authorization_code"
+            ? "Authorization code or app password"
+            : "Password or app password";
+        const secretPlaceholder =
+          credentialMode === "manual_authorization_code"
+            ? "paste the provider-issued authorization code"
+            : "required for IMAP/SMTP";
         return (
           '<div class="setup-stack">' +
-          '<div class="detail">This path stores IMAP/SMTP settings directly through the HTTP API. It does not verify the credentials before saving.</div>' +
-          (providerPortalUrl
-            ? '<div class="actions-inline"><a class="btn" href="' + escapeHtmlClient(providerPortalUrl) + '" target="_blank" rel="noreferrer">' + escapeHtmlClient(providerPortalLabel) + '</a></div>'
+          '<div class="detail">' + escapeHtmlClient(t("passwordPathCopy")) + '</div>' +
+          (secretAutomationReason ? '<div class="field-note">' + escapeHtmlClient(secretAutomationReason) + '</div>' : '') +
+          ((providerPortalUrl || providerHelpUrl)
+            ? '<div class="actions-inline">' +
+              (providerPortalUrl
+                ? '<a class="btn" href="' + escapeHtmlClient(providerPortalUrl) + '" target="_blank" rel="noreferrer">' + escapeHtmlClient(providerPortalLabel) + '</a>'
+                : '') +
+              (providerHelpUrl
+                ? '<a class="btn" href="' + escapeHtmlClient(providerHelpUrl) + '" target="_blank" rel="noreferrer">' + escapeHtmlClient(providerHelpLabel) + '</a>'
+                : '') +
+              '</div>'
             : '') +
-          '<label><div class="section-label">Password or app password</div><input class="console-input" data-connect-field="password" type="password" placeholder="required for IMAP/SMTP" value="' + escapeHtmlClient(setup.password || "") + '" /></label>' +
+          '<label><div class="section-label">' + escapeHtmlClient(secretLabel) + '</div><input class="console-input" data-connect-field="password" type="password" placeholder="' + escapeHtmlClient(secretPlaceholder) + '" value="' + escapeHtmlClient(setup.password || "") + '" /></label>' +
           '<div class="detail-grid">' +
-          '<label><div class="section-label">IMAP host</div><input class="console-input" data-connect-field="imapHost" placeholder="imap.example.com" value="' + escapeHtmlClient(setup.imapHost || "") + '" /></label>' +
-          '<label><div class="section-label">IMAP port</div><input class="console-input" data-connect-field="imapPort" inputmode="numeric" placeholder="993" value="' + escapeHtmlClient(setup.imapPort || "") + '" /></label>' +
-          '<label><div class="section-label">IMAP secure</div><select class="console-input" data-connect-field="imapSecure"><option value="yes"' + (setup.imapSecure === "yes" ? ' selected' : '') + '>yes</option><option value="no"' + (setup.imapSecure === "no" ? ' selected' : '') + '>no</option></select></label>' +
-          '<label><div class="section-label">IMAP mailbox</div><input class="console-input" data-connect-field="imapMailbox" placeholder="INBOX" value="' + escapeHtmlClient(setup.imapMailbox || "INBOX") + '" /></label>' +
-          '<label><div class="section-label">SMTP host</div><input class="console-input" data-connect-field="smtpHost" placeholder="smtp.example.com" value="' + escapeHtmlClient(setup.smtpHost || "") + '" /></label>' +
-          '<label><div class="section-label">SMTP port</div><input class="console-input" data-connect-field="smtpPort" inputmode="numeric" placeholder="587" value="' + escapeHtmlClient(setup.smtpPort || "") + '" /></label>' +
-          '<label><div class="section-label">SMTP secure</div><select class="console-input" data-connect-field="smtpSecure"><option value="yes"' + (setup.smtpSecure === "yes" ? ' selected' : '') + '>yes</option><option value="no"' + (setup.smtpSecure === "no" ? ' selected' : '') + '>no</option></select></label>' +
-          '<label><div class="section-label">SMTP from</div><input class="console-input" data-connect-field="smtpFrom" placeholder="user@example.com" value="' + escapeHtmlClient(setup.smtpFrom || "") + '" /></label>' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("imapHostLabel")) + '</div><input class="console-input" data-connect-field="imapHost" placeholder="imap.example.com" value="' + escapeHtmlClient(setup.imapHost || "") + '" /></label>' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("imapPortLabel")) + '</div><input class="console-input" data-connect-field="imapPort" inputmode="numeric" placeholder="993" value="' + escapeHtmlClient(setup.imapPort || "") + '" /></label>' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("imapSecureLabel")) + '</div><select class="console-input" data-connect-field="imapSecure"><option value="yes"' + (setup.imapSecure === "yes" ? ' selected' : '') + '>yes</option><option value="no"' + (setup.imapSecure === "no" ? ' selected' : '') + '>no</option></select></label>' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("imapMailboxLabel")) + '</div><input class="console-input" data-connect-field="imapMailbox" placeholder="INBOX" value="' + escapeHtmlClient(setup.imapMailbox || "INBOX") + '" /></label>' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("smtpHostLabel")) + '</div><input class="console-input" data-connect-field="smtpHost" placeholder="smtp.example.com" value="' + escapeHtmlClient(setup.smtpHost || "") + '" /></label>' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("smtpPortLabel")) + '</div><input class="console-input" data-connect-field="smtpPort" inputmode="numeric" placeholder="587" value="' + escapeHtmlClient(setup.smtpPort || "") + '" /></label>' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("smtpSecureLabel")) + '</div><select class="console-input" data-connect-field="smtpSecure"><option value="yes"' + (setup.smtpSecure === "yes" ? ' selected' : '') + '>yes</option><option value="no"' + (setup.smtpSecure === "no" ? ' selected' : '') + '>no</option></select></label>' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("smtpFromLabel")) + '</div><input class="console-input" data-connect-field="smtpFrom" placeholder="user@example.com" value="' + escapeHtmlClient(setup.smtpFrom || "") + '" /></label>' +
           '</div>' +
-          '<div class="actions-inline"><button class="btn primary" data-action="save-password-mailbox">Save Mailbox Config</button></div>' +
+          '<div class="actions-inline"><button class="btn primary" data-action="save-password-mailbox">' + escapeHtmlClient(t("saveMailboxConfig")) + '</button></div>' +
           '</div>'
         );
       }
@@ -1861,7 +2588,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           renderPill(String(account.roomCount || 0) + " rooms", "") +
           renderPill(String(account.pendingApprovalCount || 0) + " approvals", Number(account.pendingApprovalCount || 0) > 0 ? "pill--warn" : "") +
           "</div>" +
-          '<div class="detail">Latest activity ' + escapeHtmlClient(formatTime(account.latestActivityAt)) + "</div>" +
+          '<div class="detail">' + escapeHtmlClient(t("latestActivity")) + ' ' + escapeHtmlClient(formatTime(account.latestActivityAt)) + "</div>" +
           "</button>"
         );
       }
@@ -1879,14 +2606,14 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           '<div class="chips">' +
           renderPill("attention " + escapeHtmlClient(room.attention || "normal"), "") +
           renderPill("rev " + escapeHtmlClient(room.revision || 0), "") +
-          renderPill(String(room.visibleAgentCount || 0) + " agents", "") +
+          renderPill(String(room.visibleAgentCount || 0) + " " + t("agents"), "") +
           renderPill(String(room.messageCount || 0) + " mail", "") +
           renderPill(String(room.resourceCount || 0) + " resources", "") +
           renderPill(String(room.pendingApprovalCount || 0) + " approvals", Number(room.pendingApprovalCount || 0) > 0 ? "pill--warn" : "") +
           (room.mailTaskKind ? renderPill("task " + room.mailTaskKind, "") : "") +
           (room.mailTaskStage ? renderPill("stage " + room.mailTaskStage, "") : "") +
           '</div>' +
-          '<div class="detail">Processed ' + escapeHtmlClient(formatTime(room.latestActivityAt)) + '</div>' +
+          '<div class="detail">' + escapeHtmlClient(t("processed")) + ' ' + escapeHtmlClient(formatTime(room.latestActivityAt)) + '</div>' +
           '</button>'
         );
       }
@@ -1902,7 +2629,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           (approval.outboxStatus ? renderPill(approval.outboxStatus, "") : "") +
           renderPill(String((approval.recipients && approval.recipients.to ? approval.recipients.to.length : 0)) + " to", "") +
           "</div>" +
-          '<div class="detail">Updated ' + escapeHtmlClient(formatTime(approval.updatedAt)) + "</div>" +
+          '<div class="detail">' + escapeHtmlClient(t("updated")) + ' ' + escapeHtmlClient(formatTime(approval.updatedAt)) + "</div>" +
           "</button>"
         );
       }
@@ -1918,7 +2645,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           renderPill(String(mailbox.messageCount || 0) + " msgs", "") +
           renderPill(String(mailbox.roomCount || 0) + " rooms", "") +
           "</div>" +
-          '<div class="detail">Latest ' + escapeHtmlClient(formatTime(mailbox.latestMessageAt)) + "</div>" +
+          '<div class="detail">' + escapeHtmlClient(t("latest")) + ' ' + escapeHtmlClient(formatTime(mailbox.latestMessageAt)) + "</div>" +
           "</button>"
         );
       }
@@ -1929,7 +2656,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         return (
           '<button class="list-card' + (inbox.inboxId === state.route.inboxId ? " active" : "") + '" data-action="select-inbox" data-account-id="' + escapeHtmlClient(inbox.accountId || state.route.accountId || "") + '" data-inbox-id="' + escapeHtmlClient(inbox.inboxId || "") + '">' +
           '<div class="card-top">' +
-          '<div><div class="card-title code">' + escapeHtmlClient(inbox.inboxId || "inbox") + '</div><div class="card-subtitle">' + escapeHtmlClient(inbox.agentId || "agent") + " / public inbox</div></div>" +
+          '<div><div class="card-title code">' + escapeHtmlClient(inbox.inboxId || "inbox") + '</div><div class="card-subtitle">' + escapeHtmlClient(inbox.agentId || "agent") + " / " + escapeHtmlClient(t("publicInbox").toLowerCase()) + '</div></div>' +
           renderPill(String(items.length) + " rooms", items.length > 0 ? "pill--warn" : "") +
           "</div>" +
           '<div class="chips">' +
@@ -1937,7 +2664,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           renderPill("limit " + escapeHtmlClient(inbox.activeRoomLimit || 0), "") +
           renderPill("burst " + escapeHtmlClient(inbox.burstCoalesceSeconds || 0) + "s", "") +
           "</div>" +
-          '<div class="detail">' + escapeHtmlClient(items.slice(0, 2).map(function(item) { return item.roomKey; }).join(", ") || "No projected rooms yet") + "</div>" +
+          '<div class="detail">' + escapeHtmlClient(items.slice(0, 2).map(function(item) { return item.roomKey; }).join(", ") || t("noProjectedRooms")) + "</div>" +
           "</button>"
         );
       }
@@ -2026,14 +2753,14 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const canApply = accountId.length > 0;
         return (
           '<div class="timeline-entry">' +
-          '<div class="meta"><span>' + escapeHtmlClient(template.displayName || template.templateId || "template") + '</span><span>' + escapeHtmlClient(String((template.headcount && template.headcount.persistentAgents) || 0) + " agents") + "</span></div>" +
+          '<div class="meta"><span>' + escapeHtmlClient(template.displayName || template.templateId || "template") + '</span><span>' + escapeHtmlClient(String((template.headcount && template.headcount.persistentAgents) || 0) + " " + t("agents")) + "</span></div>" +
           '<div class="title">' + escapeHtmlClient(template.summary || "") + "</div>" +
           '<div class="detail">' + escapeHtmlClient(template.inspiration || "") + "</div>" +
           '<div class="chips">' +
           renderPill(template.templateId || "template", "") +
           renderPill("burst " + String((template.headcount && template.headcount.burstTargets) || 0), "") +
           "</div>" +
-          '<div class="detail">' + escapeHtmlClient(((template.persistentAgents || []).map(function(agent) { return agent.displayName || agent.agentId; }).join(", ")) || "No agents") + "</div>" +
+          '<div class="detail">' + escapeHtmlClient(((template.persistentAgents || []).map(function(agent) { return agent.displayName || agent.agentId; }).join(", ")) || t("agents")) + "</div>" +
           (canApply
             ? '<div class="actions-inline"><button class="btn" data-action="apply-agent-template" data-template-id="' + escapeHtmlClient(template.templateId || "") + '" data-account-id="' + escapeHtmlClient(accountId) + '" data-tenant-id="' + escapeHtmlClient(tenantId || accountId) + '">Apply Template</button></div>'
             : '<div class="detail">Connect an account first, then apply this template into that workspace.</div>') +
@@ -2059,7 +2786,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           renderPill(String(skillCount) + " skills", "") +
           ((entry.collaboratorAgentIds || []).slice(0, 3).map(function(agentId) { return renderPill("works with " + agentId, ""); }).join("")) +
           "</div>" +
-          (entry.soulPath ? '<div class="detail code">' + escapeHtmlClient(entry.soulPath) + '</div>' : '<div class="detail">SOUL.md has not been initialized yet.</div>') +
+          (entry.soulPath ? '<div class="detail code">' + escapeHtmlClient(entry.soulPath) + '</div>' : '<div class="detail">' + escapeHtmlClient(t("noSoulInitialized")) + '</div>') +
           ((entry.virtualMailboxes || []).length > 0
             ? '<div class="detail code">' + escapeHtmlClient((entry.virtualMailboxes || []).join(", ")) + "</div>"
             : "") +
@@ -2079,7 +2806,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           '<div class="title code">' + escapeHtmlClient(skill.skillId || "skill") + "</div>" +
           (sourceValue
             ? '<div class="detail code">' + escapeHtmlClient(sourceValue) + "</div>"
-            : '<div class="detail">No reusable source reference recorded.</div>') +
+            : '<div class="detail">' + escapeHtmlClient(t("noSourceReference")) + '</div>') +
           '<div class="chips">' +
           renderPill(skill.source || "managed", skill.source === "managed" ? "pill--ok" : "") +
           (sourceValue ? renderPill("source ready", "pill--ok") : renderPill("inline only", "")) +
@@ -2104,7 +2831,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
               '<div class="mailbox-feed">' + skills.map(function(skill) {
                 return renderAgentSkillCard(entry.agentId || "", skill);
               }).join("") + "</div>"
-            : '<div class="detail">No skills discovered yet.</div>') +
+            : '<div class="detail">' + escapeHtmlClient(t("noSkillsDiscovered")) + '</div>') +
           "</div>"
         );
       }
@@ -2133,21 +2860,21 @@ export function renderOpenClawWorkbenchShellHtml(input: {
                 ? "setup-note setup-note--ok"
                 : "setup-note";
         return (
-          '<div class="panel"><div class="panel-header"><h3>Install Or Reuse Skill</h3><span class="muted">' + escapeHtmlClient(directory.length > 0 ? String(directory.length) + " target agents" : "connect an account first") + '</span></div><div class="panel-body">' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("installOrReuseSkill")) + '</h3><span class="muted">' + escapeHtmlClient(directory.length > 0 ? t("targetAgentsCount", { count: directory.length }) : t("connectMailbox")) + '</span></div><div class="panel-body">' +
           '<div class="detail">Reuse an existing OpenClaw skill by pasting a local markdown path. Download a new one by pasting a GitHub raw/blob URL or any direct markdown URL.</div>' +
           (status ? '<div class="' + noteClass + '">' + escapeHtmlClient(status.message || "") + "</div>" : "") +
           (accountId
             ? '<div class="detail-grid">' +
-              '<label><div class="section-label">Target Agent</div><input class="console-input" data-skill-install-field="agentId" list="skill-agent-options" placeholder="assistant-ops" value="' + escapeHtmlClient(targetAgentId) + '" /></label>' +
-              '<label><div class="section-label">Skill ID</div><input class="console-input" data-skill-install-field="skillId" placeholder="follow-up-skill" value="' + escapeHtmlClient(skillId) + '" /></label>' +
-              '<label><div class="section-label">Title</div><input class="console-input" data-skill-install-field="title" placeholder="Follow-up Skill" value="' + escapeHtmlClient(title) + '" /></label>' +
+              '<label><div class="section-label">' + escapeHtmlClient(t("targetAgentLabel")) + '</div><input class="console-input" data-skill-install-field="agentId" list="skill-agent-options" placeholder="assistant-ops" value="' + escapeHtmlClient(targetAgentId) + '" /></label>' +
+              '<label><div class="section-label">' + escapeHtmlClient(t("skillIdLabel")) + '</div><input class="console-input" data-skill-install-field="skillId" placeholder="follow-up-skill" value="' + escapeHtmlClient(skillId) + '" /></label>' +
+              '<label><div class="section-label">' + escapeHtmlClient(t("titleLabel")) + '</div><input class="console-input" data-skill-install-field="title" placeholder="Follow-up Skill" value="' + escapeHtmlClient(title) + '" /></label>' +
               '</div>' +
-              '<label><div class="section-label">Source</div><input class="console-input" data-skill-install-field="source" placeholder="/Users/me/.codex/skills/reply/SKILL.md or https://github.com/org/repo/blob/main/skill.md" value="' + escapeHtmlClient(source) + '" /></label>' +
+              '<label><div class="section-label">' + escapeHtmlClient(t("sourceLabel")) + '</div><input class="console-input" data-skill-install-field="source" placeholder="/Users/me/.codex/skills/reply/SKILL.md or https://github.com/org/repo/blob/main/skill.md" value="' + escapeHtmlClient(source) + '" /></label>' +
               '<datalist id="skill-agent-options">' + directory.map(function(entry) {
                 return '<option value="' + escapeHtmlClient(entry.agentId || "") + '">' + escapeHtmlClient(entry.displayName || entry.agentId || "") + "</option>";
               }).join("") + "</datalist>" +
-              '<div class="actions-inline"><button class="btn" data-action="install-agent-skill" data-account-id="' + escapeHtmlClient(accountId) + '" data-tenant-id="' + escapeHtmlClient(tenantId) + '">Install From Source</button></div>'
-            : '<div class="detail">Connect a mailbox first. Then create a durable agent or apply a template before installing skills.</div>') +
+              '<div class="actions-inline"><button class="btn" data-action="install-agent-skill" data-account-id="' + escapeHtmlClient(accountId) + '" data-tenant-id="' + escapeHtmlClient(tenantId) + '">' + escapeHtmlClient(t("installFromSource")) + '</button></div>'
+            : '<div class="detail">' + escapeHtmlClient(t("connectMailboxFirstThenInstall")) + '</div>') +
           "</div></div>"
         );
       }
@@ -2213,7 +2940,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           '<div class="mono-block">mailclaws skills list ' + escapeHtmlClient((connect && connect.templateApplyAccountId) || "[accountId]") + "</div>" +
           (skills.length > 0
             ? '<div class="mailbox-feed">' + skills.map(renderAgentSkillGroup).join("") + "</div>"
-            : '<div class="empty">Connect or create a durable agent to inspect skills.</div>') +
+            : '<div class="empty">' + escapeHtmlClient(t("noDurableAgentSkills")) + '</div>') +
           "</div></div>" +
           '<div class="panel"><div class="panel-header"><h3>HeadCount</h3><span class="muted">recommended starting shapes</span></div><div class="panel-body">' +
           (headcount.length > 0
@@ -2238,9 +2965,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
       function renderHomeOverview() {
         const setup = getConnectSetupState();
         const connect = setup.connect;
-        const accounts = state.data && state.data.accounts ? state.data.accounts : [];
         const rooms = state.data && state.data.rooms ? state.data.rooms : [];
-        const approvals = state.data && state.data.approvals ? state.data.approvals : [];
         const directory = connect && Array.isArray(connect.agentDirectory) ? connect.agentDirectory : [];
         const skills = connect && Array.isArray(connect.skills) ? connect.skills : [];
         const visibleSkillCount = skills.reduce(function(total, entry) {
@@ -2249,31 +2974,22 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         return (
           '<div class="mail-workbench-main">' +
           renderWorkspaceHero({
-            eyebrow: "Home",
-            title: "MailClaws workbench",
-            copy: "External email enters by room. Rooms hold working memory, virtual mail, attachments, and shared resources. Agents provide soul and reusable skills around that room kernel.",
+            eyebrow: t("home"),
+            title: t("homeTitle"),
+            copy: t("homeCopy"),
             actions:
-              '<a class="btn primary" href="' + escapeHtmlClient(hrefForRoute({ mode: "rooms", accountId: null, inboxId: null, roomKey: null, mailboxId: null })) + '">Open Room</a>' +
-              '<a class="btn" href="' + escapeHtmlClient(hrefForRoute({ mode: "accounts", accountId: null, inboxId: null, roomKey: null, mailboxId: null })) + '">Connect Mailbox</a>',
+              '<a class="btn primary" href="' + escapeHtmlClient(hrefForRoute({ mode: "rooms", accountId: null, inboxId: null, roomKey: null, mailboxId: null })) + '">' + escapeHtmlClient(t("openRooms")) + '</a>' +
+              '<a class="btn" href="' + escapeHtmlClient(hrefForRoute({ mode: "accounts", accountId: null, inboxId: null, roomKey: null, mailboxId: null })) + '">' + escapeHtmlClient(t("connectMailbox")) + '</a>',
             summaryItems: [
-              { label: "accounts", value: String(accounts.length) },
+              { label: t("accounts"), value: String((state.data && state.data.accounts ? state.data.accounts.length : 0)) },
               { label: "rooms", value: String(rooms.length) },
               { label: "agents", value: String(directory.length) },
               { label: "skills", value: String(visibleSkillCount) }
             ]
           }) +
           renderConnectRuntimePanel(setup) +
-          '<div class="panel"><div class="panel-header"><h3>System Snapshot</h3><span class="muted">core surfaces</span></div><div class="panel-body">' +
-          '<div class="detail-grid">' +
-          renderMetric("requested approvals", approvals.filter(function(entry) { return entry.status === "requested"; }).length) +
-          renderMetric("active rooms", rooms.filter(function(room) { return !["done", "failed"].includes(room.state || ""); }).length) +
-          renderMetric("mail resources", rooms.reduce(function(total, room) { return total + Number(room.resourceCount || 0); }, 0)) +
-          renderMetric("virtual mail", rooms.reduce(function(total, room) { return total + Number(room.messageCount || 0); }, 0)) +
-          '</div>' +
-          '<div class="detail">Use External Accounts to connect real mailboxes, Room to operate the shared work surface, Agent to apply templates and inspect souls, and Skill to install reusable behaviors.</div>' +
-          '</div></div>' +
-          '<div class="panel"><div class="panel-header"><h3>Recent Rooms</h3><span class="muted">' + escapeHtmlClient(Math.min(rooms.length, 6)) + ' shown</span></div><div class="panel-body">' +
-          (rooms.length > 0 ? '<div class="list">' + rooms.slice(0, 6).map(renderRoomCard).join("") + '</div>' : '<div class="empty">No rooms are visible yet.</div>') +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("recentRooms")) + '</h3><span class="muted">' + escapeHtmlClient(t("recentShown", { count: Math.min(rooms.length, 6) })) + '</span></div><div class="panel-body">' +
+          (rooms.length > 0 ? '<div class="list">' + rooms.slice(0, 6).map(renderRoomCard).join("") + '</div>' : '<div class="empty">' + escapeHtmlClient(t("noRoomsYet")) + '</div>') +
           '</div></div>' +
           '</div>'
         );
@@ -2288,9 +3004,9 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         return (
           '<div class="mail-workbench-main">' +
           renderWorkspaceHero({
-            eyebrow: "Agent",
-            title: "Agent templates and souls",
-            copy: "Agents do not carry per-room working context. This page manages reusable templates, durable SOUL.md state, mailbox bindings, and the agent roster that rooms can recruit.",
+            eyebrow: t("agents"),
+            title: t("agentsTitle"),
+            copy: t("agentsCopy"),
             summaryItems: [
               { label: "templates", value: String(templates.length) },
               { label: "agents", value: String(directory.length) },
@@ -2298,30 +3014,30 @@ export function renderOpenClawWorkbenchShellHtml(input: {
               { label: "recommended", value: String(headcount.length) }
             ]
           }) +
-          '<div class="panel"><div class="panel-header"><h3>Agent Templates</h3><span class="muted">' + escapeHtmlClient(String(templates.length)) + ' presets</span></div><div class="panel-body">' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("agentTemplates")) + '</h3><span class="muted">' + escapeHtmlClient(t("presetsCount", { count: String(templates.length) })) + '</span></div><div class="panel-body">' +
           (templates.length > 0
             ? '<div class="mailbox-feed">' + templates.map(function(template) { return renderAgentTemplateCard(template, connect); }).join("") + "</div>"
-            : '<div class="empty">No agent templates are available.</div>') +
+            : '<div class="empty">' + escapeHtmlClient(t("noAgentTemplatesAvailable")) + '</div>') +
           "</div></div>" +
-          '<div class="panel"><div class="panel-header"><h3>Custom Agent</h3><span class="muted">durable soul + mailbox</span></div><div class="panel-body">' +
-          '<div class="detail">Create one durable agent with its own SOUL.md, internal mailboxes, inbox policy, and directory entry.</div>' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("customAgent")) + '</h3><span class="muted">' + escapeHtmlClient(t("durableSoulMailbox")) + '</span></div><div class="panel-body">' +
+          '<div class="detail">' + escapeHtmlClient(t("createDurableAgentCopy")) + '</div>' +
           '<div class="detail-grid">' +
-          '<label><div class="section-label">Agent ID</div><input class="console-input" data-custom-agent-field="agentId" placeholder="assistant-ops" /></label>' +
-          '<label><div class="section-label">Display Name</div><input class="console-input" data-custom-agent-field="displayName" placeholder="Assistant Ops" /></label>' +
-          '<label><div class="section-label">Public Mailbox</div><input class="console-input" data-custom-agent-field="publicMailboxId" placeholder="public:assistant-ops" /></label>' +
-          '<label><div class="section-label">Collaborators</div><input class="console-input" data-custom-agent-field="collaboratorAgentIds" placeholder="assistant,research" /></label>' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("agentIdLabel")) + '</div><input class="console-input" data-custom-agent-field="agentId" placeholder="assistant-ops" /></label>' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("displayNameLabel")) + '</div><input class="console-input" data-custom-agent-field="displayName" placeholder="Assistant Ops" /></label>' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("publicMailboxLabel")) + '</div><input class="console-input" data-custom-agent-field="publicMailboxId" placeholder="public:assistant-ops" /></label>' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("collaboratorsLabel")) + '</div><input class="console-input" data-custom-agent-field="collaboratorAgentIds" placeholder="assistant,research" /></label>' +
           '</div>' +
-          '<label><div class="section-label">Purpose</div><textarea class="console-textarea" data-custom-agent-field="purpose" placeholder="Own escalations, coordinate approvals, and feed final-ready packets back to the front desk."></textarea></label>' +
+          '<label><div class="section-label">' + escapeHtmlClient(t("purposeLabel")) + '</div><textarea class="console-textarea" data-custom-agent-field="purpose" placeholder="Own escalations, coordinate approvals, and feed final-ready packets back to the front desk."></textarea></label>' +
           (((connect && connect.templateApplyAccountId) || "").length > 0
-            ? '<div class="actions-inline"><button class="btn" data-action="create-custom-agent" data-account-id="' + escapeHtmlClient(connect.templateApplyAccountId || "") + '" data-tenant-id="' + escapeHtmlClient((connect && connect.templateApplyTenantId) || connect.templateApplyAccountId || "") + '">Create Agent</button></div>'
-            : '<div class="detail">Connect an account first, then create custom durable agents in that workspace.</div>') +
+            ? '<div class="actions-inline"><button class="btn" data-action="create-custom-agent" data-account-id="' + escapeHtmlClient(connect.templateApplyAccountId || "") + '" data-tenant-id="' + escapeHtmlClient((connect && connect.templateApplyTenantId) || connect.templateApplyAccountId || "") + '">' + escapeHtmlClient(t("createAgent")) + '</button></div>'
+            : '<div class="detail">' + escapeHtmlClient(t("createCustomAgentAfterConnect")) + '</div>') +
           "</div></div>" +
-          '<div class="panel"><div class="panel-header"><h3>Agent Directory</h3><span class="muted">' + escapeHtmlClient(String(directory.length)) + ' durable agents</span></div><div class="panel-body">' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("agentDirectory")) + '</h3><span class="muted">' + escapeHtmlClient(t("durableAgentsCount", { count: String(directory.length) })) + '</span></div><div class="panel-body">' +
           (directory.length > 0
             ? '<div class="mailbox-feed">' + directory.map(function(entry) { return renderAgentDirectoryCard(entry, connect); }).join("") + "</div>"
-            : '<div class="empty">Apply a template or initialize an agent memory workspace to create durable souls.</div>') +
+            : '<div class="empty">' + escapeHtmlClient(t("noDurableSouls")) + '</div>') +
           "</div></div>" +
-          '<div class="panel"><div class="panel-header"><h3>Headcount</h3><span class="muted">recommended shapes</span></div><div class="panel-body">' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("headcount")) + '</h3><span class="muted">' + escapeHtmlClient(t("recommendedShapes")) + '</span></div><div class="panel-body">' +
           (headcount.length > 0
             ? '<div class="mailbox-feed">' + headcount.map(function(entry) {
                 return (
@@ -2336,7 +3052,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
                   "</div>"
                 );
               }).join("") + "</div>"
-            : '<div class="empty">Headcount recommendations appear after MailClaws can see account or burst-work load.</div>') +
+            : '<div class="empty">' + escapeHtmlClient(t("headcountWaiting")) + '</div>') +
           "</div></div>" +
           '</div>'
         );
@@ -2348,23 +3064,23 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         return (
           '<div class="mail-workbench-main">' +
           renderWorkspaceHero({
-            eyebrow: "Skill",
-            title: "Reusable agent skills",
-            copy: "Skills stay outside room working memory. Install them onto durable agents so rooms can recruit the same behavior repeatedly without copying prompts into every thread.",
+            eyebrow: t("skills"),
+            title: t("skillsTitle"),
+            copy: t("skillsCopy"),
             summaryItems: [
               { label: "agents", value: String(skills.length) },
-              { label: "visible skills", value: String(skills.reduce(function(total, entry) { return total + ((entry.skills || []).length || 0); }, 0)) },
-              { label: "built-in", value: "2" },
-              { label: "installer", value: ((connect && connect.templateApplyAccountId) || "").length > 0 ? "ready" : "waiting" }
+              { label: t("skills"), value: String(skills.reduce(function(total, entry) { return total + ((entry.skills || []).length || 0); }, 0)) },
+              { label: t("builtInLabel"), value: "2" },
+              { label: t("installerLabel"), value: ((connect && connect.templateApplyAccountId) || "").length > 0 ? "ready" : "waiting" }
             ]
           }) +
           renderSkillInstallPanel(connect) +
-          '<div class="panel"><div class="panel-header"><h3>Skills</h3><span class="muted">' + escapeHtmlClient(String(skills.reduce(function(total, entry) { return total + ((entry.skills || []).length || 0); }, 0))) + ' visible skills</span></div><div class="panel-body">' +
-          '<div class="detail">Default durable agents start with read-email and write-email. Add markdown skills when you want reusable reading, writing, routing, or review behavior.</div>' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("skillsPanel")) + '</h3><span class="muted">' + escapeHtmlClient(t("visibleSkillsCount", { count: String(skills.reduce(function(total, entry) { return total + ((entry.skills || []).length || 0); }, 0)) })) + '</span></div><div class="panel-body">' +
+          '<div class="detail">' + escapeHtmlClient(t("builtInSkillsNote")) + '</div>' +
           '<div class="mono-block">mailclaws skills list ' + escapeHtmlClient((connect && connect.templateApplyAccountId) || "[accountId]") + "</div>" +
           (skills.length > 0
             ? '<div class="mailbox-feed">' + skills.map(renderAgentSkillGroup).join("") + "</div>"
-            : '<div class="empty">Connect or create a durable agent to inspect skills.</div>') +
+            : '<div class="empty">' + escapeHtmlClient(t("noDurableAgentSkills")) + '</div>') +
           "</div></div>" +
           '</div>'
         );
@@ -2372,20 +3088,20 @@ export function renderOpenClawWorkbenchShellHtml(input: {
 
       function renderProviderPanel() {
         if (!state.data || !state.data.mailboxConsole || !state.data.mailboxConsole.providerState) {
-          return '<div class="panel"><div class="panel-header"><h3>Provider State</h3></div><div class="panel-body"><div class="empty">Select an account to inspect provider watch, cursors, and mailbox projection state.</div></div></div>';
+          return '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("providerState")) + '</h3></div><div class="panel-body"><div class="empty">' + escapeHtmlClient(t("providerEmpty")) + '</div></div></div>';
         }
         const summary = state.data.mailboxConsole.providerState.summary || {};
         return (
           '<div class="panel">' +
-          '<div class="panel-header"><h3>Provider State</h3><span class="muted">' + escapeHtmlClient((summary.watch && summary.watch.state) || "idle") + "</span></div>" +
+          '<div class="panel-header"><h3>' + escapeHtmlClient(t("providerState")) + '</h3><span class="muted">' + escapeHtmlClient((summary.watch && summary.watch.state) || "idle") + "</span></div>" +
           '<div class="panel-body">' +
           '<div class="detail-grid">' +
-          renderMetric("Ingress", (summary.ingress && summary.ingress.mode) || "unknown") +
-          renderMetric("Outbound", (summary.outbound && summary.outbound.mode) || "unknown") +
-          renderMetric("Watch", (summary.watch && summary.watch.state) || "idle") +
-          renderMetric("Last event", summary.lastEventType || "none") +
+          renderMetric(t("ingress"), (summary.ingress && summary.ingress.mode) || "unknown") +
+          renderMetric(t("outbound"), (summary.outbound && summary.outbound.mode) || "unknown") +
+          renderMetric(t("watch"), (summary.watch && summary.watch.state) || "idle") +
+          renderMetric(t("lastEvent"), summary.lastEventType || "none") +
           '</div>' +
-          '<div class="detail">MailClaws still uses the runtime kernel as truth. Provider watch and mailbox projections stay observable here, not authoritative.</div>' +
+          '<div class="detail">' + escapeHtmlClient(t("providerObserveCopy")) + '</div>' +
           '</div>' +
           '</div>'
         );
@@ -2393,9 +3109,8 @@ export function renderOpenClawWorkbenchShellHtml(input: {
 
       function renderAccountDetail() {
         if (!state.data || !state.data.accountDetail) {
-          return '<div class="empty">Select an account to inspect provider state, inboxes, rooms, and mailbox projections.</div>';
+          return '<div class="empty">' + escapeHtmlClient(t("selectAccountHint")) + '</div>';
         }
-        const setup = getConnectSetupState();
         const detail = state.data.accountDetail;
         const account = detail.account || {};
         const inboxes = detail.inboxes || [];
@@ -2404,9 +3119,9 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         return (
           '<div class="mail-workbench-main">' +
           renderWorkspaceHero({
-            eyebrow: "Mailbox account",
-            title: account.displayName || account.emailAddress || account.accountId || "Mailbox account",
-            copy: "Inspect provider posture first, then public inbox intake, recent rooms, and mailbox-local collaboration feeds for this connected account.",
+            eyebrow: t("accounts"),
+            title: account.displayName || account.emailAddress || account.accountId || t("mailboxAccount"),
+            copy: t("statusAccount"),
             summaryItems: [
               { label: "rooms", value: String(account.roomCount || 0) },
               { label: "active", value: String(account.activeRoomCount || 0) },
@@ -2414,27 +3129,26 @@ export function renderOpenClawWorkbenchShellHtml(input: {
               { label: "inboxes", value: String(account.inboxCount || 0) }
             ]
           }) +
-          renderConnectMailboxPanel(setup) +
-          '<div class="panel"><div class="panel-header"><h3>Mailbox Account</h3><span class="muted code">' + escapeHtmlClient(account.accountId || state.route.accountId || "") + '</span></div><div class="panel-body">' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("mailboxAccount")) + '</h3><span class="muted code">' + escapeHtmlClient(account.accountId || state.route.accountId || "") + '</span></div><div class="panel-body">' +
           '<div class="chips">' +
           renderPill(account.provider || "provider", "") +
           renderPill(account.health || "healthy", "") +
           renderPill(account.status || "active", "") +
           '</div>' +
           '<div class="detail">' + escapeHtmlClient(account.displayName || account.emailAddress || "") + '</div>' +
-          '<div class="detail">Latest activity ' + escapeHtmlClient(formatTime(account.latestActivityAt)) + '</div>' +
+          '<div class="detail">' + escapeHtmlClient(t("latestActivity")) + ' ' + escapeHtmlClient(formatTime(account.latestActivityAt)) + '</div>' +
           '</div></div>' +
           renderProviderPanel() +
-          '<div class="panel"><div class="panel-header"><h3>Public Inboxes</h3><span class="muted">' + escapeHtmlClient(inboxes.length) + ' configured</span></div><div class="panel-body">' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("publicInboxes")) + '</h3><span class="muted">' + escapeHtmlClient(t("configuredCount", { count: inboxes.length })) + '</span></div><div class="panel-body">' +
           (inboxes.length > 0
             ? '<div class="list">' + inboxes.map(function(inbox) { return renderInboxCard({ inbox: inbox, items: [] }); }).join("") + '</div>'
-            : '<div class="empty">No public inbox projection exists for this account yet.</div>') +
+            : '<div class="empty">' + escapeHtmlClient(t("noPublicInboxProjection")) + '</div>') +
           '</div></div>' +
-          '<div class="panel"><div class="panel-header"><h3>Recent Mailboxes</h3><span class="muted">' + escapeHtmlClient(Math.min(mailboxes.length, 6)) + ' shown</span></div><div class="panel-body">' +
-          (mailboxes.length > 0 ? '<div class="list">' + mailboxes.slice(0, 6).map(renderMailboxCard).join("") + '</div>' : '<div class="empty">No virtual mailboxes are visible for this account.</div>') +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("recentMailboxes")) + '</h3><span class="muted">' + escapeHtmlClient(t("shownCount", { count: Math.min(mailboxes.length, 6) })) + '</span></div><div class="panel-body">' +
+          (mailboxes.length > 0 ? '<div class="list">' + mailboxes.slice(0, 6).map(renderMailboxCard).join("") + '</div>' : '<div class="empty">' + escapeHtmlClient(t("noVirtualMailboxesForAccount")) + '</div>') +
           '</div></div>' +
-          '<div class="panel"><div class="panel-header"><h3>Recent Conversations</h3><span class="muted">' + escapeHtmlClient(Math.min(rooms.length, 6)) + ' shown</span></div><div class="panel-body">' +
-          (rooms.length > 0 ? '<div class="list">' + rooms.slice(0, 6).map(renderRoomCard).join("") + '</div>' : '<div class="empty">No room activity has been recorded for this account yet.</div>') +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("recentConversations")) + '</h3><span class="muted">' + escapeHtmlClient(t("shownCount", { count: Math.min(rooms.length, 6) })) + '</span></div><div class="panel-body">' +
+          (rooms.length > 0 ? '<div class="list">' + rooms.slice(0, 6).map(renderRoomCard).join("") + '</div>' : '<div class="empty">' + escapeHtmlClient(t("noAccountRoomActivity")) + '</div>') +
           '</div></div>' +
           '</div>'
         );
@@ -2443,22 +3157,22 @@ export function renderOpenClawWorkbenchShellHtml(input: {
       function renderInboxDetail() {
         const mailboxConsole = state.data && state.data.mailboxConsole ? state.data.mailboxConsole : null;
         if (!mailboxConsole || !state.route.inboxId) {
-          return '<div class="empty">Select a public inbox to inspect room-level intake, ACK pressure, and work backlog.</div>';
+          return '<div class="empty">' + escapeHtmlClient(t("selectInboxHint")) + '</div>';
         }
         const projection = (mailboxConsole.publicAgentInboxes || []).find(function(entry) {
           return entry.inbox && entry.inbox.inboxId === state.route.inboxId;
         });
         if (!projection) {
-          return '<div class="empty">The selected inbox is not visible in the current account scope.</div>';
+          return '<div class="empty">' + escapeHtmlClient(t("inboxNotVisible")) + '</div>';
         }
         const inbox = projection.inbox || {};
         const items = projection.items || [];
         return (
           '<div class="mail-workbench-main">' +
           renderWorkspaceHero({
-            eyebrow: "Public inbox",
+            eyebrow: t("publicInbox"),
             title: inbox.inboxId || state.route.inboxId || "Inbox",
-            copy: "Inbox items are room-granularity workload, not raw-message tasks. That keeps ACK pressure, backlog, and delegation aligned with the room kernel.",
+            copy: t("inboxCopy"),
             summaryItems: [
               { label: "rooms", value: String(items.length) },
               { label: "ack sla", value: String(inbox.ackSlaSeconds || 0) + "s" },
@@ -2466,14 +3180,14 @@ export function renderOpenClawWorkbenchShellHtml(input: {
               { label: "burst", value: String(inbox.burstCoalesceSeconds || 0) + "s" }
             ]
           }) +
-          '<div class="panel"><div class="panel-header"><h3>Inbox Summary</h3><span class="muted code">' + escapeHtmlClient(inbox.inboxId || state.route.inboxId) + '</span></div><div class="panel-body">' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("inboxSummary")) + '</h3><span class="muted code">' + escapeHtmlClient(inbox.inboxId || state.route.inboxId) + '</span></div><div class="panel-body">' +
           '<div class="chips">' +
           renderPill(inbox.agentId || "agent", "") +
           renderPill("account " + (inbox.accountId || state.route.accountId || ""), "") +
           '</div>' +
-          '<div class="detail">Select a room below to move from queue posture into full room inspection.</div>' +
+          '<div class="detail">' + escapeHtmlClient(t("selectRoomHint")) + '</div>' +
           '</div></div>' +
-          '<div class="panel"><div class="panel-header"><h3>Inbox Items</h3><span class="muted">' + escapeHtmlClient(items.length) + ' rooms</span></div><div class="panel-body">' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("inboxItems")) + '</h3><span class="muted">' + escapeHtmlClient(items.length) + ' rooms</span></div><div class="panel-body">' +
           (items.length > 0
             ? '<div class="mailbox-feed">' + items.map(function(item) {
                 return (
@@ -2488,7 +3202,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
                   '</button>'
                 );
               }).join("") + '</div>'
-            : '<div class="empty">No room projections are currently visible in this inbox.</div>') +
+            : '<div class="empty">' + escapeHtmlClient(t("noInboxRoomProjection")) + '</div>') +
           '</div></div>' +
           '</div>'
         );
@@ -2497,16 +3211,16 @@ export function renderOpenClawWorkbenchShellHtml(input: {
       function renderMailboxWorkspaceHome() {
         const mailboxConsole = state.data && state.data.mailboxConsole ? state.data.mailboxConsole : null;
         if (!mailboxConsole) {
-          return '<div class="empty">Select an account to inspect mailboxes and public inboxes.</div>';
+          return '<div class="empty">' + escapeHtmlClient(t("selectAccountForMailboxes")) + '</div>';
         }
         const mailboxes = mailboxConsole.virtualMailboxes || [];
         const inboxes = mailboxConsole.publicAgentInboxes || [];
         return (
           '<div class="mail-workbench-main">' +
           renderWorkspaceHero({
-            eyebrow: "Mailbox workspace",
-            title: "Mailboxes and intake routes",
-            copy: "Use this view when you want to scan internal role mailboxes, public inbox bindings, and the provider posture for one connected account.",
+            eyebrow: t("mailboxWorkspace"),
+            title: t("mailboxesAndRoutes"),
+            copy: t("mailboxWorkspaceCopy"),
             summaryItems: [
               { label: "mailboxes", value: String(mailboxes.length) },
               { label: "inboxes", value: String(inboxes.length) },
@@ -2515,11 +3229,11 @@ export function renderOpenClawWorkbenchShellHtml(input: {
             ]
           }) +
           renderProviderPanel() +
-          '<div class="panel"><div class="panel-header"><h3>Public Inboxes</h3><span class="muted">' + escapeHtmlClient(inboxes.length) + ' projected</span></div><div class="panel-body">' +
-          (inboxes.length > 0 ? '<div class="list">' + inboxes.map(renderInboxCard).join("") + '</div>' : '<div class="empty">No public inbox projection exists for this account yet.</div>') +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("publicInboxes")) + '</h3><span class="muted">' + escapeHtmlClient(t("projectedCount", { count: inboxes.length })) + '</span></div><div class="panel-body">' +
+          (inboxes.length > 0 ? '<div class="list">' + inboxes.map(renderInboxCard).join("") + '</div>' : '<div class="empty">' + escapeHtmlClient(t("noPublicInboxProjection")) + '</div>') +
           '</div></div>' +
-          '<div class="panel"><div class="panel-header"><h3>Virtual Mailboxes</h3><span class="muted">' + escapeHtmlClient(mailboxes.length) + ' visible</span></div><div class="panel-body">' +
-          (mailboxes.length > 0 ? '<div class="list">' + mailboxes.map(renderMailboxCard).join("") + '</div>' : '<div class="empty">No virtual mailbox is attached to this account yet.</div>') +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("virtualMailboxes")) + '</h3><span class="muted">' + escapeHtmlClient(t("visibleCount", { count: mailboxes.length })) + '</span></div><div class="panel-body">' +
+          (mailboxes.length > 0 ? '<div class="list">' + mailboxes.map(renderMailboxCard).join("") + '</div>' : '<div class="empty">' + escapeHtmlClient(t("noVirtualMailboxAttached")) + '</div>') +
           '</div></div>' +
           '</div>'
         );
@@ -2530,20 +3244,9 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const accounts = state.data && state.data.accounts ? state.data.accounts : [];
         return (
           '<div class="mail-workbench-main">' +
-          renderWorkspaceHero({
-            eyebrow: "External Accounts",
-            title: "Connected external mailboxes",
-            copy: "Connect real IMAP, SMTP, OAuth, or forward-ingest accounts here. External mail lands in new rooms, and replies return through the existing room.",
-            summaryItems: [
-              { label: "accounts", value: String(accounts.length) },
-              { label: "healthy", value: String(accounts.filter(function(account) { return (account.health || "") === "healthy"; }).length) },
-              { label: "active rooms", value: String(accounts.reduce(function(total, account) { return total + Number(account.activeRoomCount || 0); }, 0)) },
-              { label: "mailboxes", value: String(accounts.reduce(function(total, account) { return total + Number(account.mailboxCount || 0); }, 0)) }
-            ]
-          }) +
           renderConnectMailboxPanel(setup) +
-          '<div class="panel"><div class="panel-header"><h3>Accounts</h3><span class="muted">' + escapeHtmlClient(accounts.length) + ' connected</span></div><div class="panel-body">' +
-          (accounts.length > 0 ? '<div class="list">' + accounts.map(renderAccountCard).join("") + '</div>' : '<div class="empty">No mailbox accounts have been connected yet.</div>') +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("accountsPanel")) + '</h3><span class="muted">' + escapeHtmlClient(t("connectedCount", { count: accounts.length })) + '</span></div><div class="panel-body">' +
+          (accounts.length > 0 ? '<div class="list">' + accounts.map(renderAccountCard).join("") + '</div>' : '<div class="empty">' + escapeHtmlClient(t("noMailboxAccountsConnected")) + '</div>') +
           '</div></div>' +
           '</div>'
         );
@@ -2554,9 +3257,9 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         return (
           '<div class="mail-workbench-main">' +
           renderWorkspaceHero({
-            eyebrow: "Rooms",
-            title: "Room is the core work surface",
-            copy: "Each new external email creates a new room. Replies stay in the same room. A room holds shared virtual mail, attachments, notes, and recruited agents for the job.",
+            eyebrow: t("rooms"),
+            title: t("roomsTitle"),
+            copy: t("roomsCopy"),
             summaryItems: [
               { label: "rooms", value: String(rooms.length) },
               { label: "active", value: String(rooms.filter(function(room) { return !["done", "failed"].includes(room.state || ""); }).length) },
@@ -2564,8 +3267,8 @@ export function renderOpenClawWorkbenchShellHtml(input: {
               { label: "resources", value: String(rooms.reduce(function(total, room) { return total + Number(room.resourceCount || 0); }, 0)) }
             ]
           }) +
-          '<div class="panel"><div class="panel-header"><h3>Rooms</h3><span class="muted">' + escapeHtmlClient(rooms.length) + ' visible</span></div><div class="panel-body">' +
-          (rooms.length > 0 ? '<div class="list">' + rooms.map(renderRoomCard).join("") + '</div>' : '<div class="empty">No rooms are visible under the current filters.</div>') +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("roomsPanel")) + '</h3><span class="muted">' + escapeHtmlClient(t("visibleCount", { count: rooms.length })) + '</span></div><div class="panel-body">' +
+          (rooms.length > 0 ? '<div class="list">' + rooms.map(renderRoomCard).join("") + '</div>' : '<div class="empty">' + escapeHtmlClient(t("roomsEmptyFiltered")) + '</div>') +
           '</div></div>' +
           '</div>'
         );
@@ -2576,18 +3279,18 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         return (
           '<div class="mail-workbench-main">' +
           renderWorkspaceHero({
-            eyebrow: "Approvals",
-            title: "Approval queue",
-            copy: "Outbound side effects stay gated here. Review one request to inspect draft hash, room linkage, and approval lineage before delivery.",
+            eyebrow: t("approvalRequests"),
+            title: t("approvalTitle"),
+            copy: t("approvalCopy"),
             summaryItems: [
-              { label: "requests", value: String(approvals.length) },
-              { label: "requested", value: String(approvals.filter(function(approval) { return (approval.status || "") === "requested"; }).length) },
-              { label: "approved", value: String(approvals.filter(function(approval) { return (approval.status || "") === "approved"; }).length) },
-              { label: "rejected", value: String(approvals.filter(function(approval) { return (approval.status || "") === "rejected"; }).length) }
+              { label: t("requests"), value: String(approvals.length) },
+              { label: t("requested"), value: String(approvals.filter(function(approval) { return (approval.status || "") === "requested"; }).length) },
+              { label: t("approved"), value: String(approvals.filter(function(approval) { return (approval.status || "") === "approved"; }).length) },
+              { label: t("rejected"), value: String(approvals.filter(function(approval) { return (approval.status || "") === "rejected"; }).length) }
             ]
           }) +
-          '<div class="panel"><div class="panel-header"><h3>Approval requests</h3><span class="muted">' + escapeHtmlClient(approvals.length) + ' visible</span></div><div class="panel-body">' +
-          (approvals.length > 0 ? '<div class="list">' + approvals.map(renderApprovalCard).join("") + '</div>' : '<div class="empty">No approval requests are visible under the current filters.</div>') +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("approvalRequests")) + '</h3><span class="muted">' + escapeHtmlClient(t("visibleCount", { count: approvals.length })) + '</span></div><div class="panel-body">' +
+          (approvals.length > 0 ? '<div class="list">' + approvals.map(renderApprovalCard).join("") + '</div>' : '<div class="empty">' + escapeHtmlClient(t("noApprovalsVisible")) + '</div>') +
           '</div></div>' +
           '</div>'
         );
@@ -2596,13 +3299,13 @@ export function renderOpenClawWorkbenchShellHtml(input: {
       function renderMailboxDetail() {
         const mailboxConsole = state.data && state.data.mailboxConsole ? state.data.mailboxConsole : null;
         if (!mailboxConsole || !state.route.mailboxId) {
-          return '<div class="empty">Select a mailbox to inspect mailbox-local feed and room participation.</div>';
+          return '<div class="empty">' + escapeHtmlClient(t("selectMailboxHint")) + '</div>';
         }
         const mailbox = (mailboxConsole.virtualMailboxes || []).find(function(entry) {
           return entry.mailboxId === state.route.mailboxId;
         });
         if (!mailbox) {
-          return '<div class="empty">The selected mailbox is not visible in the current account scope.</div>';
+          return '<div class="empty">' + escapeHtmlClient(t("mailboxNotVisible")) + '</div>';
         }
         const linkedInboxes = (mailboxConsole.publicAgentInboxes || []).filter(function(entry) {
           return "public:" + entry.inbox.agentId === mailbox.mailboxId;
@@ -2614,31 +3317,31 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         return (
           '<div class="mail-workbench-main">' +
           renderWorkspaceHero({
-            eyebrow: "Virtual mailbox",
+            eyebrow: t("virtualMailbox"),
             title: mailbox.mailboxId,
-            copy: "This is the mailbox-local view of internal collaboration. Use it to inspect what one role mailbox can see across feeds and room-local projections.",
+            copy: t("virtualMailboxCopy"),
             summaryItems: [
               { label: "messages", value: String(mailbox.messageCount || 0) },
               { label: "rooms", value: String(mailbox.roomCount || 0) },
               { label: "inboxes", value: String(linkedInboxes.length) },
-              { label: "latest room", value: String(mailbox.latestRoomKey || "n/a") }
+              { label: t("latestRoom"), value: String(mailbox.latestRoomKey || "n/a") }
             ]
           }) +
-          '<div class="panel"><div class="panel-header"><h3>Mailbox Summary</h3><span class="muted code">' + escapeHtmlClient(mailbox.mailboxId) + '</span></div><div class="panel-body">' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("mailboxSummary")) + '</h3><span class="muted code">' + escapeHtmlClient(mailbox.mailboxId) + '</span></div><div class="panel-body">' +
           '<div class="chips">' +
           renderPill(mailbox.kind || "mailbox", "") +
           (mailbox.role ? renderPill(mailbox.role, "") : "") +
           renderPill(mailbox.active ? "active" : "inactive", mailbox.active ? "pill--ok" : "pill--warn") +
           ((mailbox.originKinds || []).map(function(kind) { return renderPill(kind, ""); }).join("")) +
           '</div>' +
-          '<div class="detail">Latest message ' + escapeHtmlClient(formatTime(mailbox.latestMessageAt)) + '</div>' +
-          '<div class="detail">Latest room ' + escapeHtmlClient(mailbox.latestRoomKey || "n/a") + '</div>' +
+          '<div class="detail">' + escapeHtmlClient(t("latestMessage")) + ' ' + escapeHtmlClient(formatTime(mailbox.latestMessageAt)) + '</div>' +
+          '<div class="detail">' + escapeHtmlClient(t("latestRoom")) + ' ' + escapeHtmlClient(mailbox.latestRoomKey || "n/a") + '</div>' +
           (linkedInboxes.length > 0
             ? '<div class="list">' + linkedInboxes.map(renderInboxCard).join("") + '</div>'
-            : '<div class="detail">No public inbox binding is attached to this mailbox.</div>') +
+            : '<div class="detail">' + escapeHtmlClient(t("noPublicInboxBinding")) + '</div>') +
           '</div></div>' +
           (roomKey
-            ? '<div class="panel"><div class="panel-header"><h3>Room Thread In Mailbox</h3><span class="muted code">' + escapeHtmlClient(roomKey) + '</span></div><div class="panel-body">' +
+            ? '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("roomThreadInMailbox")) + '</h3><span class="muted code">' + escapeHtmlClient(roomKey) + '</span></div><div class="panel-body">' +
               (roomMailboxView.length > 0
                 ? '<div class="mailbox-feed">' + roomMailboxView.map(function(entry) {
                     return (
@@ -2649,11 +3352,11 @@ export function renderOpenClawWorkbenchShellHtml(input: {
                       '</div>'
                     );
                   }).join("") + '</div>'
-                : '<div class="empty">No projected entries for this room are visible in the selected mailbox.</div>') +
+                : '<div class="empty">' + escapeHtmlClient(t("noMailboxRoomProjection")) + '</div>') +
               '</div></div>'
             : '') +
-          '<div class="panel"><div class="panel-header"><h3>Mailbox Feed</h3><span class="muted">' + escapeHtmlClient(feed.length) + ' items loaded</span></div><div class="panel-body">' +
-          (feed.length > 0 ? '<div class="mailbox-feed">' + feed.map(renderFeedEntry).join("") + '</div>' : '<div class="empty">No messages are currently projected into the selected mailbox.</div>') +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("mailboxFeed")) + '</h3><span class="muted">' + escapeHtmlClient(t("itemsLoaded", { count: feed.length })) + '</span></div><div class="panel-body">' +
+          (feed.length > 0 ? '<div class="mailbox-feed">' + feed.map(renderFeedEntry).join("") + '</div>' : '<div class="empty">' + escapeHtmlClient(t("noMailboxMessagesProjected")) + '</div>') +
           '</div></div>' +
           '</div>'
         );
@@ -2680,9 +3383,9 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         return (
           '<div class="mail-workbench-main">' +
           renderWorkspaceHero({
-            eyebrow: "Room",
+            eyebrow: t("roomTitleDetail"),
             title: room.latestSubject || room.roomKey,
-            copy: "Room detail is the durable truth view: revisioned room state, mailbox participation, gateway outcomes, task tracking, and the replay-visible timeline all stay here.",
+            copy: t("roomCopyDetail"),
             summaryItems: [
               { label: "revision", value: String(room.revision || 0) },
               { label: "tasks", value: String(roomDetail.counts && roomDetail.counts.taskNodes ? roomDetail.counts.taskNodes : 0) },
@@ -2690,7 +3393,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
               { label: "deliveries", value: String(roomDetail.counts && roomDetail.counts.mailboxDeliveries ? roomDetail.counts.mailboxDeliveries : 0) }
             ]
           }) +
-          '<div class="panel"><div class="panel-header"><h3>Room Summary</h3><span class="muted code">' + escapeHtmlClient(room.roomKey) + '</span></div><div class="panel-body">' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("roomSummary")) + '</h3><span class="muted code">' + escapeHtmlClient(room.roomKey) + '</span></div><div class="panel-body">' +
           '<div class="chips">' +
           renderPill(room.state || "open", "") +
           renderPill("account " + (room.accountId || ""), "") +
@@ -2698,9 +3401,9 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           (room.mailTaskStage ? renderPill("stage " + room.mailTaskStage, "") : "") +
           renderPill(String(room.pendingApprovalCount || 0) + " approvals", Number(room.pendingApprovalCount || 0) > 0 ? "pill--warn" : "") +
           '</div>' +
-          '<div class="detail">Front agent ' + escapeHtmlClient(room.frontAgentId || room.frontAgentAddress || "n/a") + '</div>' +
+          '<div class="detail">' + escapeHtmlClient(t("frontAgent")) + ' ' + escapeHtmlClient(room.frontAgentId || room.frontAgentAddress || "n/a") + '</div>' +
           ((room.publicAgentAddresses || []).length > 0 || (room.publicAgentIds || []).length > 0 || (room.collaboratorAgentAddresses || []).length > 0 || (room.collaboratorAgentIds || []).length > 0 || (room.summonedRoles || []).length > 0
-            ? '<div><div class="section-label">Routing</div><div class="chips">' +
+            ? '<div><div class="section-label">' + escapeHtmlClient(t("routing")) + '</div><div class="chips">' +
               (room.publicAgentIds || []).map(function(agentId) { return renderPill("public " + agentId, ""); }).join("") +
               (room.publicAgentAddresses || []).map(function(address) { return renderPill("public " + address, ""); }).join("") +
               (room.collaboratorAgentIds || []).map(function(agentId) { return renderPill("collab " + agentId, ""); }).join("") +
@@ -2708,15 +3411,15 @@ export function renderOpenClawWorkbenchShellHtml(input: {
               (room.summonedRoles || []).map(function(role) { return renderPill("role " + role, ""); }).join("") +
               '</div></div>'
             : '') +
-          '<div class="section-label">Mailboxes</div><div class="chips">' + ((roomDetail.mailboxes || []).map(function(mailbox) { return renderMailboxChip(mailbox.mailboxId, room.roomKey); }).join("") || '<span class="muted">No mailbox participation recorded.</span>') + '</div>' +
+          '<div class="section-label">' + escapeHtmlClient(t("mailboxesLabel")) + '</div><div class="chips">' + ((roomDetail.mailboxes || []).map(function(mailbox) { return renderMailboxChip(mailbox.mailboxId, room.roomKey); }).join("") || '<span class="muted">' + escapeHtmlClient(t("noMailboxParticipation")) + '</span>') + '</div>' +
           '</div></div>' +
-          '<div class="panel"><div class="panel-header"><h3>Shared Resources</h3><span class="muted">' + escapeHtmlClient(Number(room.resourceCount || 0)) + ' tracked</span></div><div class="panel-body">' +
-          '<div class="detail">Attachments and room documents are room-scoped shared resources. They can be referenced from virtual mail without leaving the room boundary.</div>' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("sharedResources")) + '</h3><span class="muted">' + escapeHtmlClient(t("tracked", { count: Number(room.resourceCount || 0) })) + '</span></div><div class="panel-body">' +
+          '<div class="detail">' + escapeHtmlClient(t("sharedResourcesCopy")) + '</div>' +
           '<div class="detail-grid">' +
-          renderMetric("attachments", attachments.length) +
-          renderMetric("documents", roomDocuments.length) +
-          renderMetric("pre snapshots", room.preSnapshotCount || 0) +
-          renderMetric("visible agents", room.visibleAgentCount || 0) +
+          renderMetric(t("attachmentsLabel"), attachments.length) +
+          renderMetric(t("documentsLabel"), roomDocuments.length) +
+          renderMetric(t("preSnapshots"), room.preSnapshotCount || 0) +
+          renderMetric(t("visibleAgentsLabel"), room.visibleAgentCount || 0) +
           '</div>' +
           ((attachments.length > 0 || roomDocuments.length > 0)
             ? '<div class="timeline-list">' +
@@ -2739,14 +3442,14 @@ export function renderOpenClawWorkbenchShellHtml(input: {
                 );
               }).join("") +
               '</div>'
-            : '<div class="empty">No shared attachments or room documents have been recorded yet.</div>') +
+            : '<div class="empty">' + escapeHtmlClient(t("noSharedResources")) + '</div>') +
           '</div></div>' +
-          '<div class="panel"><div class="panel-header"><h3>Gateway Projection</h3><span class="muted">' + escapeHtmlClient(trace.projectedMessageCount || 0) + ' projected messages</span></div><div class="panel-body">' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("gatewayProjection")) + '</h3><span class="muted">' + escapeHtmlClient(t("projectedMessages", { count: trace.projectedMessageCount || 0 })) + '</span></div><div class="panel-body">' +
           '<div class="detail-grid">' +
-          renderMetric("Control planes", (trace.controlPlanes || []).length) +
-          renderMetric("Session keys", (trace.sessionKeys || []).length) +
-          renderMetric("Projected deliveries", trace.projectedDeliveryCount || 0) +
-          renderMetric("Projected outcomes", trace.projectedOutcomeCount || 0) +
+          renderMetric(t("controlPlanes"), (trace.controlPlanes || []).length) +
+          renderMetric(t("sessionKeys"), (trace.sessionKeys || []).length) +
+          renderMetric(t("projectedDeliveries"), trace.projectedDeliveryCount || 0) +
+          renderMetric(t("projectedOutcomes"), trace.projectedOutcomeCount || 0) +
           '</div>' +
           '<div class="chips">' +
           (trace.controlPlanes || []).map(function(value) { return renderPill(value, ""); }).join("") +
@@ -2765,15 +3468,15 @@ export function renderOpenClawWorkbenchShellHtml(input: {
                   '</div>'
                 );
               }).join("") + '</div>'
-            : '<div class="detail">No Gateway outcome projection has been recorded for this room yet.</div>') +
+            : '<div class="detail">' + escapeHtmlClient(t("noGatewayProjection")) + '</div>') +
           '</div></div>' +
-          '<div class="panel"><div class="panel-header"><h3>Gateway And Mail Sync</h3><span class="muted">governed bridge</span></div><div class="panel-body">' +
-          '<div class="detail">Gateway data can be imported into internal mail, and selected room messages can be synchronized back into governed email outbox delivery.</div>' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("gatewayAndMailSync")) + '</h3><span class="muted">' + escapeHtmlClient(t("governedBridge")) + '</span></div><div class="panel-body">' +
+          '<div class="detail">' + escapeHtmlClient(t("gatewaySyncCopy")) + '</div>' +
           '<div class="detail-grid">' +
-          renderMetric("Gateway ingress", hostIntegration && hostIntegration.capabilities && hostIntegration.capabilities.gatewayIngress ? "enabled" : "off") +
-          renderMetric("Email sync", hostIntegration && hostIntegration.capabilities && hostIntegration.capabilities.outboundMailSync ? "enabled" : "off") +
-          renderMetric("Gateway dispatch", roomDetail.boundaries && roomDetail.boundaries.automaticGatewayRoundTrip ? "automatic" : "manual") +
-          renderMetric("Approval gate", Number(room.pendingApprovalCount || 0) > 0 ? "pending" : "ready") +
+          renderMetric(t("gatewayIngress"), hostIntegration && hostIntegration.capabilities && hostIntegration.capabilities.gatewayIngress ? "enabled" : "off") +
+          renderMetric(t("emailSync"), hostIntegration && hostIntegration.capabilities && hostIntegration.capabilities.outboundMailSync ? "enabled" : "off") +
+          renderMetric(t("gatewayDispatch"), roomDetail.boundaries && roomDetail.boundaries.automaticGatewayRoundTrip ? "automatic" : "manual") +
+          renderMetric(t("approvalGate"), Number(room.pendingApprovalCount || 0) > 0 ? "pending" : "ready") +
           '</div>' +
           (integrationApis
             ? '<div class="detail code">' + escapeHtmlClient('POST ' + integrationApis.gatewayHistoryImport + ' | POST ' + String(integrationApis.roomMessageEmailSync || '').replace(':roomKey', room.roomKey).replace(':messageId', '<messageId>')) + '</div>'
@@ -2781,7 +3484,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           '<div class="detail code">mailctl gateway import-history &lt;sessionKey&gt; ' + escapeHtmlClient(room.roomKey) + ' history.json</div>' +
           '<div class="detail code">mailctl gateway sync-mail ' + escapeHtmlClient(room.roomKey) + ' &lt;messageId&gt;</div>' +
           '</div></div>' +
-          '<div class="panel"><div class="panel-header"><h3>Mail Tasks</h3><span class="muted">' + escapeHtmlClient(tasks.length) + ' tracked</span></div><div class="panel-body">' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("mailTasks")) + '</h3><span class="muted">' + escapeHtmlClient(t("tracked", { count: tasks.length })) + '</span></div><div class="panel-body">' +
           (tasks.length > 0
             ? '<div class="timeline-list">' + tasks.map(function(task) {
                 return (
@@ -2793,70 +3496,42 @@ export function renderOpenClawWorkbenchShellHtml(input: {
                   '</div>'
                 );
               }).join("") + '</div>'
-            : '<div class="empty">No mail task classification has been recorded for this room yet.</div>') +
+            : '<div class="empty">' + escapeHtmlClient(t("noMailTasks")) + '</div>') +
           '</div></div>' +
-          '<div class="panel"><div class="panel-header"><h3>Virtual Mail</h3><span class="muted">' + escapeHtmlClient(virtualMessages.length) + ' messages</span></div><div class="panel-body">' +
-          '<div class="detail">This is the internal collaboration chain for the room: single-parent replies, mailbox routing, and origin kinds are visible here without reopening raw transcripts.</div>' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("virtualMail")) + '</h3><span class="muted">' + escapeHtmlClient(virtualMessages.length) + ' messages</span></div><div class="panel-body">' +
+          '<div class="detail">' + escapeHtmlClient(t("virtualMailCopy")) + '</div>' +
           (virtualMessages.length > 0
             ? '<div class="timeline-list">' + virtualMessages.slice(0, 24).map(renderVirtualMessageEntry).join("") + '</div>'
-            : '<div class="empty">No virtual mail has been recorded for this room yet.</div>') +
+            : '<div class="empty">' + escapeHtmlClient(t("noVirtualMail")) + '</div>') +
           '</div></div>' +
-          '<div class="panel"><div class="panel-header"><h3>Mailbox Deliveries</h3><span class="muted">' + escapeHtmlClient(mailboxDeliveries.length) + ' deliveries</span></div><div class="panel-body">' +
-          '<div class="detail">Delivery rows show where each internal message was queued, leased, consumed, or marked stale inside the virtual mail plane.</div>' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("mailboxDeliveries")) + '</h3><span class="muted">' + escapeHtmlClient(mailboxDeliveries.length) + ' deliveries</span></div><div class="panel-body">' +
+          '<div class="detail">' + escapeHtmlClient(t("mailboxDeliveriesCopy")) + '</div>' +
           (mailboxDeliveries.length > 0
             ? '<div class="timeline-list">' + mailboxDeliveries.slice(0, 24).map(renderDeliveryEntry).join("") + '</div>'
-            : '<div class="empty">No mailbox delivery rows have been recorded for this room yet.</div>') +
+            : '<div class="empty">' + escapeHtmlClient(t("noMailboxDeliveries")) + '</div>') +
           '</div></div>' +
-          '<div class="panel"><div class="panel-header"><h3>Governed Outbox</h3><span class="muted">' + escapeHtmlClient(outboxIntents.length) + ' intents</span></div><div class="panel-body">' +
-          '<div class="detail">Only this governed outbox path can produce real external email. Review it alongside approvals when checking what may leave the room.</div>' +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("governedOutbox")) + '</h3><span class="muted">' + escapeHtmlClient(outboxIntents.length) + ' intents</span></div><div class="panel-body">' +
+          '<div class="detail">' + escapeHtmlClient(t("governedOutboxCopy")) + '</div>' +
           (outboxIntents.length > 0
             ? '<div class="timeline-list">' + outboxIntents.slice(0, 12).map(renderOutboxEntry).join("") + '</div>'
-            : '<div class="empty">No outbox intents have been recorded for this room yet.</div>') +
+            : '<div class="empty">' + escapeHtmlClient(t("noOutboxIntents")) + '</div>') +
           '</div></div>' +
-          '<div class="panel"><div class="panel-header"><h3>Timeline</h3><span class="muted">' + escapeHtmlClient(timeline.length) + ' entries</span></div><div class="panel-body">' +
-          (timeline.length > 0 ? '<div class="timeline-list">' + timeline.slice(0, 30).map(renderTimelineEntry).join("") + '</div>' : '<div class="empty">No room timeline entries have been recorded yet.</div>') +
+          '<div class="panel"><div class="panel-header"><h3>' + escapeHtmlClient(t("timeline")) + '</h3><span class="muted">' + escapeHtmlClient(t("entriesCount", { count: timeline.length })) + '</span></div><div class="panel-body">' +
+          (timeline.length > 0 ? '<div class="timeline-list">' + timeline.slice(0, 30).map(renderTimelineEntry).join("") + '</div>' : '<div class="empty">' + escapeHtmlClient(t("noTimelineEntries")) + '</div>') +
           '</div></div>' +
-          '</div>'
-        );
-      }
-
-      function renderSidePanels() {
-        const accounts = state.data && state.data.accounts ? state.data.accounts : [];
-        const rooms = state.data && state.data.rooms ? state.data.rooms : [];
-        const approvals = state.data && state.data.approvals ? state.data.approvals : [];
-        const mailboxConsole = state.data && state.data.mailboxConsole ? state.data.mailboxConsole : null;
-        const mailboxes = mailboxConsole ? mailboxConsole.virtualMailboxes || [] : [];
-        const inboxes = mailboxConsole ? mailboxConsole.publicAgentInboxes || [] : [];
-        return (
-          '<div class="mail-workbench-side">' +
-          '<div class="panel"><div class="panel-header"><h3>Accounts</h3><span class="muted">' + escapeHtmlClient(accounts.length) + '</span></div><div class="panel-body">' +
-          (accounts.length > 0 ? '<div class="list">' + accounts.slice(0, 8).map(renderAccountCard).join("") + '</div>' : '<div class="empty">No mailbox accounts have been connected yet.</div>') +
-          '</div></div>' +
-          '<div class="panel"><div class="panel-header"><h3>Rooms</h3><span class="muted">' + escapeHtmlClient(rooms.length) + '</span></div><div class="panel-body">' +
-          (rooms.length > 0 ? '<div class="list">' + rooms.slice(0, 8).map(renderRoomCard).join("") + '</div>' : '<div class="empty">No rooms are visible under the current filters.</div>') +
-          '</div></div>' +
-          '<div class="panel"><div class="panel-header"><h3>Approvals</h3><span class="muted">' + escapeHtmlClient(approvals.length) + '</span></div><div class="panel-body">' +
-          (approvals.length > 0 ? '<div class="list">' + approvals.slice(0, 8).map(renderApprovalCard).join("") + '</div>' : '<div class="empty">No pending approval requests are visible right now.</div>') +
-          '</div></div>' +
-          (mailboxes.length > 0
-            ? '<div class="panel"><div class="panel-header"><h3>Mailboxes</h3><span class="muted">' + escapeHtmlClient(mailboxes.length) + '</span></div><div class="panel-body"><div class="list">' + mailboxes.slice(0, 8).map(renderMailboxCard).join("") + '</div></div></div>'
-            : '') +
-          (inboxes.length > 0
-            ? '<div class="panel"><div class="panel-header"><h3>Public Inboxes</h3><span class="muted">' + escapeHtmlClient(inboxes.length) + '</span></div><div class="panel-body"><div class="list">' + inboxes.slice(0, 8).map(renderInboxCard).join("") + '</div></div></div>'
-            : '') +
           '</div>'
         );
       }
 
       function renderMainContent() {
         if (state.loading) {
-          return '<div class="loading">Loading mail workspace…</div>';
+          return '<div class="loading">' + escapeHtmlClient(t("loadingWorkspace")) + '</div>';
         }
         if (state.error) {
           return '<div class="error-banner">' + escapeHtmlClient(state.error) + '</div>';
         }
         if (!state.data) {
-          return '<div class="empty">No workbench payload was returned.</div>';
+          return '<div class="empty">' + escapeHtmlClient(t("noWorkbenchPayload")) + '</div>';
         }
         let primary = renderHomeOverview();
         if (state.route.mailboxId) {
@@ -2880,7 +3555,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         } else if (state.route.accountId) {
           primary = renderAccountDetail();
         }
-        return '<div class="mail-workbench-grid">' + primary + renderSidePanels() + '</div>';
+        return '<div class="mail-workbench-grid">' + primary + '</div>';
       }
 
       function updateShellClasses() {
@@ -2899,10 +3574,21 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const tabs = workspace && Array.isArray(workspace.tabs) ? workspace.tabs : [];
         navRoot.innerHTML = tabs.map(function(tab) {
           const icon = ICONS[tab.id] || ICONS.home;
+          const label = tab.id === "home"
+            ? t("home")
+            : tab.id === "accounts"
+              ? t("accounts")
+              : tab.id === "rooms"
+                ? t("rooms")
+                : tab.id === "agents"
+                  ? t("agents")
+                  : tab.id === "skills"
+                    ? t("skills")
+                    : tab.label;
           return (
             '<a class="nav-item ' + (tab.active ? 'nav-item--active' : '') + '" href="' + escapeHtmlClient(tab.href) + '">' +
             '<span class="nav-item__icon" aria-hidden="true">' + icon + '</span>' +
-            '<span class="nav-item__text">' + escapeHtmlClient(tab.label) + '</span>' +
+            '<span class="nav-item__text">' + escapeHtmlClient(label) + '</span>' +
             '</a>'
           );
         }).join("");
@@ -2915,33 +3601,30 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         const pageSub = document.getElementById("page-sub");
         const breadcrumb = document.getElementById("breadcrumb-current");
         const pageMeta = document.getElementById("page-meta");
-        const accountsPill = document.getElementById("accounts-pill");
-        const roomsPill = document.getElementById("rooms-pill");
-        const approvalsPill = document.getElementById("approvals-pill");
         if (pageTitle) {
           pageTitle.textContent =
-            activeTab === "rooms" ? "Room Workbench" :
-            activeTab === "accounts" ? "External Accounts" :
-            activeTab === "agents" ? "Agent Directory" :
-            activeTab === "skills" ? "Skill Library" :
-            activeTab === "mailboxes" ? "Mailbox Workbench" :
-            "Home";
+            activeTab === "rooms" ? t("pageRooms") :
+            activeTab === "accounts" ? t("pageAccounts") :
+            activeTab === "agents" ? t("pageAgents") :
+            activeTab === "skills" ? t("pageSkills") :
+            activeTab === "mailboxes" ? t("pageMailboxes") :
+            t("pageHome");
         }
         if (pageSub) {
           pageSub.textContent =
             state.route.roomKey
-              ? "Inspect one room, its mailbox participation, approvals, and gateway projection trace."
+              ? t("statusRoom")
               : state.route.mailboxId
-                ? "Inspect one mailbox feed and the room-local projection visible inside it."
+                ? t("statusMailbox")
                 : state.route.accountId
-                  ? "Inspect provider state, public inboxes, rooms, and mailboxes for one connected account."
+                  ? t("statusAccount")
                   : activeTab === "agents"
-                    ? "Apply templates, inspect soul files, and manage the durable agent roster."
+                    ? t("statusAgents")
                     : activeTab === "skills"
-                      ? "Inspect and install reusable markdown skills onto durable agents."
+                      ? t("statusSkills")
                       : activeTab === "accounts"
-                        ? "Connect external mailboxes and inspect account health."
-                        : "Overview of external accounts, rooms, agents, and reusable skills.";
+                        ? t("statusAccount")
+                        : t("statusOverview");
         }
         if (breadcrumb) {
           breadcrumb.textContent =
@@ -2949,7 +3632,7 @@ export function renderOpenClawWorkbenchShellHtml(input: {
             state.route.mailboxId ||
             state.route.inboxId ||
             state.route.accountId ||
-            (activeTab === "agents" ? "Agent" : activeTab === "skills" ? "Skill" : activeTab === "accounts" ? "External Accounts" : activeTab === "rooms" ? "Room" : "Home");
+            (activeTab === "agents" ? t("agents") : activeTab === "skills" ? t("skills") : activeTab === "accounts" ? t("accounts") : activeTab === "rooms" ? t("rooms") : t("home"));
         }
         if (pageMeta) {
           const bits = [];
@@ -2962,11 +3645,6 @@ export function renderOpenClawWorkbenchShellHtml(input: {
           }
           pageMeta.innerHTML = bits.join("");
         }
-        if (accountsPill) accountsPill.textContent = "accounts " + String((state.data && state.data.accounts ? state.data.accounts.length : 0));
-        if (roomsPill) roomsPill.textContent = "rooms " + String((state.data && state.data.rooms ? state.data.rooms.length : 0));
-        if (approvalsPill) approvalsPill.textContent =
-          "agents " +
-          String((workspace && workspace.connect && workspace.connect.agentDirectory ? workspace.connect.agentDirectory.length : 0));
       }
 
       function render() {
@@ -3098,6 +3776,17 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         document.querySelectorAll("[data-theme-mode]").forEach(function(button) {
           button.classList.toggle("topbar-theme-mode__btn--active", button.getAttribute("data-theme-mode") === mode);
         });
+      }
+
+      function applyLocale(locale) {
+        state.locale = locale === "zh-CN" || locale === "fr" ? locale : "en";
+        document.documentElement.setAttribute("lang", state.locale === "zh-CN" ? "zh-CN" : state.locale === "fr" ? "fr" : "en");
+        document.querySelectorAll("[data-locale]").forEach(function(button) {
+          button.classList.toggle("topbar-locale__btn--active", button.getAttribute("data-locale") === state.locale);
+        });
+        try {
+          window.localStorage.setItem(LOCALE_STORAGE_KEY, state.locale);
+        } catch {}
       }
 
       function readCustomAgentPayload(target) {
@@ -3625,12 +4314,21 @@ export function renderOpenClawWorkbenchShellHtml(input: {
         });
       });
 
+      document.querySelectorAll("[data-locale]").forEach(function(button) {
+        button.addEventListener("click", function() {
+          applyLocale(button.getAttribute("data-locale") || "en");
+          render();
+        });
+      });
+
       window.addEventListener("popstate", function() {
         state.route = parseRoute(window.location.pathname, window.location.search);
         void refresh(true);
       });
 
+      state.locale = resolveInitialLocale();
       state.route = parseRoute(window.location.pathname, window.location.search);
+      applyLocale(state.locale);
       applyThemeMode(document.documentElement.getAttribute("data-theme-mode") || "dark");
       notifyHost("mailclaws.workbench.ready", {
         embeddedShell: Boolean(config.embeddedShell),
