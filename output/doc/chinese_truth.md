@@ -221,9 +221,9 @@ MailClaws 最直接的定量结果来自 prompt footprint benchmark。这个 ben
 
 `output/benchmarks/three-provinces-room/artifacts/three-provinces-room.json` 显示，这个 demo 最终顺利收束为一个 `done` 状态的 room，由前台角色 `taizi` 负责对外收束，内部共调用了 11 个智能体，产生 21 条 virtual messages、22 条 mailbox deliveries 和 124 条 timeline 记录。通信 highlights 一共保留了 21 个关键节点，从太子立项、中书起草、门下封驳，到尚书调度六部、最终回到太子覆核，整条链路都能在 room 视图中直接回看。
 
-这个结果有两个实际含义。第一，任务拆分是真正发生的，而不是把“多 agent”藏在一个 prompt 里。第二，最终对外结果仍然能收束成一个前台可负责的结论，用户不需要自己拼接十几个角色的原始输出。下图展示的是该 demo 的 room 视图，它把 agent 数、消息数、投递数和代表性通信链直接放在同一个界面中，便于演示和检查。
+这个结果有两个实际含义。第一，任务拆分是真正发生的，而不是把“多 agent”藏在一个 prompt 里。第二，最终对外结果仍然能收束成一个前台可负责的结论，用户不需要自己拼接十几个角色的原始输出。下图基于真实 demo 前端截图和 room artifact 重绘，把主责任链放在左侧，把六部通信按自上而下顺序排列在右侧，更适合在报告里直接展示“谁负责、谁回信、最后如何收束”。
 
-![图 2 三省六部 demo 的 room 视图：room 最终为 done，11 个智能体通过 21 条 virtual mail 和 22 次投递完成一次可回放的协作链。](../presentation/assets/three-provinces-room-view-daylight.png)
+![图 2 三省六部 demo 的部门通信图：左侧是太子、中书省、门下省、尚书省到最终覆核的主责任链，右侧按自上而下顺序展示尚书省与六部之间的实际通信。](results-three-provinces-communication.png)
 
 ### 4.3 结果分析
 
