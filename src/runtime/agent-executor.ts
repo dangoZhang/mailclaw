@@ -9,6 +9,8 @@ export interface ExecuteMailTurnInput {
   sessionKey: string;
   inputText: string;
   agentId?: string;
+  tenantId?: string;
+  ownerAgentId?: string;
   attachments?: MailTurnAttachmentDescriptor[];
   memoryNamespaces?: MailTurnMemoryNamespaces;
   executionPolicy?: MailTurnExecutionPolicy;

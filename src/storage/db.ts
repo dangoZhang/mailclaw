@@ -5,7 +5,7 @@ import { DatabaseSync } from "node:sqlite";
 import type { AppConfig } from "../config.js";
 import { backfillOutboxControlPlane } from "./repositories/outbox-intents.js";
 
-const SCHEMA_VERSION = 31;
+const SCHEMA_VERSION = 32;
 
 export interface DatabaseHandle {
   db: DatabaseSync;
@@ -126,6 +126,49 @@ export function initializeDatabase(config: AppConfig): DatabaseHandle {
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_oauth_login_sessions_provider
     ON oauth_login_sessions (provider, status, created_at DESC);
+  `);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS runtime_model_profiles (
+      profile_id TEXT PRIMARY KEY,
+      label TEXT NOT NULL,
+      source_kind TEXT NOT NULL,
+      model TEXT NOT NULL,
+      base_url TEXT,
+      public_base_url TEXT,
+      openclaw_agent_id TEXT,
+      login_url TEXT,
+      gateway_token TEXT,
+      api_key TEXT,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+  `);
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_runtime_model_profiles_updated
+    ON runtime_model_profiles (updated_at DESC, profile_id ASC);
+  `);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS runtime_settings (
+      settings_id TEXT PRIMARY KEY CHECK (settings_id = 'singleton'),
+      default_profile_id TEXT,
+      updated_at TEXT NOT NULL
+    );
+  `);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS agent_runtime_preferences (
+      tenant_id TEXT NOT NULL,
+      agent_id TEXT NOT NULL,
+      profile_id TEXT,
+      model_override TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY(tenant_id, agent_id)
+    );
+  `);
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_agent_runtime_preferences_profile
+    ON agent_runtime_preferences (profile_id, updated_at DESC);
   `);
   db.exec(`
     CREATE TABLE IF NOT EXISTS worker_sessions (

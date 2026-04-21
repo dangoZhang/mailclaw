@@ -398,7 +398,7 @@ describe("runtime watchers", () => {
     expect(sent).toEqual([
       {
         subject: "Watcher smoke room",
-        textBody: "hello world",
+        textBody: "Watcher smoke attachment.",
         to: [lab.addresses.customerA]
       }
     ]);
@@ -407,7 +407,7 @@ describe("runtime watchers", () => {
         expect.objectContaining({
           kind: "final",
           status: "sent",
-          textBody: "hello world"
+          textBody: "Watcher smoke attachment."
         })
       ])
     );

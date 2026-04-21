@@ -81,6 +81,7 @@ export type SmtpTransportFactory = (config: {
 
 export interface DeliverQueuedOutboxOptions {
   limit?: number;
+  outboxIds?: string[];
   now?: () => string;
 }
 
@@ -99,7 +100,16 @@ export async function deliverQueuedOutbox(
   options: DeliverQueuedOutboxOptions = {}
 ) {
   const now = options.now ?? (() => new Date().toISOString());
-  const queued = listControlPlaneOutboxByStatus(db, ["queued"], options.limit);
+  const requestedOutboxIds = Array.isArray(options.outboxIds)
+    ? new Set(options.outboxIds.filter((value): value is string => typeof value === "string" && value.length > 0))
+    : null;
+  const queued = listControlPlaneOutboxByStatus(
+    db,
+    ["queued"],
+    requestedOutboxIds ? undefined : options.limit
+  )
+    .filter((record) => !requestedOutboxIds || requestedOutboxIds.has(record.intentId))
+    .slice(0, options.limit ?? Number.POSITIVE_INFINITY);
   let sent = 0;
   let failed = 0;
 
