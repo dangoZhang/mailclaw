@@ -27,6 +27,8 @@ import {
   acknowledgeSharedFactConflict,
   listSharedFactConflicts
 } from "../core/shared-facts.js";
+import { renderEmailRlBenchmarkMarkdown, runEmailRlBenchmark } from "../benchmarks/email-rl.js";
+import { buildEmailRlSweepArtifacts, renderEmailRlSweepMarkdown } from "../benchmarks/email-rl-sweep.js";
 import { runPromptFootprintBenchmark } from "../benchmarks/prompt-footprint.js";
 import { createMemoryNamespaceSpec, parseMemoryScope } from "../memory/namespace-spec.js";
 import { createMailSidecarRuntime } from "../orchestration/runtime.js";
@@ -294,8 +296,23 @@ async function handleBenchmark(
       writePayload(stdout, mode, result, renderPromptFootprintBenchmark(result));
       return 0;
     }
+    case "email-rl": {
+      const benchmarkIds = parseCsv(args[1]);
+      const result = await runEmailRlBenchmark({ benchmarkIds });
+      writePayload(stdout, mode, result, renderEmailRlBenchmarkMarkdown(result));
+      return 0;
+    }
+    case "email-rl-sweep": {
+      const outputDir = args[1];
+      const benchmarkIds = parseCsv(args[2]);
+      const result = await buildEmailRlSweepArtifacts({ outputDir, benchmarkIds });
+      writePayload(stdout, mode, result, renderEmailRlSweepMarkdown(result));
+      return 0;
+    }
     default:
-      stderr.write("usage: mailctl benchmark [prompt-footprint]\n");
+      stderr.write(
+        "usage: mailctl benchmark [prompt-footprint|email-rl [benchmarkIdsCsv]|email-rl-sweep [outputDir] [benchmarkIdsCsv]]\n"
+      );
       return 1;
   }
 }
@@ -2050,7 +2067,7 @@ function writeUsage(stream: Pick<NodeJS.WriteStream, "write">) {
       "  connect accounts [show <accountId>]",
       "",
       "benchmark:",
-      "  benchmark [prompt-footprint]",
+      "  benchmark [prompt-footprint|email-rl [benchmarkIdsCsv]|email-rl-sweep [outputDir] [benchmarkIdsCsv]]",
       "",
       "compatibility aliases:",
       "  rooms, replay, gateway-trace, gateway, retrieve, recover, drain, deliver-outbox, resend",
@@ -2071,6 +2088,13 @@ function writeUsage(stream: Pick<NodeJS.WriteStream, "write">) {
       "  gateway dispatch [roomKey] [limit]"
     ].join("\n") + "\n"
   );
+}
+
+function parseCsv(value: string | undefined) {
+  return value
+    ?.split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
 }
 
 function formatConnectSetupKind(kind: ReturnType<typeof listConnectProviderGuides>[number]["setupKind"]) {

@@ -50,6 +50,8 @@
     "benchmark:email-rl": "tsx scripts/benchmark-email-rl.mts",
     "benchmark:email-rl:json": "tsx scripts/benchmark-email-rl.mts --json",
     "benchmark:prompt-footprint:json": "tsx scripts/benchmark-prompt-footprint.mts --json",
+    "benchmark:email-rl:sweep": "tsx scripts/benchmark-email-rl-sweep.mts",
+    "benchmark:email-rl:sweep:json": "tsx scripts/benchmark-email-rl-sweep.mts --json",
     "lint": "eslint .",
     "mailclaws": "tsx src/cli/mailclaws.ts",
     "mailclawsctl": "tsx src/cli/mailclawsctl.ts",

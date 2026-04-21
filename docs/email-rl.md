@@ -67,23 +67,46 @@ That wiring lives in `src/orchestration/service.ts`.
 
 This keeps the existing raw body and room context, but gives workers a denser, more explainable email-native view first.
 
+## Benchmark suite
+
+The local suite now groups scenarios by benchmark surface:
+
+- `emailsum-thread-summarization`
+- `bc3-thread-summary`
+- `radar-action-items`
+- `mailex-event-extraction`
+- `enronsr-reply-alignment`
+
+This keeps testing closer to actual product failure modes:
+
+- summarization
+- owner / commitment / next-action extraction
+- event trigger and temporal argument retention
+- reply alignment for outward email drafting
+
 ## Benchmark result
 
-Current deterministic benchmark:
+Current deterministic suite result:
 
-- baseline average reward: `3.17`
-- RL average reward: `3.594`
-- reward lift: `13.375%`
-- baseline coverage: `0.72`
-- RL coverage: `0.76`
-- coverage lift: `5.556%`
+- baseline average reward: `2.891`
+- RL average reward: `3.657`
+- reward lift: `26.502%`
+- baseline coverage: `0.675`
+- RL coverage: `0.775`
+- coverage lift: `14.815%`
 - explainability score: `0 -> 1`
 
 Interpretation:
 
 - the RL packet keeps more high-value email fields than a fixed heuristic order
-- the gain is strongest on write-heavy cases with decisions, commitments, and attachments
+- the gain is strongest on action-item and summary-style cases after tuning commitment and next-action extraction
 - explainability improves materially because every retained field now carries a policy reason
+
+Per-benchmark highlights:
+
+- EmailSum: reward lift `350%`, coverage lift `200%`
+- RADAR: reward lift `41.729%`, coverage lift `14.286%`
+- EnronSR: reward lift `20.326%`, coverage lift `14.286%`
 
 Run it locally:
 
@@ -92,10 +115,40 @@ pnpm benchmark:email-rl
 pnpm benchmark:email-rl:json
 ```
 
+## Repeated experiment loop
+
+The repo now includes a sweep runner for repeated experiments and parameter search.
+
+It searches over:
+
+- `gamma`
+- `supportPenalty`
+- `behaviorPenalty`
+- `similarityFloor`
+- field budgets for `write`, `read`, and `explain`
+
+Current sweep result across 432 experiments:
+
+- best config: `gamma 0.6 | supportPenalty 0.1 | behaviorPenalty 0.04 | similarityFloor 0.45 | fields 4/3/4`
+- best reward: `3.548`
+- best coverage: `0.75`
+- reward lift: `33.302%`
+- coverage lift: `20%`
+
+Run it locally:
+
+```bash
+pnpm benchmark:email-rl:sweep
+pnpm benchmark:email-rl:sweep:json
+mailctl benchmark email-rl-sweep
+```
+
+Artifacts are written to `output/benchmarks/email-rl-sweep/artifacts/`.
+
 ## Current limits
 
 - The built-in policy still trains on seed trajectories, not imported Enron/Avocado traces yet.
-- Coverage lift is smaller than reward lift because some scenarios already have strong baseline recall.
+- Event-extraction style cases are now stable, but not yet clearly above baseline.
 - We still need a JSONL importer that converts external corpora into MailClaws trajectory format.
 
 ## Next step

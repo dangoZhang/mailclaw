@@ -290,6 +290,57 @@ describe("mailctl", () => {
     });
   });
 
+  it("runs the email-rl benchmark without requiring a runtime", async () => {
+    const stdout = createWritableBuffer();
+    const stderr = createWritableBuffer();
+
+    const exitCode = await runMailctl(["benchmark", "email-rl"], {
+      stdout: stdout.stream,
+      stderr: stderr.stream
+    });
+
+    expect(exitCode).toBe(0);
+    expect(stderr.read()).toBe("");
+    expect(stdout.read()).toContain("Email Offline RL Benchmark");
+    expect(stdout.read()).toContain("Benchmark summaries");
+
+    const jsonStdout = createWritableBuffer();
+    const jsonExitCode = await runMailctl(["--json", "benchmark", "email-rl", "radar-action-items"], {
+      stdout: jsonStdout.stream,
+      stderr: stderr.stream
+    });
+
+    expect(jsonExitCode).toBe(0);
+    expect(JSON.parse(jsonStdout.read())).toMatchObject({
+      benchmarkIds: ["radar-action-items"],
+      benchmarks: expect.arrayContaining([
+        expect.objectContaining({
+          benchmarkId: "radar-action-items"
+        })
+      ])
+    });
+  });
+
+  it("runs the email-rl sweep and writes artifacts without requiring a runtime", async () => {
+    const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), "mailclaws-email-rl-sweep-cli-"));
+    tempDirs.push(outputDir);
+    const stdout = createWritableBuffer();
+    const stderr = createWritableBuffer();
+
+    const exitCode = await runMailctl(
+      ["benchmark", "email-rl-sweep", outputDir, "radar-action-items,mailex-event-extraction"],
+      {
+        stdout: stdout.stream,
+        stderr: stderr.stream
+      }
+    );
+
+    expect(exitCode).toBe(0);
+    expect(stderr.read()).toBe("");
+    expect(stdout.read()).toContain("Email RL Sweep");
+    expect(fs.existsSync(path.join(outputDir, "artifacts", "email-rl-sweep.json"))).toBe(true);
+    expect(fs.existsSync(path.join(outputDir, "artifacts", "email-rl-best-benchmark.md"))).toBe(true);
+  });
   it("lists connect providers without requiring a runtime and renders detailed guidance for a specific provider", async () => {
     const listStdout = createWritableBuffer();
     const listStderr = createWritableBuffer();

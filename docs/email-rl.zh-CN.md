@@ -68,23 +68,46 @@
 - 多智能体先看结构化结果，再看原始正文
 - reviewer / guard 能更快知道哪些事实、决策、约束和风险是这封信真正重要的部分
 
+## Benchmark 套件
+
+本地 benchmark 现在不是单个场景，而是按任务面拆开的 suite：
+
+- `emailsum-thread-summarization`
+- `bc3-thread-summary`
+- `radar-action-items`
+- `mailex-event-extraction`
+- `enronsr-reply-alignment`
+
+这样测试更贴近产品里真正会出问题的面：
+
+- 线程摘要
+- owner / commitment / next action 抽取
+- event trigger 与时间参数保留
+- 对外回信的 reply alignment
+
 ## Benchmark 结果
 
-当前 deterministic benchmark 的结果：
+当前 deterministic suite 的结果：
 
-- baseline average reward：`3.17`
-- RL average reward：`3.594`
-- reward lift：`13.375%`
-- baseline coverage：`0.72`
-- RL coverage：`0.76`
-- coverage lift：`5.556%`
+- baseline average reward：`2.891`
+- RL average reward：`3.657`
+- reward lift：`26.502%`
+- baseline coverage：`0.675`
+- RL coverage：`0.775`
+- coverage lift：`14.815%`
 - explainability score：`0 -> 1`
 
 结论很直接：
 
 - RL packet 比固定字段顺序更会保留高价值 email 信息
-- 提升最明显的是 `write` 场景，尤其是同时出现 decision、commitment、附件证据的时候
+- 这轮提升最明显的是 action-item 和 summary 类场景，尤其是把第三人称 commitment 和 next action 提取补上之后
 - explainability 的提升是实打实的，因为每个保留字段都有策略理由，不再是纯黑盒压缩
+
+按 benchmark 面看，当前最关键的结果是：
+
+- EmailSum：reward lift `350%`，coverage lift `200%`
+- RADAR：reward lift `41.729%`，coverage lift `14.286%`
+- EnronSR：reward lift `20.326%`，coverage lift `14.286%`
 
 本地运行：
 
@@ -93,10 +116,40 @@ pnpm benchmark:email-rl
 pnpm benchmark:email-rl:json
 ```
 
+## 重复实验和优化循环
+
+仓库里现在已经带了一个 sweep runner，用来自动重复实验并搜索更好的参数。
+
+它会搜索这些维度：
+
+- `gamma`
+- `supportPenalty`
+- `behaviorPenalty`
+- `similarityFloor`
+- `write` / `read` / `explain` 的 field budget
+
+当前 sweep 在 432 个实验上的最好结果：
+
+- best config：`gamma 0.6 | supportPenalty 0.1 | behaviorPenalty 0.04 | similarityFloor 0.45 | fields 4/3/4`
+- best reward：`3.548`
+- best coverage：`0.75`
+- reward lift：`33.302%`
+- coverage lift：`20%`
+
+本地运行：
+
+```bash
+pnpm benchmark:email-rl:sweep
+pnpm benchmark:email-rl:sweep:json
+mailctl benchmark email-rl-sweep
+```
+
+artifact 会写到 `output/benchmarks/email-rl-sweep/artifacts/`。
+
 ## 当前边界
 
 - 现在内置策略还是 seed trajectories，不是从 Enron / Avocado 真实轨迹直接训练出来的。
-- coverage 的提升小于 reward 提升，说明固定基线对部分简单场景并不差。
+- event extraction 这类场景已经稳定，但还没有显著超过基线。
 - 下一步最缺的是 importer，把外部 email corpus 转成 MailClaws 的 state/action/reward JSONL。
 
 ## 下一步

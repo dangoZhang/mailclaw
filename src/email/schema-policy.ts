@@ -262,6 +262,56 @@ export const seedEmailTrajectoryEpisodes: EmailTrajectoryEpisode[] = [
         ["next_action", 0.41]
       ]
     )
+  },
+  {
+    episodeId: "read-action-items-owner-list",
+    steps: buildEpisodeSteps(
+      {
+        mode: "read",
+        hasExplicitAsk: true,
+        hasQuestion: false,
+        hasDeadline: true,
+        hasDecision: false,
+        hasCommitment: true,
+        hasAttachments: true,
+        hasConstraints: false,
+        hasRisks: false,
+        multiPartyThread: true,
+        hasOpenQuestions: false
+      },
+      [
+        ["commitment", 1.21],
+        ["next_action", 1.11],
+        ["stakeholder", 0.98],
+        ["deadline", 0.83],
+        ["artifact", 0.76]
+      ]
+    )
+  },
+  {
+    episodeId: "explain-owner-handoff",
+    steps: buildEpisodeSteps(
+      {
+        mode: "explain",
+        hasExplicitAsk: true,
+        hasQuestion: false,
+        hasDeadline: true,
+        hasDecision: false,
+        hasCommitment: true,
+        hasAttachments: true,
+        hasConstraints: false,
+        hasRisks: false,
+        multiPartyThread: true,
+        hasOpenQuestions: false
+      },
+      [
+        ["commitment", 1.18],
+        ["next_action", 1.06],
+        ["stakeholder", 0.9],
+        ["artifact", 0.82],
+        ["deadline", 0.74]
+      ]
+    )
   }
 ];
 
@@ -282,13 +332,16 @@ const emailFieldLabels: Record<EmailActionKey, string> = {
 };
 
 const stylePattern = /\b(concise|brief|short|one sentence|bullet|customer-ready|formal|friendly|reply all|internal only)\b/i;
-const askPattern = /\b(can you|could you|would you|please|need you to|need to|send|share|confirm|review|update|reply|prepare)\b/i;
+const askPattern = /\b(can you|could you|would you|please|need you to|send|share|confirm|review|update|reply|prepare)\b/i;
 const deadlinePattern =
   /\b(today|tomorrow|tonight|eod|end of day|this week|next week|by [a-z]+day|by \d{4}-\d{2}-\d{2}|by [a-z]{3,9} \d{1,2}|\d{4}-\d{2}-\d{2}|monday|tuesday|wednesday|thursday|friday|saturday|sunday|jan(?:uary)? \d{1,2}|feb(?:ruary)? \d{1,2}|mar(?:ch)? \d{1,2}|apr(?:il)? \d{1,2}|may \d{1,2}|jun(?:e)? \d{1,2}|jul(?:y)? \d{1,2}|aug(?:ust)? \d{1,2}|sep(?:tember)? \d{1,2}|oct(?:ober)? \d{1,2}|nov(?:ember)? \d{1,2}|dec(?:ember)? \d{1,2})\b/i;
-const decisionPattern = /\b(approved|approve|approved|decided|decision|confirmed|confirm|signed off|accepted|agreed)\b/i;
-const commitmentPattern = /\b(i will|we will|i'll|we'll|we can|owner:|take over|follow up|send the|prepare the)\b/i;
+const decisionPattern = /\b(approved|decided|decision|confirmed|signed off|accepted|agreed|finalized)\b/i;
+const commitmentPattern =
+  /\b(?:i|we|team|[A-Z][a-z]+(?: [A-Z][a-z]+)?)\s+(?:will|needs to|owns|is going to|can)\b|\b(owner:|take over|follow up|send the|prepare the)\b/;
 const constraintPattern = /\b(must|should not|do not|don't|without|only|required|required to|no later than|keep it|avoid)\b/i;
 const riskPattern = /\b(risk|blocker|issue|concern|escalat|dependency|waiting on|unclear)\b/i;
+const nextActionPattern =
+  /\b(next action|follow up|send|share|confirm|review|update|reply|prepare|take over|owner list|needs to|will)\b/i;
 
 export function buildEmailSemanticPacket(input: EmailSemanticPacketInput): EmailSemanticPacket {
   const candidates = extractEmailSchemaCandidates(input);
@@ -376,7 +429,7 @@ export function extractEmailSchemaCandidates(input: EmailSemanticPacketInput): E
     [
       ...(input.preSnapshot?.requestedActions ?? []),
       ...(input.preSnapshot?.commitments ?? []).map((commitment) => commitment.action),
-      ...sentences.filter((sentence) => askPattern.test(sentence))
+      ...sentences.filter((sentence) => nextActionPattern.test(sentence) || commitmentPattern.test(sentence))
     ].filter((entry) => entry.trim().length > 0)
   );
 
